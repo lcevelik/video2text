@@ -30,7 +30,7 @@ class TranscriptionApp:
             root: Tkinter root window
         """
         self.root = root
-        self.root.title("Video to Text - Whisper Transcription")
+        self.root.title("Video/Audio to Text - Whisper Transcription")
         self.root.geometry("900x800")
         self.root.resizable(True, True)
         
@@ -96,7 +96,7 @@ class TranscriptionApp:
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
         
         # File selection
-        file_frame = ttk.LabelFrame(main_frame, text="Video File", padding="10")
+        file_frame = ttk.LabelFrame(main_frame, text="Media File (Video or Audio)", padding="10")
         file_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         file_frame.columnconfigure(1, weight=1)
         
@@ -144,10 +144,66 @@ class TranscriptionApp:
         )
         help_button.grid(row=0, column=3, padx=5)
         
+        # Language selection
+        language_frame = ttk.LabelFrame(main_frame, text="Language", padding="10")
+        language_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(language_frame, text="Language:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        
+        # Common languages supported by Whisper (99 total, showing most common)
+        self.languages = {
+            "Auto-detect": None,
+            "English": "en",
+            "Spanish": "es",
+            "French": "fr",
+            "German": "de",
+            "Italian": "it",
+            "Portuguese": "pt",
+            "Russian": "ru",
+            "Japanese": "ja",
+            "Korean": "ko",
+            "Chinese (Mandarin)": "zh",
+            "Arabic": "ar",
+            "Dutch": "nl",
+            "Polish": "pl",
+            "Turkish": "tr",
+            "Swedish": "sv",
+            "Norwegian": "no",
+            "Finnish": "fi",
+            "Greek": "el",
+            "Czech": "cs",
+            "Hungarian": "hu",
+            "Romanian": "ro",
+            "Hindi": "hi",
+            "Thai": "th",
+            "Vietnamese": "vi",
+            "Indonesian": "id",
+            "Hebrew": "he",
+            "Ukrainian": "uk",
+            "Catalan": "ca",
+            "Danish": "da"
+        }
+        
+        self.language_var = tk.StringVar(value="Auto-detect")
+        language_combo = ttk.Combobox(
+            language_frame,
+            textvariable=self.language_var,
+            values=list(self.languages.keys()),
+            state="readonly",
+            width=25
+        )
+        language_combo.grid(row=0, column=1, sticky=tk.W, padx=5)
+        
+        ttk.Label(
+            language_frame,
+            text="(Auto-detect recommended for multilingual content)",
+            foreground="gray",
+            font=("Arial", 8)
+        ).grid(row=0, column=2, sticky=tk.W, padx=5)
         
         # Output format
         format_frame = ttk.LabelFrame(main_frame, text="Output Format", padding="10")
-        format_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        format_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         
         self.format_var = tk.StringVar(value="txt")
         ttk.Radiobutton(
@@ -166,7 +222,7 @@ class TranscriptionApp:
         
         # Instructions/Prompt field for speaker recognition
         instructions_frame = ttk.LabelFrame(main_frame, text="Instructions for Transcription (Optional)", padding="10")
-        instructions_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        instructions_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         instructions_frame.columnconfigure(0, weight=1)
         
         ttk.Label(
@@ -207,7 +263,7 @@ class TranscriptionApp:
         
         # Control buttons
         control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=5, column=0, columnspan=3, pady=10)
+        control_frame.grid(row=6, column=0, columnspan=3, pady=10)
         
         self.start_button = ttk.Button(
             control_frame,
@@ -236,7 +292,7 @@ class TranscriptionApp:
         
         # Progress bar
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        progress_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         progress_frame.columnconfigure(0, weight=1)
         
         self.progress_var = tk.StringVar(value="Ready")
@@ -263,10 +319,10 @@ class TranscriptionApp:
         
         # Transcription text area
         text_frame = ttk.LabelFrame(main_frame, text="Transcription", padding="10")
-        text_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        text_frame.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         text_frame.columnconfigure(0, weight=1)
         text_frame.rowconfigure(0, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         
         self.text_area = scrolledtext.ScrolledText(
             text_frame,
@@ -285,7 +341,7 @@ class TranscriptionApp:
             relief=tk.SUNKEN,
             anchor=tk.W
         )
-        status_bar.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(5, 0))
+        status_bar.grid(row=9, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(5, 0))
     
     def on_model_change(self, event=None):
         """Handle model selection change."""
@@ -319,38 +375,51 @@ Current Device: {device_name}
         messagebox.showinfo(f"Model Information: {model_size.upper()}", help_text)
     
     def browse_file(self):
-        """Open file browser to select video file."""
+        """Open file browser to select video or audio file."""
+        from audio_extractor import AudioExtractor
+        
+        # Build file type filter
+        video_exts = " ".join([f"*{ext}" for ext in AudioExtractor.SUPPORTED_VIDEO_FORMATS])
+        audio_exts = " ".join([f"*{ext}" for ext in AudioExtractor.SUPPORTED_AUDIO_FORMATS])
+        all_exts = video_exts + " " + audio_exts
+        
         file_path = filedialog.askopenfilename(
-            title="Select Video File",
+            title="Select Video or Audio File",
             filetypes=[
-                ("Video files", "*.mp4 *.avi *.mov *.mkv *.flv *.wmv *.webm *.m4v"),
+                ("All supported media", all_exts),
+                ("Video files", video_exts),
+                ("Audio files", audio_exts),
                 ("All files", "*.*")
             ]
         )
         
         if file_path:
-            self.video_path = file_path
-            self.file_label.config(text=Path(file_path).name, foreground="black")
+            self.video_path = file_path  # Keep variable name for backward compatibility
+            file_name = Path(file_path).name
+            self.file_label.config(text=file_name, foreground="black")
             self.start_button.config(state=tk.NORMAL)
-            self.status_var.set(f"File selected: {Path(file_path).name}")
-            logger.info(f"Selected video file: {file_path}")
             
-            # Get video duration
+            # Determine file type
+            file_type = "audio" if self.audio_extractor.is_audio_file(file_path) else "video"
+            self.status_var.set(f"{file_type.capitalize()} file selected: {file_name}")
+            logger.info(f"Selected {file_type} file: {file_path}")
+            
+            # Get media duration (works for both video and audio)
             try:
-                self.video_duration = self.audio_extractor.get_video_duration(file_path)
+                self.video_duration = self.audio_extractor.get_media_duration(file_path)
                 if self.video_duration:
                     duration_str = Transcriber._format_estimated_time(self.video_duration)
-                    self.status_var.set(f"File selected: {Path(file_path).name} ({duration_str})")
+                    self.status_var.set(f"{file_type.capitalize()} file selected: {file_name} ({duration_str})")
                 else:
-                    self.status_var.set(f"File selected: {Path(file_path).name} (duration unknown)")
+                    self.status_var.set(f"{file_type.capitalize()} file selected: {file_name} (duration unknown)")
             except Exception as e:
-                logger.warning(f"Could not get video duration: {e}")
+                logger.warning(f"Could not get {file_type} duration: {e}")
                 self.video_duration = None
     
     def start_transcription(self):
         """Start the transcription process in a separate thread."""
         if not self.video_path:
-            messagebox.showerror("Error", "Please select a video file first.")
+            messagebox.showerror("Error", "Please select a video or audio file first.")
             return
         
         if self.is_transcribing:
@@ -393,14 +462,17 @@ Current Device: {device_name}
         }
         
         try:
-            # Step 1: Extract audio
-            self.update_progress("Extracting audio from video...", 5)
+            # Step 1: Extract/prepare audio
+            file_type = "audio" if self.audio_extractor.is_audio_file(self.video_path) else "video"
+            action = "Converting audio" if file_type == "audio" else "Extracting audio from video"
+            self.update_progress(f"{action}...", 5)
             timing_data['extraction_start'] = time.time()
             self.audio_path = self.audio_extractor.extract_audio(self.video_path)
             timing_data['extraction_end'] = time.time()
             extraction_time = timing_data['extraction_end'] - timing_data['extraction_start']
-            logger.info(f"Audio extraction completed in {extraction_time:.2f} seconds")
-            self.update_progress("Audio extraction completed", 15)
+            action_completed = "conversion" if file_type == "audio" else "extraction"
+            logger.info(f"Audio {action_completed} completed in {extraction_time:.2f} seconds")
+            self.update_progress(f"Audio {action_completed} completed", 15)
             
             # Step 2: Initialize transcriber with selected model
             model_size = self.model_var.get()
@@ -486,9 +558,19 @@ Current Device: {device_name}
             progress_thread = threading.Thread(target=update_progress_thread, daemon=True)
             progress_thread.start()
             
+            # Get selected language
+            selected_language_name = self.language_var.get()
+            selected_language_code = self.languages.get(selected_language_name, None)
+            
+            if selected_language_code:
+                logger.info(f"Transcribing with language: {selected_language_name} ({selected_language_code})")
+            else:
+                logger.info("Transcribing with auto language detection")
+            
             try:
                 self.transcription_result = self.transcriber.transcribe(
                     self.audio_path,
+                    language=selected_language_code,  # Pass selected language (None = auto-detect)
                     initial_prompt=instructions,
                     progress_callback=None  # Don't use callback, use thread instead
                 )
@@ -510,10 +592,11 @@ Current Device: {device_name}
             device_name = f"GPU ({torch.cuda.get_device_name(0)})" if device == 'cuda' else "CPU"
             
             # Log detailed timing information
+            file_type = "audio" if self.audio_extractor.is_audio_file(self.video_path) else "video"
             logger.info("="*60)
             logger.info("TRANSCRIPTION TIMING SUMMARY")
             logger.info("="*60)
-            logger.info(f"Video duration: {self.video_duration:.2f} seconds ({self.video_duration/60:.2f} minutes)" if self.video_duration else "Video duration: Unknown")
+            logger.info(f"{file_type.capitalize()} duration: {self.video_duration:.2f} seconds ({self.video_duration/60:.2f} minutes)" if self.video_duration else f"{file_type.capitalize()} duration: Unknown")
             logger.info(f"Model: {model_size}")
             logger.info(f"Device: {device_name}")
             logger.info(f"Model already loaded: {model_loaded}")
@@ -559,30 +642,57 @@ Current Device: {device_name}
         """Display transcription results in the text area."""
         if self.transcription_result:
             text = self.transcription_result.get('text', '')
+            detected_language = self.transcription_result.get('language', 'unknown')
+            
             self.text_area.delete(1.0, tk.END)
             self.text_area.insert(1.0, text)
             self.save_button.config(state=tk.NORMAL)
             
+            # Log detected language
+            if detected_language != 'unknown':
+                logger.info(f"Detected language: {detected_language}")
+                # Find language name from code
+                language_name = "Unknown"
+                for name, code in self.languages.items():
+                    if code == detected_language:
+                        language_name = name
+                        break
+                logger.info(f"Detected language name: {language_name}")
+            
+            # Get language name for display
+            language_name = "Unknown"
+            if detected_language != 'unknown':
+                for name, code in self.languages.items():
+                    if code == detected_language:
+                        language_name = name
+                        break
+            
             # Display timing information
             if total_time:
                 time_str = Transcriber._format_estimated_time(total_time)
+                
+                # Build language info string
+                language_info = f" | Language: {language_name}" if detected_language != 'unknown' else ""
+                
                 if self.video_duration and self.transcription_time:
                     realtime_factor = self.video_duration / self.transcription_time
-                    status_msg = f"Completed in {time_str} | Speed: {realtime_factor:.1f}x real-time | Check log for details"
+                    status_msg = f"Completed in {time_str} | Speed: {realtime_factor:.1f}x real-time{language_info} | Check log for details"
                     # Also show a brief info message
                     messagebox.showinfo(
                         "Transcription Complete",
                         f"Transcription completed successfully!\n\n"
                         f"Total time: {time_str}\n"
-                        f"Processing speed: {realtime_factor:.1f}x real-time\n\n"
+                        f"Processing speed: {realtime_factor:.1f}x real-time\n"
+                        f"Detected language: {language_name}\n\n"
                         f"Detailed timing information has been logged.\n"
                         f"Check 'transcription.log' for full analysis."
                     )
                 else:
-                    status_msg = f"Completed in {time_str} | Check log for details"
+                    status_msg = f"Completed in {time_str}{language_info} | Check log for details"
                 self.status_var.set(status_msg)
             else:
-                self.status_var.set("Transcription completed successfully")
+                language_info = f" | Language: {language_name}" if detected_language != 'unknown' else ""
+                self.status_var.set(f"Transcription completed successfully{language_info}")
         
         self._transcription_finished()
     

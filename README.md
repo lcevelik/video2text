@@ -1,11 +1,12 @@
 # Video to Text Transcription Application
 
-A desktop application that transcribes audio from video files using OpenAI's Whisper model running locally. Supports multiple video formats and provides a user-friendly GUI for easy transcription.
+A desktop application that transcribes audio from video files or audio files directly using OpenAI's Whisper model running locally. Supports multiple video and audio formats and provides a user-friendly GUI for easy transcription.
 
 ## Features
 
 - 🎥 **Multiple Video Formats**: Supports MP4, AVI, MOV, MKV, FLV, WMV, WebM, M4V
-- 🎤 **Audio Extraction**: Automatically extracts audio from video files using ffmpeg
+- 🎵 **Multiple Audio Formats**: Supports MP3, WAV, M4A, FLAC, OGG, WMA, AAC, OPUS, MP2
+- 🎤 **Audio Processing**: Automatically extracts audio from video files or converts audio files to optimal format using ffmpeg
 - 🤖 **Whisper Integration**: Uses OpenAI Whisper for high-quality transcription
 - 🚀 **GPU Acceleration**: Automatically uses GPU (CUDA) if available, falls back to CPU
 - 📊 **Progress Tracking**: Real-time progress updates during transcription
@@ -162,7 +163,7 @@ python main.py
 
 ### Using the Application
 
-1. **Select Video File**: Click "Browse..." to select a video file
+1. **Select Media File**: Click "Browse..." to select a video or audio file
 2. **Choose Model Size**: Select a Whisper model from the dropdown:
    - **tiny**: Fastest, least accurate (good for quick tests)
    - **base**: Balanced speed/accuracy (recommended for most users)
