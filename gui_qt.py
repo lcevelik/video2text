@@ -36,9 +36,10 @@ class RecordingWorker(QThread):
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
 
-    def __init__(self, parent=None):
+    def __init__(self, output_dir, parent=None):
         super().__init__(parent)
         self.is_recording = True
+        self.output_dir = Path(output_dir)
 
     def stop(self):
         """Stop the recording."""
@@ -50,7 +51,7 @@ class RecordingWorker(QThread):
             import sounddevice as sd
             import numpy as np
             from scipy.io import wavfile
-            import tempfile
+            from datetime import datetime
 
             sample_rate = 16000
             mic_chunks = []
@@ -143,11 +144,15 @@ class RecordingWorker(QThread):
                 else:
                     final_data = mic_data
 
-                # Save to temp file
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                recorded_path = temp_file.name
-                temp_file.close()
+                # Create output directory if it doesn't exist
+                self.output_dir.mkdir(parents=True, exist_ok=True)
 
+                # Generate filename with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"recording_{timestamp}.wav"
+                recorded_path = str(self.output_dir / filename)
+
+                # Save recording
                 final_data_int16 = (final_data * 32767).astype(np.int16)
                 wavfile.write(recorded_path, sample_rate, final_data_int16)
 
@@ -412,7 +417,9 @@ class RecordingDialog(QDialog):
         self.timer.start(1000)
 
         # Start actual recording in QThread worker
-        self.worker = RecordingWorker(self)
+        # Get recordings directory from parent window
+        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "Video2Text" / "Recordings")
+        self.worker = RecordingWorker(recordings_dir, self)
         self.worker.recording_complete.connect(self.on_recording_complete)
         self.worker.recording_error.connect(self.on_recording_error)
         self.worker.start()
@@ -516,6 +523,12 @@ class Video2TextQt(QMainWindow):
         self.setWindowTitle("Video2Text - Whisper Transcription")
         self.setMinimumSize(1000, 700)
 
+        # Config file location
+        self.config_file = Path.home() / ".video2text_config.json"
+
+        # Load settings
+        self.settings = self.load_settings()
+
         # State
         self.video_path = None
         self.transcription_result = None
@@ -525,6 +538,32 @@ class Video2TextQt(QMainWindow):
 
         self.setup_ui()
         self.center_window()
+
+    def load_settings(self):
+        """Load settings from config file."""
+        default_settings = {
+            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings")
+        }
+
+        try:
+            if self.config_file.exists():
+                with open(self.config_file, 'r') as f:
+                    settings = json.load(f)
+                    # Merge with defaults for any missing keys
+                    return {**default_settings, **settings}
+        except Exception as e:
+            logger.warning(f"Could not load settings: {e}")
+
+        return default_settings
+
+    def save_settings(self):
+        """Save settings to config file."""
+        try:
+            with open(self.config_file, 'w') as f:
+                json.dump(self.settings, f, indent=2)
+            logger.info(f"Settings saved to {self.config_file}")
+        except Exception as e:
+            logger.error(f"Could not save settings: {e}")
 
     def setup_ui(self):
         """Setup the main UI."""
@@ -617,6 +656,41 @@ class Video2TextQt(QMainWindow):
         widget.setLayout(layout)
         return widget
 
+    def create_settings_card(self):
+        """Create settings card for recordings directory."""
+        card = Card("⚙️ Recordings Settings")
+
+        # Current directory display
+        dir_label = QLabel("Recordings save to:")
+        dir_label.setStyleSheet("font-size: 12px; color: #666;")
+        card.content_layout.addWidget(dir_label)
+
+        self.recordings_dir_display = QLabel(self.settings["recordings_dir"])
+        self.recordings_dir_display.setStyleSheet(
+            "font-size: 13px; color: #2196F3; padding: 8px; "
+            "background-color: #E3F2FD; border-radius: 4px;"
+        )
+        self.recordings_dir_display.setWordWrap(True)
+        card.content_layout.addWidget(self.recordings_dir_display)
+
+        # Buttons row
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        # Change directory button
+        change_dir_btn = ModernButton("📂 Change Folder")
+        change_dir_btn.clicked.connect(self.change_recordings_directory)
+        btn_row.addWidget(change_dir_btn)
+
+        # Open folder button
+        open_folder_btn = ModernButton("🗂️ Open Folder")
+        open_folder_btn.clicked.connect(self.open_recordings_folder)
+        btn_row.addWidget(open_folder_btn)
+
+        card.content_layout.addLayout(btn_row)
+
+        return card
+
     def create_basic_mode(self):
         """Create basic mode interface."""
         widget = QWidget()
@@ -640,6 +714,10 @@ class Video2TextQt(QMainWindow):
         self.drop_zone = DropZone()
         self.drop_zone.file_dropped.connect(self.load_file)
         layout.addWidget(self.drop_zone)
+
+        # Settings card
+        settings_card = self.create_settings_card()
+        layout.addWidget(settings_card)
 
         # File info
         self.basic_file_label = QLabel("No file selected")
@@ -986,7 +1064,7 @@ class Video2TextQt(QMainWindow):
         logger.info("Started basic mode recording")
 
         # Start actual recording in QThread worker
-        self.recording_worker = RecordingWorker(self)
+        self.recording_worker = RecordingWorker(self.settings["recordings_dir"], self)
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
         self.recording_worker.start()
@@ -1048,6 +1126,55 @@ class Video2TextQt(QMainWindow):
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
         self.recording_duration_label.hide()
+
+    def change_recordings_directory(self):
+        """Open dialog to change recordings directory."""
+        current_dir = self.settings["recordings_dir"]
+        new_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Select Recordings Folder",
+            current_dir,
+            QFileDialog.ShowDirsOnly
+        )
+
+        if new_dir:
+            self.settings["recordings_dir"] = new_dir
+            self.recordings_dir_display.setText(new_dir)
+            self.save_settings()
+            logger.info(f"Recordings directory changed to: {new_dir}")
+            QMessageBox.information(
+                self,
+                "Settings Updated",
+                f"Recordings will now be saved to:\n{new_dir}"
+            )
+
+    def open_recordings_folder(self):
+        """Open the recordings folder in the system file explorer."""
+        recordings_dir = Path(self.settings["recordings_dir"])
+
+        # Create directory if it doesn't exist
+        recordings_dir.mkdir(parents=True, exist_ok=True)
+
+        # Open in file explorer (cross-platform)
+        import subprocess
+        import platform
+
+        try:
+            if platform.system() == "Windows":
+                os.startfile(str(recordings_dir))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", str(recordings_dir)])
+            else:  # Linux
+                subprocess.run(["xdg-open", str(recordings_dir)])
+
+            logger.info(f"Opened recordings folder: {recordings_dir}")
+        except Exception as e:
+            logger.error(f"Could not open recordings folder: {e}")
+            QMessageBox.warning(
+                self,
+                "Could Not Open Folder",
+                f"Please navigate manually to:\n{recordings_dir}"
+            )
 
     def show_recording_dialog(self):
         """Show recording dialog (Advanced Mode only)."""
