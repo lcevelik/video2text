@@ -16,9 +16,10 @@ This is the **modern Qt-based interface** for Video2Text, built with PySide6 for
 - 🎨 **Content-Focused** - Maximum screen space for what matters
 - 🖱️ **Intuitive** - Simple, direct interactions
 
-### **Smart Defaults**
-- 🚀 **Large Model** - Best accuracy out-of-the-box
-- 🌐 **Deep Multi-Language** - TRUE code-switching support enabled by default
+### **Fully Automatic**
+- 🤖 **Zero Configuration** - No settings to adjust
+- 🚀 **Optimal Models** - Automatically uses best models for accuracy
+- 🌐 **Two-Pass Detection** - TRUE code-switching support (Czech ↔ English)
 - ⚡ **Auto-Transcribe** - Drop files and start immediately
 - 🔄 **Auto-Navigation** - Switches to results when done
 
@@ -111,21 +112,17 @@ Clean, minimal, content-focused.
 
 **What you see:**
 - Drag and drop zone
-- Transcription Settings card
 - Progress bar
 
-**Transcription Settings:**
-- **Whisper Model** dropdown (default: large)
-  - Options: tiny, base, small, medium, large
-  - ℹ️ Larger models = more accurate for multi-language
-- **Deep multi-language scanning** checkbox (default: ✓ checked)
-  - Re-transcribes each segment individually
-  - Perfect for code-switching (Czech ↔ English ↔ Czech)
-  - ⏱️ Slower but handles language mixing correctly
+**How it works:**
+- **Fully automatic** - No settings to configure!
+- Uses optimal configuration for multi-language transcription
+- Two-pass detection: Fast language detection + Accurate transcription
+- Perfect for code-switching (Czech ↔ English ↔ Czech)
 
 **How to use:**
 1. Drag and drop your video/audio file (or click to browse)
-2. Transcription starts automatically
+2. Transcription starts automatically with optimal settings
 3. Progress updates in real-time
 4. Auto-navigates to Transcript tab when done
 
@@ -182,11 +179,11 @@ Click the **☰** button (top-right) to access all settings:
 
 ## 🌐 Multi-Language Transcription
 
-### **Deep Scanning (Default: Enabled)**
+### **Two-Pass Detection (Always Enabled)**
 
-**How it works:**
-1. First pass: Gets segment timing
-2. Second pass: Re-transcribes each segment individually
+**Automatic optimization for code-switching:**
+1. **Pass 1 (Fast Detection):** Uses base model to quickly detect language boundaries
+2. **Pass 2 (Accurate Transcription):** Uses large model to transcribe each segment precisely
 3. Each segment detected in its correct language
 4. All segments combined into one complete transcription
 
@@ -218,22 +215,15 @@ English, Spanish, French, German, Polish, Czech, Italian, Portuguese, Dutch, Rus
 
 ---
 
-## 🔧 Model Selection
+## 🤖 Automatic Optimization
 
-**Available Models:**
+**No configuration needed!** The app automatically uses:
 
-| Model | Size | Speed | Accuracy | Recommended For |
-|-------|------|-------|----------|-----------------|
-| tiny | ~39 MB | ⚡⚡⚡⚡⚡ | ⭐⭐ | Quick tests |
-| base | ~74 MB | ⚡⚡⚡⚡ | ⭐⭐⭐ | Simple transcription |
-| small | ~244 MB | ⚡⚡⚡ | ⭐⭐⭐⭐ | Better accuracy |
-| medium | ~769 MB | ⚡⚡ | ⭐⭐⭐⭐⭐ | High accuracy |
-| **large** | ~3 GB | ⚡ | ⭐⭐⭐⭐⭐⭐ | **Multi-language (default)** |
+- **Detection:** Base model (~74 MB) - Fast language boundary detection
+- **Transcription:** Large model (~3 GB) - Best accuracy for multi-language
+- **Mode:** Two-pass deep scanning - Perfect for code-switching
 
-**Default: large** - Best for multi-language transcription
-
-**Change model:**
-Upload Tab → Transcription Settings → Whisper Model dropdown
+The system downloads models automatically on first use. Subsequent uses are instant.
 
 ---
 
@@ -269,18 +259,13 @@ Upload Tab → Transcription Settings → Whisper Model dropdown
 
 ## 💡 Tips & Tricks
 
-### **For Best Multi-Language Results:**
-- Use **large** model (default)
-- Keep **deep scanning enabled** (default)
+### **For Best Results:**
 - Speak clearly with pauses between language switches
 - Good audio quality = better detection
-
-### **For Faster Transcription:**
-- Use **tiny** or **base** model
-- Disable deep scanning (uncheck checkbox)
-- Good for single-language content
+- Use high-quality source files when possible
 
 ### **For Long Recordings:**
+- Transcription is fully automatic with optimal settings
 - Progress updates every few seconds
 - Don't close the application during transcription
 - Large model may take several minutes
@@ -322,16 +307,16 @@ Upload Tab → Transcription Settings → Whisper Model dropdown
 - **Linux**: Ensure ALSA/PulseAudio is configured
 
 ### **Transcription is Slow**
-- Large model takes longer (expected)
-- Deep scanning re-transcribes each segment (expected)
-- Try smaller model for faster results
+- Two-pass transcription takes time (expected for accuracy)
+- Large model ensures best multi-language results
+- First transcription downloads models (~3.1 GB total)
 - Check CPU/GPU usage
 
 ### **Wrong Language Detected**
-- Ensure deep scanning is enabled
-- Try larger model
+- Automatic two-pass detection should handle most cases
 - Check audio quality
 - Verify speakers are clear
+- Ensure clear pauses between language switches
 
 ### **Theme Not Changing**
 - Check Menu → Settings → Theme selection
