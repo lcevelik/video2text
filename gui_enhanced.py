@@ -818,6 +818,21 @@ then upgrades to larger models if quality is insufficient.
                 dialog.after(1000, update_duration)
 
         def start_record():
+            # Check if audio devices are available first
+            try:
+                import sounddevice as sd
+                devices = sd.query_devices()
+                has_input = any(d['max_input_channels'] > 0 for d in devices)
+
+                if not has_input:
+                    status_label.config(
+                        text="❌ No audio input devices found! Please connect a microphone.",
+                        foreground="red"
+                    )
+                    return
+            except Exception as e:
+                logger.error(f"Error checking audio devices: {e}")
+
             recording_active[0] = True
             start_time[0] = time.time()
             status_label.config(text="🔴 Recording from Microphone + Speaker...", foreground="red")
@@ -910,15 +925,48 @@ then upgrades to larger models if quality is insufficient.
             mic_chunks = []
             speaker_chunks = []
 
+            # Find microphone device (default or first available input device)
+            mic_device = None
+
+            try:
+                default_input = sd.default.device[0]
+                if default_input is not None and default_input >= 0:
+                    # Verify the default device has input channels
+                    if devices[default_input]['max_input_channels'] > 0:
+                        mic_device = default_input
+                        logger.info(f"Using default microphone: {devices[default_input]['name']} (index {default_input})")
+            except Exception as e:
+                logger.warning(f"Could not get default device: {e}")
+
+            # If no valid default, find first available input device
+            if mic_device is None:
+                logger.info("No valid default microphone, searching for available input devices...")
+                for idx, device in enumerate(devices):
+                    if device['max_input_channels'] > 0:
+                        # Skip loopback devices for microphone
+                        device_name_lower = device['name'].lower()
+                        if not any(keyword in device_name_lower for keyword in
+                                 ['stereo mix', 'loopback', 'monitor', 'what u hear', 'wave out', 'blackhole']):
+                            mic_device = idx
+                            logger.info(f"Using microphone: {device['name']} (index {idx})")
+                            break
+
+            if mic_device is None:
+                error_msg = "No microphone device found! Please check your audio device connections."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
             # Try to find loopback/stereo mix device for system audio
             loopback_device = None
-            default_input = sd.default.device[0]  # Default microphone
 
             # Look for loopback devices (Windows: Stereo Mix, Linux: Monitor, Mac: varies)
             for idx, device in enumerate(devices):
+                if idx == mic_device:  # Skip the mic device
+                    continue
+
                 device_name_lower = device['name'].lower()
                 if any(keyword in device_name_lower for keyword in
-                       ['stereo mix', 'loopback', 'monitor', 'what u hear', 'wave out']):
+                       ['stereo mix', 'loopback', 'monitor', 'what u hear', 'wave out', 'blackhole']):
                     if device['max_input_channels'] > 0:
                         loopback_device = idx
                         logger.info(f"Found loopback device: {device['name']} (index {idx})")
@@ -950,9 +998,9 @@ then upgrades to larger models if quality is insufficient.
 
             try:
                 # Open microphone stream
-                logger.info(f"Opening microphone stream (device {default_input})")
+                logger.info(f"Opening microphone stream (device {mic_device})")
                 mic_stream = sd.InputStream(
-                    device=default_input,
+                    device=mic_device,
                     samplerate=sample_rate,
                     channels=1,
                     callback=mic_callback
@@ -1075,7 +1123,16 @@ then upgrades to larger models if quality is insufficient.
         except Exception as e:
             error_msg = f"Recording error: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            self.root.after(0, lambda: status_label.config(text=error_msg, foreground="red"))
+
+            # Format user-friendly error message
+            if "device" in str(e).lower():
+                user_msg = "❌ Audio device error. Please check:\n1. Microphone is connected\n2. Audio drivers are installed\n3. Permissions are granted"
+            elif "no microphone" in str(e).lower():
+                user_msg = "❌ No microphone found. Please connect a microphone and try again."
+            else:
+                user_msg = f"❌ Recording error: {str(e)}"
+
+            self.root.after(0, lambda: status_label.config(text=user_msg, foreground="red"))
             self.root.after(0, lambda: duration_label.config(text="❌ Failed", foreground="red"))
 
     def _record_audio(self, source: str, recording_active: list, status_label):
