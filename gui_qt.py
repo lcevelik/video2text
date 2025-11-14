@@ -709,7 +709,6 @@ class Video2TextQt(QMainWindow):
         self.video_path = None
         self.transcription_result = None
         self.transcription_worker = None  # QThread worker for transcription
-        self.current_mode = "basic"
         self.is_dark_mode = self.settings.get("dark_mode", False)
 
         self.setup_ui()
@@ -818,11 +817,9 @@ class Video2TextQt(QMainWindow):
             }}
         """)
 
-        # Update sidebars if they exist
+        # Update sidebar if it exists
         if hasattr(self, 'basic_sidebar'):
             self.update_sidebar_theme(self.basic_sidebar)
-        if hasattr(self, 'adv_sidebar'):
-            self.update_sidebar_theme(self.adv_sidebar)
 
         # Update DropZone theme
         if hasattr(self, 'drop_zone'):
@@ -879,15 +876,9 @@ class Video2TextQt(QMainWindow):
         header = self.create_header()
         layout.addWidget(header)
 
-        # Mode switcher
-        mode_switcher = self.create_mode_switcher()
-        layout.addWidget(mode_switcher)
-
-        # Stacked widget for modes (each mode now contains sidebar + tabs)
-        self.mode_stack = QStackedWidget()
-        self.mode_stack.addWidget(self.create_basic_mode())
-        self.mode_stack.addWidget(self.create_advanced_mode())
-        layout.addWidget(self.mode_stack, 1)
+        # Main content - just the basic mode (no mode switching)
+        basic_mode = self.create_basic_mode()
+        layout.addWidget(basic_mode, 1)
 
         # Status bar
         self.statusBar().showMessage("Ready")
@@ -935,28 +926,6 @@ class Video2TextQt(QMainWindow):
 
         header.setLayout(layout)
         return header
-
-    def create_mode_switcher(self):
-        """Create mode switcher buttons."""
-        widget = QWidget()
-        layout = QHBoxLayout()
-        layout.setSpacing(10)
-
-        self.basic_btn = ModernButton("📱 Basic Mode", primary=True)
-        self.advanced_btn = ModernButton("⚙️ Advanced Mode")
-
-        self.basic_btn.setMinimumWidth(150)
-        self.advanced_btn.setMinimumWidth(150)
-
-        self.basic_btn.clicked.connect(lambda: self.switch_mode("basic"))
-        self.advanced_btn.clicked.connect(lambda: self.switch_mode("advanced"))
-
-        layout.addWidget(self.basic_btn)
-        layout.addWidget(self.advanced_btn)
-        layout.addStretch()
-
-        widget.setLayout(layout)
-        return widget
 
     def create_settings_card(self):
         """Create settings card for recordings directory."""
@@ -1018,11 +987,11 @@ class Video2TextQt(QMainWindow):
         self.basic_sidebar = self.create_sidebar()
         main_layout.addWidget(self.basic_sidebar)
 
-        # Tab content stack
+        # Tab content stack - order: Record, Upload, Transcript
         self.basic_tab_stack = QStackedWidget()
-        self.basic_tab_stack.addWidget(self.create_basic_upload_tab())
-        self.basic_tab_stack.addWidget(self.create_basic_record_tab())
-        self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())
+        self.basic_tab_stack.addWidget(self.create_basic_record_tab())  # Index 0
+        self.basic_tab_stack.addWidget(self.create_basic_upload_tab())  # Index 1
+        self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())  # Index 2
         main_layout.addWidget(self.basic_tab_stack, 1)
 
         # Connect sidebar to tab switching
@@ -1062,14 +1031,14 @@ class Video2TextQt(QMainWindow):
             }}
         """)
 
-        # Add tab items
-        upload_item = QListWidgetItem("📁 Upload")
+        # Add tab items - order: Record, Upload, Transcript
         record_item = QListWidgetItem("🎙️ Record")
+        upload_item = QListWidgetItem("📁 Upload")
         transcript_item = QListWidgetItem("📄 Transcript")
 
-        sidebar.addItem(upload_item)
-        sidebar.addItem(record_item)
-        sidebar.addItem(transcript_item)
+        sidebar.addItem(record_item)  # Index 0
+        sidebar.addItem(upload_item)  # Index 1
+        sidebar.addItem(transcript_item)  # Index 2
 
         # Set first item as selected
         sidebar.setCurrentRow(0)
@@ -1098,6 +1067,49 @@ class Video2TextQt(QMainWindow):
         self.drop_zone.file_dropped.connect(self.on_file_dropped_basic)
         self.drop_zone.clicked.connect(self.browse_file)
         layout.addWidget(self.drop_zone)
+
+        # Settings Card
+        settings_card = Card("⚙️ Transcription Settings", self.is_dark_mode)
+
+        # Model selector
+        model_label = QLabel("Whisper Model:")
+        model_label.setStyleSheet(f"font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(["tiny", "base", "small", "medium", "large"])
+        self.model_combo.setCurrentText("large")  # Default to large for better multi-language
+        self.model_combo.setStyleSheet(f"""
+            QComboBox {{
+                padding: 8px;
+                border: 1px solid {Theme.get('border', self.is_dark_mode)};
+                border-radius: 6px;
+                background-color: {Theme.get('input_bg', self.is_dark_mode)};
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+            }}
+        """)
+
+        model_info = QLabel("ℹ️ Larger models are more accurate for multi-language.\n💡 'large' recommended for code-switching (Czech ↔ English)")
+        model_info.setWordWrap(True)
+        model_info.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
+
+        settings_card.content_layout.addWidget(model_label)
+        settings_card.content_layout.addWidget(self.model_combo)
+        settings_card.content_layout.addWidget(model_info)
+
+        # Deep scanning checkbox
+        self.deep_scan_check = QCheckBox("🔬 Deep multi-language scanning (segment-by-segment)")
+        self.deep_scan_check.setChecked(True)  # Default enabled for TRUE multi-language support
+        self.deep_scan_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px; font-weight: bold;")
+
+        deep_info = QLabel("✅ Enabled: Re-transcribes each segment for accurate language detection.\n"
+                          "Perfect for code-switching (Czech → English → Czech).\n"
+                          "⏱️ Slower but handles language mixing correctly.")
+        deep_info.setWordWrap(True)
+        deep_info.setStyleSheet(f"color: {Theme.get('info', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
+
+        settings_card.content_layout.addWidget(self.deep_scan_check)
+        settings_card.content_layout.addWidget(deep_info)
+
+        layout.addWidget(settings_card)
 
         # Progress section
         self.basic_upload_progress_label = QLabel("Ready to transcribe")
@@ -1246,324 +1258,12 @@ class Video2TextQt(QMainWindow):
         widget.setLayout(layout)
         return widget
 
-    def create_advanced_mode(self):
-        """Create advanced mode interface with sidebar navigation."""
-        # Main container
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        main_layout.setSpacing(0)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Sidebar
-        self.adv_sidebar = self.create_sidebar_advanced()
-        main_layout.addWidget(self.adv_sidebar)
-
-        # Tab content stack
-        self.adv_tab_stack = QStackedWidget()
-        self.adv_tab_stack.addWidget(self.create_adv_upload_tab())
-        self.adv_tab_stack.addWidget(self.create_adv_record_tab())
-        self.adv_tab_stack.addWidget(self.create_adv_transcript_tab())
-        main_layout.addWidget(self.adv_tab_stack, 1)
-
-        # Connect sidebar to tab switching
-        self.adv_sidebar.currentRowChanged.connect(self.adv_tab_stack.setCurrentIndex)
-
-        return container
-
-    def create_sidebar_advanced(self):
-        """Create sidebar navigation widget for advanced mode."""
-        sidebar = QListWidget()
-        sidebar.setMaximumWidth(180)
-        sidebar.setMinimumWidth(180)
-        sidebar.setSpacing(5)
-        sidebar.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
-                border: none;
-                border-right: 1px solid {Theme.get('border', self.is_dark_mode)};
-                padding: 10px;
-                outline: none;
-            }}
-            QListWidget::item {{
-                background-color: transparent;
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border-radius: 8px;
-                padding: 12px 15px;
-                margin: 2px 0px;
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QListWidget::item:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-            QListWidget::item:selected {{
-                background-color: {Theme.get('accent', self.is_dark_mode)};
-                color: white;
-            }}
-        """)
-
-        # Add tab items
-        upload_item = QListWidgetItem("📁 Upload")
-        record_item = QListWidgetItem("🎙️ Record")
-        transcript_item = QListWidgetItem("📄 Transcript")
-
-        sidebar.addItem(upload_item)
-        sidebar.addItem(record_item)
-        sidebar.addItem(transcript_item)
-
-        # Set first item as selected
-        sidebar.setCurrentRow(0)
-
-        return sidebar
-
-    def create_adv_upload_tab(self):
-        """Create Upload tab for Advanced mode."""
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-
-        widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
-
-        # Title
-        title = QLabel("📁 Upload & Configure")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # File selection card
-        file_card = Card("Media File", self.is_dark_mode)
-        file_layout = QHBoxLayout()
-        self.adv_file_label = QLabel("No file selected")
-        self.adv_file_label.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        browse_btn = ModernButton("Browse...")
-        browse_btn.clicked.connect(self.browse_file)
-        file_layout.addWidget(self.adv_file_label, 1)
-        file_layout.addWidget(browse_btn)
-        file_card.content_layout.addLayout(file_layout)
-        layout.addWidget(file_card)
-
-        # Model selection card
-        model_card = Card("Whisper Model", self.is_dark_mode)
-        self.auto_model_check = QRadioButton("🤖 Auto-select model (recommended)")
-        self.auto_model_check.setChecked(True)
-        self.manual_model_check = QRadioButton("Manual selection")
-
-        self.model_combo = QComboBox()
-        self.model_combo.addItems(Transcriber.MODEL_SIZES)
-        self.model_combo.setCurrentText("tiny")
-        self.model_combo.setEnabled(False)
-
-        self.auto_model_check.toggled.connect(lambda checked: self.model_combo.setEnabled(not checked))
-
-        model_card.content_layout.addWidget(self.auto_model_check)
-        model_card.content_layout.addWidget(self.manual_model_check)
-        model_card.content_layout.addWidget(self.model_combo)
-        layout.addWidget(model_card)
-
-        # Language card
-        lang_card = Card("Language Settings", self.is_dark_mode)
-
-        # Language selector
-        lang_label = QLabel("Primary Language:")
-        lang_label.setStyleSheet(f"font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        self.lang_combo = QComboBox()
-        self.lang_combo.addItems(["Auto-detect", "English", "Spanish", "French", "German",
-                                   "Italian", "Portuguese", "Russian", "Japanese", "Korean",
-                                   "Chinese", "Arabic"])
-
-        # Multi-language detection checkbox
-        self.detect_lang_changes_check = QCheckBox("🌍 Detect language changes (for multilingual meetings)")
-        self.detect_lang_changes_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px;")
-        self.detect_lang_changes_check.setChecked(False)
-
-        info_label = QLabel("ℹ️ Enable this for meetings where people speak different languages.\nCreates a timeline showing when each language was spoken.")
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
-
-        # Deep multi-language scanning checkbox (for code-switching)
-        self.deep_multilang_check = QCheckBox("🔬 Deep multi-language scanning (SLOW but accurate)")
-        self.deep_multilang_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px;")
-        self.deep_multilang_check.setChecked(False)
-        self.deep_multilang_check.setEnabled(False)  # Only enabled when detect_lang_changes is on
-
-        # Connect checkbox to enable/disable deep scanning
-        self.detect_lang_changes_check.toggled.connect(self.deep_multilang_check.setEnabled)
-
-        deep_info_label = QLabel("⚠️ Re-transcribes each segment individually for TRUE multi-language support.\n"
-                                 "Use this when people switch languages mid-conversation (code-switching).\n"
-                                 "Example: Czech → English → Czech in same meeting.\n"
-                                 "⏱️ This is MUCH slower but handles language mixing correctly.")
-        deep_info_label.setWordWrap(True)
-        deep_info_label.setStyleSheet(f"color: {Theme.get('warning', self.is_dark_mode)}; font-size: 10px; padding: 5px;")
-
-        lang_card.content_layout.addWidget(lang_label)
-        lang_card.content_layout.addWidget(self.lang_combo)
-        lang_card.content_layout.addWidget(self.detect_lang_changes_check)
-        lang_card.content_layout.addWidget(info_label)
-        lang_card.content_layout.addWidget(self.deep_multilang_check)
-        lang_card.content_layout.addWidget(deep_info_label)
-        layout.addWidget(lang_card)
-
-        # Progress section
-        self.adv_upload_progress_label = QLabel("Ready to transcribe")
-        self.adv_upload_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        layout.addWidget(self.adv_upload_progress_label)
-
-        self.adv_upload_progress_bar = QProgressBar()
-        self.adv_upload_progress_bar.setMinimumHeight(25)
-        layout.addWidget(self.adv_upload_progress_bar)
-
-        # Action button
-        self.adv_start_btn = ModernButton("✨ Start Transcription", primary=True)
-        self.adv_start_btn.setEnabled(False)
-        self.adv_start_btn.setMinimumHeight(45)
-        self.adv_start_btn.clicked.connect(self.start_transcription)
-        layout.addWidget(self.adv_start_btn)
-
-        layout.addStretch()
-        widget.setLayout(layout)
-        scroll.setWidget(widget)
-        return scroll
-
-    def create_adv_record_tab(self):
-        """Create Record tab for Advanced mode."""
-        widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
-
-        # Title
-        title = QLabel("🎙️ Audio Recording")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # Description
-        desc = QLabel("Record audio from both microphone and system speaker")
-        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        layout.addWidget(desc)
-
-        # Recording card
-        record_card = Card("Recording Controls", self.is_dark_mode)
-        record_btn = ModernButton("🎤 Start Recording (Mic + Speaker)", primary=True)
-        record_btn.setMinimumHeight(50)
-        record_btn.clicked.connect(self.show_recording_dialog)
-        record_card.content_layout.addWidget(record_btn)
-
-        info_label = QLabel("Records both microphone and speaker audio simultaneously")
-        info_label.setStyleSheet(f"font-size: 12px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        record_card.content_layout.addWidget(info_label)
-        layout.addWidget(record_card)
-
-        # Settings card
-        settings_card = self.create_settings_card()
-        layout.addWidget(settings_card)
-
-        layout.addStretch()
-        widget.setLayout(layout)
-        return widget
-
-    def create_adv_transcript_tab(self):
-        """Create Transcript tab for Advanced mode."""
-        widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
-
-        # Title
-        title = QLabel("📄 Transcription Result")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # Description
-        self.adv_transcript_desc = QLabel("Your transcription will appear here")
-        self.adv_transcript_desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        layout.addWidget(self.adv_transcript_desc)
-
-        # Output format card
-        format_card = Card("Output Format", self.is_dark_mode)
-        format_layout = QHBoxLayout()
-        self.txt_radio = QRadioButton("Plain Text (.txt)")
-        self.srt_radio = QRadioButton("SRT Subtitles (.srt)")
-        self.vtt_radio = QRadioButton("VTT Subtitles (.vtt)")
-        self.txt_radio.setChecked(True)
-
-        format_layout.addWidget(self.txt_radio)
-        format_layout.addWidget(self.srt_radio)
-        format_layout.addWidget(self.vtt_radio)
-        format_card.content_layout.addLayout(format_layout)
-        layout.addWidget(format_card)
-
-        # Result text
-        self.adv_result_text = QTextEdit()
-        self.adv_result_text.setPlaceholderText("Transcription text will appear here...")
-        self.adv_result_text.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {Theme.get('input_bg', self.is_dark_mode)};
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border: 1px solid {Theme.get('border', self.is_dark_mode)};
-                border-radius: 8px;
-                padding: 15px;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 13px;
-                line-height: 1.6;
-            }}
-        """)
-        layout.addWidget(self.adv_result_text, 1)
-
-        # Action buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-
-        self.adv_save_btn = ModernButton("💾 Save Transcription", primary=True)
-        self.adv_save_btn.setEnabled(False)
-        self.adv_save_btn.clicked.connect(self.save_transcription)
-
-        self.adv_clear_btn = ModernButton("🔄 New Transcription", primary=False)
-        self.adv_clear_btn.setEnabled(False)
-        self.adv_clear_btn.clicked.connect(self.clear_for_new_transcription)
-
-        button_layout.addWidget(self.adv_save_btn)
-        button_layout.addWidget(self.adv_clear_btn)
-        layout.addLayout(button_layout)
-
-        widget.setLayout(layout)
-        return widget
-
-
-    def center_window(self):
-        """Center window on screen."""
-        screen = QApplication.primaryScreen().geometry()
-        size = self.geometry()
-        self.move(
-            (screen.width() - size.width()) // 2,
-            (screen.height() - size.height()) // 2
-        )
-
-    def switch_mode(self, mode):
-        """Switch between basic and advanced modes."""
-        self.current_mode = mode
-
-        if mode == "basic":
-            self.mode_stack.setCurrentIndex(0)
-            self.basic_btn.primary = True
-            self.advanced_btn.primary = False
-        else:
-            self.mode_stack.setCurrentIndex(1)
-            self.basic_btn.primary = False
-            self.advanced_btn.primary = True
-
-        self.basic_btn.apply_style()
-        self.advanced_btn.apply_style()
-
     def on_file_dropped_basic(self, file_path):
-        """Handle file drop in Basic Mode - auto-start transcription."""
+        """Handle file drop - auto-start transcription."""
         self.load_file(file_path)
-        # Auto-start transcription in Basic Mode
-        if self.current_mode == "basic":
-            # Small delay to let UI update
-            QTimer.singleShot(100, self.start_transcription)
+        # Auto-start transcription
+        # Small delay to let UI update
+        QTimer.singleShot(100, self.start_transcription)
 
     def browse_file(self):
         """Browse for video/audio file."""
@@ -1576,22 +1276,17 @@ class Video2TextQt(QMainWindow):
 
         if file_path:
             self.load_file(file_path)
-            # Auto-start transcription in Basic Mode
-            if self.current_mode == "basic":
-                QTimer.singleShot(100, self.start_transcription)
+            # Auto-start transcription
+            QTimer.singleShot(100, self.start_transcription)
 
     def load_file(self, file_path):
         """Load a video or audio file."""
         self.video_path = file_path
         filename = Path(file_path).name
 
-        # Update UI based on mode
-        if self.current_mode == "basic":
-            self.drop_zone.set_file(filename)
-            # No need to enable transcribe button - auto-transcribes
-        else:
-            self.adv_file_label.setText(filename)
-            self.adv_start_btn.setEnabled(True)
+        # Update UI
+        self.drop_zone.set_file(filename)
+        # Auto-transcribes when file is loaded
 
         self.statusBar().showMessage(f"File selected: {filename}")
         logger.info(f"Selected file: {file_path}")
@@ -1831,37 +1526,17 @@ class Video2TextQt(QMainWindow):
             return
 
         # Disable buttons and clear results
-        if self.current_mode == "basic":
-            self.basic_save_btn.setEnabled(False)
-            self.basic_result_text.clear()
-            self.basic_upload_progress_bar.setValue(0)
-            self.basic_record_progress_bar.setValue(0)
-        else:
-            self.adv_save_btn.setEnabled(False)
-            self.adv_result_text.clear()
-            self.adv_upload_progress_bar.setValue(0)
-            self.adv_start_btn.setEnabled(False)
+        self.basic_save_btn.setEnabled(False)
+        self.basic_clear_btn.setEnabled(False)
+        self.basic_result_text.clear()
+        self.basic_upload_progress_bar.setValue(0)
+        self.basic_record_progress_bar.setValue(0)
 
-        # Get transcription settings
-        if self.current_mode == "basic":
-            model_size = "tiny"  # Auto-select starts with tiny
-            language = None
-            detect_language_changes = True  # Basic Mode auto-detects language changes
-            use_deep_scan = False  # Basic Mode uses fast detection
-        else:
-            # Advanced mode settings
-            if self.auto_model_check.isChecked():
-                model_size = "tiny"  # Start with tiny for auto-selection
-            else:
-                model_size = self.model_combo.currentText()
-
-            language = self.lang_combo.currentText()
-            if language == "Auto-detect":
-                language = None
-
-            # Get multi-language detection settings
-            detect_language_changes = self.detect_lang_changes_check.isChecked()
-            use_deep_scan = self.deep_multilang_check.isChecked()
+        # Get transcription settings from UI
+        model_size = self.model_combo.currentText()  # User-selected model (default: large)
+        language = None  # Always auto-detect for multi-language
+        detect_language_changes = True  # Always enabled for multi-language support
+        use_deep_scan = self.deep_scan_check.isChecked()  # User can toggle (default: True)
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
@@ -1887,15 +1562,11 @@ class Video2TextQt(QMainWindow):
 
     def on_transcription_progress(self, message, percentage):
         """Handle transcription progress updates."""
-        # Update progress bars based on current mode
-        if self.current_mode == "basic":
-            self.basic_upload_progress_label.setText(message)
-            self.basic_upload_progress_bar.setValue(percentage)
-            self.basic_record_progress_label.setText(message)
-            self.basic_record_progress_bar.setValue(percentage)
-        else:
-            self.adv_upload_progress_label.setText(message)
-            self.adv_upload_progress_bar.setValue(percentage)
+        # Update progress bars
+        self.basic_upload_progress_label.setText(message)
+        self.basic_upload_progress_bar.setValue(percentage)
+        self.basic_record_progress_label.setText(message)
+        self.basic_record_progress_bar.setValue(percentage)
 
         self.statusBar().showMessage(message)
 
@@ -1931,42 +1602,25 @@ class Video2TextQt(QMainWindow):
         else:
             lang_info = f"Language: {lang_name}"
 
-        # Update UI based on mode
-        if self.current_mode == "basic":
-            self.basic_result_text.setPlainText(display_text)
-            self.basic_save_btn.setEnabled(True)
-            self.basic_clear_btn.setEnabled(True)
-            if has_multilang:
-                self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
-            else:
-                self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
+        # Update UI
+        self.basic_result_text.setPlainText(display_text)
+        self.basic_save_btn.setEnabled(True)
+        self.basic_clear_btn.setEnabled(True)
 
-            # Auto-navigate to Transcript tab (index 2)
-            self.basic_sidebar.setCurrentRow(2)
-            self.basic_tab_stack.setCurrentIndex(2)
-
-            # Update progress bars
-            self.basic_upload_progress_label.setText(f"✅ Complete! {lang_info}")
-            self.basic_upload_progress_bar.setValue(100)
-            self.basic_record_progress_label.setText(f"✅ Complete! {lang_info}")
-            self.basic_record_progress_bar.setValue(100)
+        if has_multilang:
+            self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
         else:
-            self.adv_result_text.setPlainText(display_text)
-            self.adv_save_btn.setEnabled(True)
-            self.adv_clear_btn.setEnabled(True)
-            self.adv_start_btn.setEnabled(True)
-            if has_multilang:
-                self.adv_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
-            else:
-                self.adv_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
+            self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
 
-            # Auto-navigate to Transcript tab (index 2)
-            self.adv_sidebar.setCurrentRow(2)
-            self.adv_tab_stack.setCurrentIndex(2)
+        # Auto-navigate to Transcript tab (index 2)
+        self.basic_sidebar.setCurrentRow(2)
+        self.basic_tab_stack.setCurrentIndex(2)
 
-            # Update progress bar
-            self.adv_upload_progress_label.setText(f"✅ Complete! {lang_info}")
-            self.adv_upload_progress_bar.setValue(100)
+        # Update progress bars
+        self.basic_upload_progress_label.setText(f"✅ Complete! {lang_info}")
+        self.basic_upload_progress_bar.setValue(100)
+        self.basic_record_progress_label.setText(f"✅ Complete! {lang_info}")
+        self.basic_record_progress_bar.setValue(100)
 
         status_msg = f"Transcription complete ({segment_count} segments, {lang_info})"
         self.statusBar().showMessage(status_msg)
@@ -1977,13 +1631,9 @@ class Video2TextQt(QMainWindow):
 
     def on_transcription_error(self, error_message):
         """Handle transcription error."""
-        # Update UI based on mode
-        if self.current_mode == "basic":
-            self.basic_upload_progress_label.setText(f"❌ Error: {error_message}")
-            self.basic_record_progress_label.setText(f"❌ Error: {error_message}")
-        else:
-            self.adv_upload_progress_label.setText(f"❌ Error: {error_message}")
-            self.adv_start_btn.setEnabled(True)
+        # Update UI
+        self.basic_upload_progress_label.setText(f"❌ Error: {error_message}")
+        self.basic_record_progress_label.setText(f"❌ Error: {error_message}")
 
         self.statusBar().showMessage("Transcription failed")
 
@@ -2086,40 +1736,23 @@ class Video2TextQt(QMainWindow):
         self.video_path = None
         self.transcription_result = None
 
-        # Reset UI based on mode
-        if self.current_mode == "basic":
-            # Clear Basic Mode UI
-            self.basic_result_text.clear()
-            self.basic_save_btn.setEnabled(False)
-            self.basic_clear_btn.setEnabled(False)
-            self.basic_transcript_desc.setText("Your transcription will appear here")
-            self.basic_upload_progress_label.setText("Ready to transcribe")
-            self.basic_upload_progress_bar.setValue(0)
-            self.basic_record_progress_label.setText("Ready to transcribe")
-            self.basic_record_progress_bar.setValue(0)
+        # Reset UI
+        self.basic_result_text.clear()
+        self.basic_save_btn.setEnabled(False)
+        self.basic_clear_btn.setEnabled(False)
+        self.basic_transcript_desc.setText("Your transcription will appear here")
+        self.basic_upload_progress_label.setText("Ready to transcribe")
+        self.basic_upload_progress_bar.setValue(0)
+        self.basic_record_progress_label.setText("Ready to transcribe")
+        self.basic_record_progress_bar.setValue(0)
 
-            # Clear drop zone
-            if hasattr(self, 'drop_zone'):
-                self.drop_zone.clear_file()
+        # Clear drop zone
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.clear_file()
 
-            # Navigate back to Upload tab
-            self.basic_sidebar.setCurrentRow(0)
-            self.basic_tab_stack.setCurrentIndex(0)
-
-        else:
-            # Clear Advanced Mode UI
-            self.adv_result_text.clear()
-            self.adv_save_btn.setEnabled(False)
-            self.adv_clear_btn.setEnabled(False)
-            self.adv_start_btn.setEnabled(False)
-            self.adv_transcript_desc.setText("Your transcription will appear here")
-            self.adv_upload_progress_label.setText("Ready to transcribe")
-            self.adv_upload_progress_bar.setValue(0)
-            self.adv_file_label.setText("No file selected")
-
-            # Navigate back to Upload tab
-            self.adv_sidebar.setCurrentRow(0)
-            self.adv_tab_stack.setCurrentIndex(0)
+        # Navigate back to Upload tab (index 1)
+        self.basic_sidebar.setCurrentRow(1)
+        self.basic_tab_stack.setCurrentIndex(1)
 
         self.statusBar().showMessage("Ready for new transcription")
         logger.info("Cleared for new transcription")
