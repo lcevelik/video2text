@@ -22,13 +22,14 @@ A desktop application that transcribes audio from video files or audio files dir
 Video2Text offers **three GUI options** to suit your needs:
 
 ### 🎨 **Qt GUI** (Recommended - Modern & Professional)
-The latest and most advanced interface with:
-- ✨ **Sidebar Navigation**: Clean tabs for Upload, Record, and Transcript
-- 🌓 **Dark/Light Mode**: Toggle themes for comfortable viewing
+The latest and most advanced interface with ultra-minimal design:
+- ✨ **Sidebar Navigation**: Clean tabs - Record, Upload, and Transcript
+- 🌓 **Auto Theme**: Follows system theme (Auto/Light/Dark via hamburger menu)
 - 🎯 **Auto-Transcribe**: Drop files and transcription starts automatically
-- 📱 **Basic & Advanced Modes**: Simple for beginners, powerful for experts
+- ☰ **Hamburger Menu**: All settings in one organized menu
 - 🎙️ **Integrated Recording**: Record mic + speaker with one click
-- 🌐 **Automatic Multi-Language Detection**: Always enabled in Basic Mode - perfect for multilingual meetings
+- 🌐 **Deep Multi-Language**: TRUE code-switching support (Czech ↔ English ↔ Czech)
+- 🚀 **Default: Large Model**: Best accuracy for multi-language out-of-the-box
 
 **How to run:**
 ```bash
@@ -252,75 +253,85 @@ python main.py
 
 ### Using the Qt GUI (Recommended)
 
-The modern Qt interface features a **sidebar with three main tabs**:
+The modern Qt interface features an **ultra-minimal design** with sidebar navigation:
 
-#### Basic Mode:
-1. **Upload Tab**:
-   - Drag & drop your video/audio file (or click to browse)
-   - Transcription starts automatically with multi-language detection
+#### Interface Layout:
+```
+                                              ☰ (Menu)
+┌──────────┬────────────────────────────────────────┐
+│ 🎙️ Record│                                       │
+│ 📁 Upload │         Content Area                  │
+│ 📄 Transcript│                                    │
+└──────────┴────────────────────────────────────────┘
+```
+
+#### Three Main Tabs:
+
+**1. 🎙️ Record Tab**:
+   - Click "Start Recording" button
+   - Records microphone + system audio simultaneously
+   - Automatically transcribes when stopped
    - Progress updates in real-time
 
-2. **Record Tab**:
-   - Click "Start Recording" to record audio
-   - Records both microphone and system audio
-   - Configure recording directory in settings
-   - Recording automatically loads for transcription
+**2. 📁 Upload Tab**:
+   - Drag & drop zone (click to browse)
+   - **Transcription Settings** card:
+     - Whisper Model selector (default: **large**)
+     - Deep multi-language scanning (default: **enabled**)
+   - Transcription starts automatically when file is dropped
+   - Progress updates in real-time
 
-3. **Transcript Tab**:
-   - View transcription results (includes language timeline if multiple languages detected)
+**3. 📄 Transcript Tab**:
+   - View transcription results
+   - Language info (e.g., "Languages detected: Czech, English | 45 segments")
+   - Language timeline (if multiple languages detected)
    - Choose output format (TXT, SRT, VTT)
    - Click "💾 Save Transcription" to export
-   - Click "🔄 New Transcription" to clear and start fresh
-   - Auto-navigates here when transcription completes
 
-**Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings!
+#### Hamburger Menu (☰):
+All settings organized in one place:
 
-#### Advanced Mode:
-Same three tabs with additional controls:
-- Manual model selection (tiny, base, small, medium, large)
-- Language selection (99 languages supported)
-- **Multi-language detection** - Toggle on/off via checkbox (enabled by default in Basic Mode)
-- Custom instructions for better accuracy
+**Settings →**
+- **Theme →**
+  - 🔄 Auto (System) ← *default*
+  - ☀️ Light
+  - 🌙 Dark
+- 📁 Change Recording Directory
+- 🗂️ Open Recording Directory
 
-#### Multi-Language Detection:
-Perfect for international meetings where people speak different languages or switch languages mid-conversation (code-switching):
+**🔄 New Transcription** - Clear and start fresh
 
-**In Basic Mode** (Automatic):
-- Multi-language detection is always enabled
-- Just drop your file and transcribe
-- Results automatically include language timeline
-- Uses fast detection (good for most use cases)
+#### Multi-Language Support:
+**Deep scanning enabled by default** for TRUE multi-language transcription:
 
-**In Advanced Mode** (Manual Control):
-1. Go to Upload Tab
-2. Check **"🌍 Detect language changes (for multilingual meetings)"**
-3. **For TRUE code-switching** (Czech ↔ English ↔ Czech in same meeting):
-   - Check **"🔬 Deep multi-language scanning (SLOW but accurate)"**
-   - Re-transcribes each segment individually for accurate language detection
-   - ⚠️ Much slower but handles language mixing correctly
-4. Transcribe your file
-5. Results will include a **language timeline** showing when each language was spoken
+✅ **What it does:**
+- Re-transcribes each segment individually
+- Each part detected in its correct language
+- Perfect for code-switching (Czech → English → Czech)
+- Czech parts transcribed in Czech, English in English
 
-Example output:
+**Example output:**
 ```
-[Transcription text in all languages - each part correctly transcribed]
+Dobrý den, jak se máte? Hello, how are you? Můžeme si koupit kuře?
 
 ============================================================
 🌍 LANGUAGE TIMELINE:
 ============================================================
 
-[00:00:15 - 00:02:30] Language: English (EN)
-[00:02:30 - 00:05:45] Language: Spanish (ES)
-[00:05:45 - 00:08:00] Language: Czech (CS)
+[00:00:00 - 00:00:05] Language: Czech (CS)
+[00:00:05 - 00:00:10] Language: English (EN)
+[00:00:10 - 00:00:15] Language: Czech (CS)
 ```
 
-**Detection Modes:**
-- **Fast** (default): Whisper's primary language + character analysis
-- **Deep Scanning** (Advanced): Re-transcribes each segment for true multi-language support
+⚠️ **Note:** Deep scanning is slower but accurately handles language mixing in conversations.
 
-#### Dark/Light Mode:
-- Click the theme toggle button (🌙/☀️) in the header
-- Preference is saved automatically
+#### Quick Start:
+1. Open Qt GUI: `python gui_qt.py`
+2. Go to **Upload** tab
+3. Drag and drop your video/audio file
+4. Transcription starts automatically with deep multi-language scanning
+5. View results in **Transcript** tab
+6. Save in your preferred format
 
 ### Using the Enhanced GUI
 
@@ -372,10 +383,10 @@ VideoToText/
 | Model | Size | Speed | Accuracy | Use Case |
 |-------|------|-------|----------|----------|
 | tiny | ~39 MB | Very Fast | Basic | Quick tests, low accuracy needs |
-| base | ~74 MB | Fast | Good | **Recommended for most users** |
+| base | ~74 MB | Fast | Good | Simple transcription |
 | small | ~244 MB | Medium | Better | Better accuracy needed |
 | medium | ~769 MB | Slow | High | High accuracy needed |
-| large | ~3 GB | Very Slow | Best | Maximum accuracy, requires 10GB+ RAM |
+| large | ~3 GB | Very Slow | Best | **Qt GUI default - Best for multi-language**, requires 10GB+ RAM |
 
 ## Troubleshooting
 
