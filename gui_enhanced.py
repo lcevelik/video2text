@@ -230,15 +230,15 @@ class EnhancedTranscriptionApp:
 
         self.basic_record_btn = ttk.Button(
             record_frame,
-            text="🎤 Record Audio",
+            text="🎤 Record Audio (Mic + Speaker)",
             command=self.show_recording_dialog,
-            width=20
+            width=30
         )
         self.basic_record_btn.pack(side=tk.LEFT, padx=5)
 
         ttk.Label(
             record_frame,
-            text="(Record from microphone or system audio)",
+            text="(Records both microphone and system audio simultaneously)",
             font=("Arial", 8),
             foreground="gray"
         ).pack(side=tk.LEFT, padx=5)
@@ -297,15 +297,15 @@ class EnhancedTranscriptionApp:
 
         self.record_btn = ttk.Button(
             record_frame,
-            text="🎤 Start Recording",
+            text="🎤 Start Recording (Mic + Speaker)",
             command=self.toggle_recording,
-            width=20
+            width=30
         )
         self.record_btn.pack(side=tk.LEFT, padx=5)
 
         self.record_status_label = ttk.Label(
             record_frame,
-            text="Ready to record from microphone or system audio",
+            text="Records both microphone and speaker audio simultaneously",
             foreground="gray"
         )
         self.record_status_label.pack(side=tk.LEFT, padx=10)
@@ -735,87 +735,351 @@ then upgrades to larger models if quality is insufficient.
         """Stop audio recording."""
         if self.recording:
             self.recording = False
-            self.record_btn.config(text="🎤 Start Recording")
+            self.record_btn.config(text="🎤 Start Recording (Mic + Speaker)")
             self.record_status_label.config(text="Recording stopped", foreground="green")
             logger.info("Recording stopped")
 
     def show_recording_dialog(self):
-        """Show recording options dialog."""
+        """Show recording dialog for simultaneous mic + speaker recording."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Audio Recording")
-        dialog.geometry("400x300")
+        dialog.geometry("500x400")
         dialog.transient(self.root)
         dialog.grab_set()
 
         ttk.Label(
             dialog,
-            text="Audio Recording Options",
+            text="Audio Recording - Mic + Speaker",
             font=("Arial", 12, "bold")
         ).pack(pady=10)
 
         ttk.Label(
             dialog,
-            text="Select audio source:",
-            font=("Arial", 10)
-        ).pack(pady=5)
-
-        source_var = tk.StringVar(value="microphone")
-
-        ttk.Radiobutton(
-            dialog,
-            text="🎤 Microphone (record your voice)",
-            variable=source_var,
-            value="microphone"
-        ).pack(anchor=tk.W, padx=30, pady=5)
-
-        ttk.Radiobutton(
-            dialog,
-            text="🔊 System Audio (record desktop/speaker audio)",
-            variable=source_var,
-            value="system"
-        ).pack(anchor=tk.W, padx=30, pady=5)
-
-        status_label = ttk.Label(dialog, text="Ready to record", foreground="gray")
-        status_label.pack(pady=10)
-
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(pady=10)
-
-        recording_active = [False]  # Mutable flag
-
-        def start_record():
-            source = source_var.get()
-            recording_active[0] = True
-            status_label.config(text=f"🔴 Recording from {source}...", foreground="red")
-            logger.info(f"Started recording from {source}")
-            # Start recording in background thread
-            threading.Thread(
-                target=self._record_audio,
-                args=(source, recording_active, status_label),
-                daemon=True
-            ).start()
-
-        def stop_record():
-            recording_active[0] = False
-            status_label.config(text="Stopping recording...", foreground="orange")
-
-        start_btn = ttk.Button(button_frame, text="Start Recording", command=start_record)
-        start_btn.pack(side=tk.LEFT, padx=5)
-
-        stop_btn = ttk.Button(button_frame, text="Stop Recording", command=stop_record)
-        stop_btn.pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(
-            dialog,
-            text="Note: Recording will be saved and used for transcription",
-            font=("Arial", 8),
+            text="Records both microphone and speaker audio simultaneously",
+            font=("Arial", 9),
             foreground="gray"
         ).pack(pady=5)
 
+        # Info frame
+        info_frame = ttk.LabelFrame(dialog, text="What will be recorded:", padding="10")
+        info_frame.pack(pady=10, padx=20, fill=tk.X)
+
+        ttk.Label(
+            info_frame,
+            text="🎤 Microphone: Your voice and ambient sounds",
+            font=("Arial", 9)
+        ).pack(anchor=tk.W, pady=2)
+
+        ttk.Label(
+            info_frame,
+            text="🔊 Speaker: System audio, music, video calls, etc.",
+            font=("Arial", 9)
+        ).pack(anchor=tk.W, pady=2)
+
+        ttk.Label(
+            info_frame,
+            text="📝 Both sources will be mixed into one recording",
+            font=("Arial", 9),
+            foreground="blue"
+        ).pack(anchor=tk.W, pady=2)
+
+        # Status display
+        status_label = ttk.Label(
+            dialog,
+            text="Ready to record",
+            foreground="gray",
+            font=("Arial", 10)
+        )
+        status_label.pack(pady=10)
+
+        # Duration display
+        duration_label = ttk.Label(
+            dialog,
+            text="Duration: 0:00",
+            font=("Arial", 9, "bold"),
+            foreground="blue"
+        )
+        duration_label.pack(pady=5)
+
+        # Button frame
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=15)
+
+        recording_active = [False]  # Mutable flag
+        start_time = [None]  # Recording start time
+
+        def update_duration():
+            """Update recording duration display."""
+            if recording_active[0] and start_time[0]:
+                elapsed = time.time() - start_time[0]
+                mins = int(elapsed // 60)
+                secs = int(elapsed % 60)
+                duration_label.config(text=f"Duration: {mins}:{secs:02d}")
+                dialog.after(1000, update_duration)
+
+        def start_record():
+            recording_active[0] = True
+            start_time[0] = time.time()
+            status_label.config(text="🔴 Recording from Microphone + Speaker...", foreground="red")
+            duration_label.config(foreground="red")
+            start_btn.config(state=tk.DISABLED)
+            stop_btn.config(state=tk.NORMAL)
+
+            logger.info("Started simultaneous recording (mic + speaker)")
+
+            # Start recording in background thread
+            threading.Thread(
+                target=self._record_audio_simultaneous,
+                args=(recording_active, status_label, duration_label),
+                daemon=True
+            ).start()
+
+            # Start duration update
+            update_duration()
+
+        def stop_record():
+            recording_active[0] = False
+            status_label.config(text="⏹️ Stopping recording...", foreground="orange")
+            start_btn.config(state=tk.NORMAL)
+            stop_btn.config(state=tk.DISABLED)
+
+        start_btn = ttk.Button(
+            button_frame,
+            text="🔴 Start Recording",
+            command=start_record,
+            width=20
+        )
+        start_btn.pack(side=tk.LEFT, padx=5)
+
+        stop_btn = ttk.Button(
+            button_frame,
+            text="⏹️ Stop Recording",
+            command=stop_record,
+            state=tk.DISABLED,
+            width=20
+        )
+        stop_btn.pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Close",
+            command=dialog.destroy,
+            width=10
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Help text
+        help_frame = ttk.Frame(dialog)
+        help_frame.pack(pady=10, padx=20, fill=tk.X)
+
+        ttk.Label(
+            help_frame,
+            text="💡 Tip: Perfect for recording video calls, meetings, or any scenario\nwhere you need both your voice and system audio captured.",
+            font=("Arial", 8),
+            foreground="gray",
+            justify=tk.LEFT
+        ).pack()
+
+        ttk.Label(
+            help_frame,
+            text="⚠️ Note: Recording will be saved and automatically loaded for transcription.",
+            font=("Arial", 8),
+            foreground="orange",
+            justify=tk.LEFT
+        ).pack(pady=(5, 0))
+
+    def _record_audio_simultaneous(self, recording_active: list, status_label, duration_label):
+        """Record both microphone and speaker audio simultaneously."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            from scipy.io import wavfile
+
+            sample_rate = 16000  # Whisper's preferred sample rate
+
+            logger.info("Starting simultaneous recording (microphone + speaker)")
+            logger.info(f"Sample rate: {sample_rate}Hz")
+
+            # Query available devices
+            devices = sd.query_devices()
+            logger.info("Available audio devices:")
+            for idx, device in enumerate(devices):
+                logger.info(f"  [{idx}] {device['name']} - "
+                           f"In:{device['max_input_channels']} Out:{device['max_output_channels']}")
+
+            # Storage for both streams
+            mic_chunks = []
+            speaker_chunks = []
+
+            # Try to find loopback/stereo mix device for system audio
+            loopback_device = None
+            default_input = sd.default.device[0]  # Default microphone
+
+            # Look for loopback devices (Windows: Stereo Mix, Linux: Monitor, Mac: varies)
+            for idx, device in enumerate(devices):
+                device_name_lower = device['name'].lower()
+                if any(keyword in device_name_lower for keyword in
+                       ['stereo mix', 'loopback', 'monitor', 'what u hear', 'wave out']):
+                    if device['max_input_channels'] > 0:
+                        loopback_device = idx
+                        logger.info(f"Found loopback device: {device['name']} (index {idx})")
+                        break
+
+            if loopback_device is None:
+                logger.warning("No loopback device found for system audio capture")
+                logger.warning("Will record microphone only")
+                logger.warning("To enable system audio:")
+                logger.warning("  Windows: Enable 'Stereo Mix' in Sound Settings")
+                logger.warning("  Linux: Use PulseAudio monitor")
+                logger.warning("  macOS: May require BlackHole or similar virtual audio device")
+
+            # Callback for microphone
+            def mic_callback(indata, frames, time_info, status):
+                if status:
+                    logger.warning(f"Mic status: {status}")
+                mic_chunks.append(indata.copy())
+
+            # Callback for speaker (if available)
+            def speaker_callback(indata, frames, time_info, status):
+                if status:
+                    logger.warning(f"Speaker status: {status}")
+                speaker_chunks.append(indata.copy())
+
+            # Start recording from both sources
+            mic_stream = None
+            speaker_stream = None
+
+            try:
+                # Open microphone stream
+                logger.info(f"Opening microphone stream (device {default_input})")
+                mic_stream = sd.InputStream(
+                    device=default_input,
+                    samplerate=sample_rate,
+                    channels=1,
+                    callback=mic_callback
+                )
+                mic_stream.start()
+                logger.info("✓ Microphone recording started")
+
+                # Open speaker stream if loopback device available
+                if loopback_device is not None:
+                    logger.info(f"Opening speaker stream (device {loopback_device})")
+                    try:
+                        speaker_stream = sd.InputStream(
+                            device=loopback_device,
+                            samplerate=sample_rate,
+                            channels=1,
+                            callback=speaker_callback
+                        )
+                        speaker_stream.start()
+                        logger.info("✓ Speaker recording started")
+                    except Exception as e:
+                        logger.error(f"Could not start speaker recording: {e}")
+                        speaker_stream = None
+
+                # Record while active
+                while recording_active[0]:
+                    sd.sleep(100)
+
+            finally:
+                # Stop streams
+                if mic_stream:
+                    mic_stream.stop()
+                    mic_stream.close()
+                    logger.info("Microphone recording stopped")
+
+                if speaker_stream:
+                    speaker_stream.stop()
+                    speaker_stream.close()
+                    logger.info("Speaker recording stopped")
+
+            # Process and combine recordings
+            if mic_chunks or speaker_chunks:
+                # Convert chunks to arrays
+                mic_data = None
+                speaker_data = None
+
+                if mic_chunks:
+                    mic_data = np.concatenate(mic_chunks, axis=0)
+                    logger.info(f"Microphone: {len(mic_data)} samples")
+
+                if speaker_chunks:
+                    speaker_data = np.concatenate(speaker_chunks, axis=0)
+                    logger.info(f"Speaker: {len(speaker_data)} samples")
+
+                # Mix both sources
+                if mic_data is not None and speaker_data is not None:
+                    # Ensure same length (pad shorter one with zeros)
+                    max_len = max(len(mic_data), len(speaker_data))
+
+                    if len(mic_data) < max_len:
+                        mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
+                    if len(speaker_data) < max_len:
+                        speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
+
+                    # Mix: 50% mic + 50% speaker (you can adjust these ratios)
+                    mixed_data = (mic_data * 0.6 + speaker_data * 0.4)
+
+                    # Normalize to prevent clipping
+                    max_val = np.max(np.abs(mixed_data))
+                    if max_val > 0:
+                        mixed_data = mixed_data / max_val * 0.9
+
+                    logger.info("✓ Mixed microphone and speaker audio")
+                    final_data = mixed_data
+
+                elif mic_data is not None:
+                    logger.info("Using microphone audio only")
+                    final_data = mic_data
+                elif speaker_data is not None:
+                    logger.info("Using speaker audio only")
+                    final_data = speaker_data
+                else:
+                    raise ValueError("No audio data recorded")
+
+                # Save to temporary file
+                import tempfile
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                self.recorded_audio_path = temp_file.name
+                temp_file.close()
+
+                # Convert to int16 for WAV file
+                final_data_int16 = (final_data * 32767).astype(np.int16)
+                wavfile.write(self.recorded_audio_path, sample_rate, final_data_int16)
+
+                duration_seconds = len(final_data) / sample_rate
+                logger.info(f"Recording saved to: {self.recorded_audio_path}")
+                logger.info(f"Duration: {duration_seconds:.1f} seconds")
+
+                # Update UI
+                success_msg = f"✅ Recording complete! ({duration_seconds:.1f}s)"
+                if speaker_chunks:
+                    success_msg += "\n🎤 Mic + 🔊 Speaker mixed"
+                else:
+                    success_msg += "\n🎤 Mic only (no system audio detected)"
+
+                self.root.after(0, lambda: self.load_file(self.recorded_audio_path))
+                self.root.after(0, lambda: status_label.config(
+                    text=success_msg,
+                    foreground="green"
+                ))
+                self.root.after(0, lambda: duration_label.config(
+                    text=f"✓ Saved: {duration_seconds:.1f}s",
+                    foreground="green"
+                ))
+            else:
+                self.root.after(0, lambda: status_label.config(
+                    text="❌ No audio recorded",
+                    foreground="red"
+                ))
+
+        except Exception as e:
+            error_msg = f"Recording error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.root.after(0, lambda: status_label.config(text=error_msg, foreground="red"))
+            self.root.after(0, lambda: duration_label.config(text="❌ Failed", foreground="red"))
+
     def _record_audio(self, source: str, recording_active: list, status_label):
-        """Record audio in background thread."""
+        """Record audio in background thread (legacy method for backward compatibility)."""
         try:
             import sounddevice as sd
             import numpy as np
