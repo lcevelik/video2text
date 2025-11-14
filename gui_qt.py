@@ -764,31 +764,6 @@ class Video2TextQt(QMainWindow):
         else:  # light
             return False
 
-    def toggle_theme(self):
-        """Cycle through theme modes: auto -> light -> dark -> auto."""
-        modes = ["auto", "light", "dark"]
-        current_index = modes.index(self.theme_mode)
-        next_index = (current_index + 1) % len(modes)
-        self.theme_mode = modes[next_index]
-
-        self.settings["theme_mode"] = self.theme_mode
-        self.save_settings()
-
-        # Update effective theme
-        self.is_dark_mode = self.get_effective_theme()
-        self.apply_theme()
-
-        # Update toggle button text
-        if hasattr(self, 'theme_toggle_btn'):
-            if self.theme_mode == "auto":
-                self.theme_toggle_btn.setText("🔄 Auto Theme")
-            elif self.theme_mode == "light":
-                self.theme_toggle_btn.setText("☀️ Light Mode")
-            else:  # dark
-                self.theme_toggle_btn.setText("🌙 Dark Mode")
-
-        logger.info(f"Theme mode set to: {self.theme_mode} (effective: {'dark' if self.is_dark_mode else 'light'})")
-
     def apply_theme(self):
         """Apply the current theme to all UI elements."""
         # Get theme colors
@@ -931,41 +906,90 @@ class Video2TextQt(QMainWindow):
         """)
 
     def create_header(self):
-        """Create application header."""
+        """Create application header with hamburger menu."""
         header = QWidget()
         layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Title and subtitle
-        self.title_label = QLabel("🎬 Video2Text")
-        self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #2196F3;")
-
-        self.subtitle_label = QLabel("AI-Powered Transcription with Whisper")
-        self.subtitle_label.setStyleSheet("font-size: 14px; color: #666;")
-
-        title_layout = QVBoxLayout()
-        title_layout.addWidget(self.title_label)
-        title_layout.addWidget(self.subtitle_label)
-        title_layout.setSpacing(5)
-
-        layout.addLayout(title_layout)
         layout.addStretch()
 
-        # Theme toggle button - set text based on theme mode
-        if self.theme_mode == "auto":
-            btn_text = "🔄 Auto Theme"
-        elif self.theme_mode == "light":
-            btn_text = "☀️ Light Mode"
-        else:  # dark
-            btn_text = "🌙 Dark Mode"
-        self.theme_toggle_btn = QPushButton(btn_text)
-        self.theme_toggle_btn.setMinimumWidth(120)
-        self.theme_toggle_btn.setMinimumHeight(35)
-        self.theme_toggle_btn.setCursor(Qt.PointingHandCursor)
-        self.theme_toggle_btn.clicked.connect(self.toggle_theme)
-        layout.addWidget(self.theme_toggle_btn)
+        # Hamburger menu button
+        self.menu_btn = QPushButton("☰")
+        self.menu_btn.setMinimumWidth(50)
+        self.menu_btn.setMinimumHeight(40)
+        self.menu_btn.setStyleSheet(f"""
+            QPushButton {{
+                font-size: 24px;
+                border: none;
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                padding: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                border-radius: 8px;
+            }}
+        """)
+        self.menu_btn.setCursor(Qt.PointingHandCursor)
+        self.menu_btn.clicked.connect(self.show_menu)
+        layout.addWidget(self.menu_btn)
 
         header.setLayout(layout)
         return header
+
+    def show_menu(self):
+        """Show hamburger menu with settings."""
+        menu = QMenu(self)
+
+        # Settings submenu
+        settings_menu = menu.addMenu("⚙️ Settings")
+
+        # Theme submenu under Settings
+        theme_menu = settings_menu.addMenu("🎨 Theme")
+
+        # Theme options
+        auto_action = theme_menu.addAction("🔄 Auto (System)")
+        auto_action.setCheckable(True)
+        auto_action.setChecked(self.theme_mode == "auto")
+        auto_action.triggered.connect(lambda: self.set_theme_mode("auto"))
+
+        light_action = theme_menu.addAction("☀️ Light")
+        light_action.setCheckable(True)
+        light_action.setChecked(self.theme_mode == "light")
+        light_action.triggered.connect(lambda: self.set_theme_mode("light"))
+
+        dark_action = theme_menu.addAction("🌙 Dark")
+        dark_action.setCheckable(True)
+        dark_action.setChecked(self.theme_mode == "dark")
+        dark_action.triggered.connect(lambda: self.set_theme_mode("dark"))
+
+        # Recording Settings under Settings
+        settings_menu.addSeparator()
+        rec_dir_action = settings_menu.addAction("📁 Change Recording Directory")
+        rec_dir_action.triggered.connect(self.change_recordings_directory)
+
+        open_dir_action = settings_menu.addAction("🗂️ Open Recording Directory")
+        open_dir_action.triggered.connect(self.open_recordings_folder)
+
+        # New Transcription
+        menu.addSeparator()
+        new_trans_action = menu.addAction("🔄 New Transcription")
+        new_trans_action.triggered.connect(self.clear_for_new_transcription)
+
+        # Show menu at button position
+        menu.exec_(self.menu_btn.mapToGlobal(self.menu_btn.rect().bottomLeft()))
+
+    def set_theme_mode(self, mode):
+        """Set theme mode (auto/light/dark)."""
+        self.theme_mode = mode
+        self.settings["theme_mode"] = mode
+        self.save_settings()
+
+        # Update effective theme
+        self.is_dark_mode = self.get_effective_theme()
+        self.apply_theme()
+
+        logger.info(f"Theme mode set to: {mode} (effective: {'dark' if self.is_dark_mode else 'light'})")
 
     def create_settings_card(self):
         """Create settings card for recordings directory."""
@@ -1225,16 +1249,10 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_bar.setMinimumHeight(25)
         layout.addWidget(self.basic_record_progress_bar)
 
-        layout.addSpacing(10)
-
-        # Settings card
-        settings_card = self.create_settings_card()
-        settings_card.setMinimumHeight(150)
-        layout.addWidget(settings_card)
-
         # Info tip
-        info = QLabel("💡 Recording automatically transcribes when stopped")
+        info = QLabel("💡 Recording automatically transcribes when stopped\n💡 Change recording directory in Menu (☰) → Settings")
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
+        info.setWordWrap(True)
         layout.addWidget(info)
 
         layout.addStretch()
@@ -1275,21 +1293,11 @@ class Video2TextQt(QMainWindow):
         """)
         layout.addWidget(self.basic_result_text, 1)
 
-        # Action buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-
+        # Save button
         self.basic_save_btn = ModernButton("💾 Save Transcription", primary=True)
         self.basic_save_btn.setEnabled(False)
         self.basic_save_btn.clicked.connect(self.save_transcription)
-
-        self.basic_clear_btn = ModernButton("🔄 New Transcription", primary=False)
-        self.basic_clear_btn.setEnabled(False)
-        self.basic_clear_btn.clicked.connect(self.clear_for_new_transcription)
-
-        button_layout.addWidget(self.basic_save_btn)
-        button_layout.addWidget(self.basic_clear_btn)
-        layout.addLayout(button_layout)
+        layout.addWidget(self.basic_save_btn)
 
         widget.setLayout(layout)
         return widget
@@ -1563,7 +1571,6 @@ class Video2TextQt(QMainWindow):
 
         # Disable buttons and clear results
         self.basic_save_btn.setEnabled(False)
-        self.basic_clear_btn.setEnabled(False)
         self.basic_result_text.clear()
         self.basic_upload_progress_bar.setValue(0)
         self.basic_record_progress_bar.setValue(0)
@@ -1641,7 +1648,6 @@ class Video2TextQt(QMainWindow):
         # Update UI
         self.basic_result_text.setPlainText(display_text)
         self.basic_save_btn.setEnabled(True)
-        self.basic_clear_btn.setEnabled(True)
 
         if has_multilang:
             self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
@@ -1775,7 +1781,6 @@ class Video2TextQt(QMainWindow):
         # Reset UI
         self.basic_result_text.clear()
         self.basic_save_btn.setEnabled(False)
-        self.basic_clear_btn.setEnabled(False)
         self.basic_transcript_desc.setText("Your transcription will appear here")
         self.basic_upload_progress_label.setText("Ready to transcribe")
         self.basic_upload_progress_bar.setValue(0)
