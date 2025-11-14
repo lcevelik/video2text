@@ -221,34 +221,48 @@ Perfect for international meetings, conferences, or recordings with multiple lan
 - Multi-language detection is **always enabled** - no configuration needed!
 - Just drop your file and transcribe
 - Results automatically include language timeline
+- Uses fast detection (Whisper's primary language + character analysis)
 
 **In Advanced Mode** (Manual Control):
 1. Go to Upload Tab
 2. Check the box: **"🌍 Detect language changes (for multilingual meetings)"**
-3. Start transcription as normal
+3. **For TRUE code-switching** (people switching languages mid-conversation):
+   - Check **"🔬 Deep multi-language scanning (SLOW but accurate)"**
+   - Example: Czech → English → Czech in same meeting
+   - ⚠️ **Much slower** but handles language mixing correctly
+4. Start transcription as normal
 
 **What You Get:**
-- Full transcription with all languages
+- Full transcription with all languages properly transcribed
 - **Language Timeline** showing when each language was spoken
 - Example timeline format:
   ```
-  [00:00:15 - 00:02:30] Language: EN
-  [00:02:30 - 00:05:45] Language: ES
-  [00:05:45 - 00:08:00] Language: EN
+  [00:00:15 - 00:02:30] Language: English (EN)
+  [00:02:30 - 00:05:45] Language: Spanish (ES)
+  [00:05:45 - 00:08:00] Language: English (EN)
   ```
-- Automatic detection of: English, Spanish, Chinese, Japanese, Korean, Arabic, Russian, Hebrew, Thai, and more
+- Automatic detection of: English, Spanish, French, German, Polish, Czech, Chinese, Japanese, Korean, Arabic, Russian, Hebrew, Thai, and more
 
-**Supported Language Detection:**
-- **Character-based detection** for CJK (Chinese, Japanese, Korean)
-- **Script detection** for Arabic, Cyrillic, Hebrew, Thai
-- **Latin-based languages** (English, Spanish, French, German, etc.)
+**Detection Modes:**
+
+1. **Fast Detection** (Default):
+   - Uses Whisper's detected language + character-based script analysis
+   - Good for meetings where one language dominates
+   - Very fast
+
+2. **Deep Scanning** (Advanced Mode option):
+   - Re-transcribes each segment individually
+   - Each segment gets its own language detection
+   - Perfect for **code-switching** (Czech ↔ English ↔ Czech)
+   - Slower but highly accurate for mixed languages
 
 **Use Cases:**
-- International business meetings
+- International business meetings with language switching
 - Multilingual conferences
-- Customer support calls
+- Code-switching conversations (bilingual speakers)
+- Customer support calls in multiple languages
 - Educational content with multiple languages
-- Any recording where speakers switch between languages
+- Any recording where speakers switch between languages mid-conversation
 
 ## 📸 UI Components
 

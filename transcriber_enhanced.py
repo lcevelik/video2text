@@ -9,6 +9,7 @@ This module extends the base transcriber with:
 
 import os
 import logging
+import tempfile
 from typing import Dict, List, Optional, Any
 from transcriber import Transcriber
 
@@ -17,6 +18,38 @@ logger = logging.getLogger(__name__)
 
 class EnhancedTranscriber(Transcriber):
     """Enhanced transcriber with multi-language support."""
+
+    # Common language code to name mapping
+    LANGUAGE_NAMES = {
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'pl': 'Polish',
+        'nl': 'Dutch',
+        'ru': 'Russian',
+        'zh': 'Chinese',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'ar': 'Arabic',
+        'he': 'Hebrew',
+        'th': 'Thai',
+        'vi': 'Vietnamese',
+        'tr': 'Turkish',
+        'cs': 'Czech',
+        'ro': 'Romanian',
+        'sv': 'Swedish',
+        'da': 'Danish',
+        'no': 'Norwegian',
+        'fi': 'Finnish',
+        'el': 'Greek',
+        'hi': 'Hindi',
+        'id': 'Indonesian',
+        'uk': 'Ukrainian',
+        'unknown': 'Unknown'
+    }
 
     def __init__(self, model_size='base'):
         """
@@ -33,21 +66,32 @@ class EnhancedTranscriber(Transcriber):
         audio_path: str,
         detect_language_changes: bool = True,
         initial_prompt: Optional[str] = None,
-        progress_callback=None
+        progress_callback=None,
+        use_segment_retranscription: bool = True
     ) -> Dict[str, Any]:
         """
         Transcribe audio with multi-language detection.
+
+        For TRUE multi-language support (code-switching), this method:
+        1. Does initial transcription to get segment boundaries
+        2. Re-transcribes each segment individually to detect its language
+        3. Combines results with proper language labels
 
         Args:
             audio_path: Path to the audio file
             detect_language_changes: Whether to detect language changes
             initial_prompt: Optional initial prompt
             progress_callback: Optional callback for progress updates
+            use_segment_retranscription: If True, re-transcribe segments individually for better
+                                         multi-language detection (slower but more accurate)
 
         Returns:
             dict: Enhanced transcription result with language information
         """
-        # First, transcribe without language constraint
+        # First pass: transcribe to get segment boundaries
+        if progress_callback:
+            progress_callback("Initial transcription pass...")
+
         result = self.transcribe(
             audio_path,
             language=None,  # Auto-detect
@@ -55,17 +99,164 @@ class EnhancedTranscriber(Transcriber):
             progress_callback=progress_callback
         )
 
-        if detect_language_changes:
-            # Analyze segments for language changes
-            self.language_segments = self._detect_language_segments(result)
+        if detect_language_changes and use_segment_retranscription:
+            # Second pass: re-transcribe each segment to detect its specific language
+            if progress_callback:
+                progress_callback("Detecting languages per segment...")
+
+            self.language_segments = self._retranscribe_segments(
+                audio_path,
+                result.get('segments', []),
+                progress_callback
+            )
+
+            # Rebuild the full text from language-aware segments
+            result['text'] = ' '.join(seg['text'] for seg in self.language_segments)
             result['language_segments'] = self.language_segments
 
             # Add language timeline
             result['language_timeline'] = self._create_language_timeline(
                 self.language_segments
             )
+        elif detect_language_changes:
+            # Fallback: use character-based detection (less accurate)
+            self.language_segments = self._detect_language_segments(result)
+            result['language_segments'] = self.language_segments
+            result['language_timeline'] = self._create_language_timeline(
+                self.language_segments
+            )
 
         return result
+
+    def _retranscribe_segments(
+        self,
+        audio_path: str,
+        segments: List[Dict[str, Any]],
+        progress_callback=None
+    ) -> List[Dict[str, Any]]:
+        """
+        Re-transcribe each segment individually to detect its specific language.
+
+        This is the KEY to true multi-language transcription. By transcribing
+        each segment separately, Whisper can detect the correct language for that
+        specific segment instead of assuming one language for the entire audio.
+
+        Args:
+            audio_path: Path to the full audio file
+            segments: List of segments from initial transcription
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            List of language segments with accurate per-segment language detection
+        """
+        import subprocess
+
+        language_segments = []
+        total_segments = len(segments)
+
+        logger.info(f"Re-transcribing {total_segments} segments for accurate language detection")
+
+        for i, segment in enumerate(segments):
+            start_time = segment.get('start', 0)
+            end_time = segment.get('end', 0)
+            duration = end_time - start_time
+
+            if duration < 0.1:  # Skip very short segments
+                continue
+
+            # Progress update
+            if progress_callback and i % 5 == 0:  # Update every 5 segments
+                progress_callback(f"Language detection: {i+1}/{total_segments} segments")
+
+            try:
+                # Extract audio segment using ffmpeg
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                    temp_path = temp_audio.name
+
+                # Use ffmpeg to extract the specific time range
+                subprocess.run([
+                    'ffmpeg', '-i', audio_path,
+                    '-ss', str(start_time),
+                    '-t', str(duration),
+                    '-ar', '16000',  # Whisper expects 16kHz
+                    '-ac', '1',       # Mono
+                    '-y',             # Overwrite
+                    temp_path
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+                # Transcribe this segment alone to detect its language
+                segment_result = self.transcribe(
+                    temp_path,
+                    language=None,  # Auto-detect for THIS segment
+                    progress_callback=None  # Don't spam progress for each segment
+                )
+
+                detected_lang = segment_result.get('language', 'unknown')
+                transcribed_text = segment_result.get('text', '').strip()
+
+                logger.debug(f"Segment {i}: {detected_lang} - {transcribed_text[:50]}...")
+
+                # Add to our language segments
+                language_segments.append({
+                    'language': detected_lang,
+                    'start': start_time,
+                    'end': end_time,
+                    'text': transcribed_text
+                })
+
+                # Clean up temp file
+                os.unlink(temp_path)
+
+            except Exception as e:
+                logger.error(f"Failed to re-transcribe segment {i}: {e}")
+                # Fallback: use original segment text with unknown language
+                language_segments.append({
+                    'language': 'unknown',
+                    'start': start_time,
+                    'end': end_time,
+                    'text': segment.get('text', '').strip()
+                })
+
+        # Merge consecutive segments with the same language
+        merged_segments = self._merge_consecutive_language_segments(language_segments)
+
+        logger.info(f"Detected {len(set(s['language'] for s in merged_segments))} unique languages")
+
+        return merged_segments
+
+    def _merge_consecutive_language_segments(
+        self,
+        segments: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Merge consecutive segments that have the same language.
+
+        Args:
+            segments: List of language segments
+
+        Returns:
+            Merged list with consecutive same-language segments combined
+        """
+        if not segments:
+            return []
+
+        merged = []
+        current = segments[0].copy()
+
+        for segment in segments[1:]:
+            if segment['language'] == current['language']:
+                # Same language - merge with current
+                current['end'] = segment['end']
+                current['text'] += ' ' + segment['text']
+            else:
+                # Different language - save current and start new
+                merged.append(current)
+                current = segment.copy()
+
+        # Add the last segment
+        merged.append(current)
+
+        return merged
 
     def _detect_language_segments(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -81,22 +272,27 @@ class EnhancedTranscriber(Transcriber):
         if not segments:
             return []
 
+        # Get the language detected by Whisper
+        whisper_detected_lang = result.get('language', 'unknown')
+        logger.info(f"Whisper detected language: {whisper_detected_lang}")
+
         language_segments = []
         current_language = None
         current_start = None
         current_texts = []
 
         for segment in segments:
-            # Whisper doesn't provide per-segment language in standard output
-            # We use the overall detected language and look for patterns
-            # In a production system, you might re-transcribe suspicious segments
-
             text = segment.get('text', '').strip()
             start = segment.get('start', 0)
             end = segment.get('end', 0)
 
-            # Simple heuristic: check for character sets
+            # Use Whisper's detected language first, fallback to character-based heuristic
+            # Whisper detects one language per audio, but we check for obvious script changes
             detected_lang = self._guess_language_from_text(text)
+
+            # If character detection shows Latin script (defaults to 'en'), use Whisper's detection
+            if detected_lang == 'en' and whisper_detected_lang != 'unknown':
+                detected_lang = whisper_detected_lang
 
             if current_language is None:
                 current_language = detected_lang
@@ -189,10 +385,11 @@ class EnhancedTranscriber(Transcriber):
         for segment in language_segments:
             start_str = self._format_timestamp_readable(segment['start'])
             end_str = self._format_timestamp_readable(segment['end'])
-            lang = segment['language']
+            lang_code = segment['language']
+            lang_name = self.LANGUAGE_NAMES.get(lang_code, lang_code.upper())
 
             timeline.append(
-                f"[{start_str} - {end_str}] Language: {lang.upper()}"
+                f"[{start_str} - {end_str}] Language: {lang_name} ({lang_code.upper()})"
             )
 
         return '\n'.join(timeline)

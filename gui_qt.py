@@ -245,12 +245,13 @@ class TranscriptionWorker(QThread):
     transcription_complete = Signal(dict)  # result dictionary
     transcription_error = Signal(str)  # error message
 
-    def __init__(self, video_path, model_size='tiny', language=None, detect_language_changes=False, parent=None):
+    def __init__(self, video_path, model_size='tiny', language=None, detect_language_changes=False, use_deep_scan=False, parent=None):
         super().__init__(parent)
         self.video_path = video_path
         self.model_size = model_size
         self.language = language
         self.detect_language_changes = detect_language_changes
+        self.use_deep_scan = use_deep_scan
 
     def run(self):
         """Execute transcription in background thread."""
@@ -292,10 +293,12 @@ class TranscriptionWorker(QThread):
 
             # Transcribe
             if self.detect_language_changes:
-                self.progress_update.emit("Transcribing with multi-language detection...", 60)
+                mode_desc = "deep scanning (segment-by-segment)" if self.use_deep_scan else "fast detection"
+                self.progress_update.emit(f"Transcribing with multi-language {mode_desc}...", 60)
                 result = transcriber.transcribe_multilang(
                     audio_path,
                     detect_language_changes=True,
+                    use_segment_retranscription=self.use_deep_scan,
                     progress_callback=progress_callback
                 )
             else:
@@ -1379,10 +1382,28 @@ class Video2TextQt(QMainWindow):
         info_label.setWordWrap(True)
         info_label.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
 
+        # Deep multi-language scanning checkbox (for code-switching)
+        self.deep_multilang_check = QCheckBox("🔬 Deep multi-language scanning (SLOW but accurate)")
+        self.deep_multilang_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px;")
+        self.deep_multilang_check.setChecked(False)
+        self.deep_multilang_check.setEnabled(False)  # Only enabled when detect_lang_changes is on
+
+        # Connect checkbox to enable/disable deep scanning
+        self.detect_lang_changes_check.toggled.connect(self.deep_multilang_check.setEnabled)
+
+        deep_info_label = QLabel("⚠️ Re-transcribes each segment individually for TRUE multi-language support.\n"
+                                 "Use this when people switch languages mid-conversation (code-switching).\n"
+                                 "Example: Czech → English → Czech in same meeting.\n"
+                                 "⏱️ This is MUCH slower but handles language mixing correctly.")
+        deep_info_label.setWordWrap(True)
+        deep_info_label.setStyleSheet(f"color: {Theme.get('warning', self.is_dark_mode)}; font-size: 10px; padding: 5px;")
+
         lang_card.content_layout.addWidget(lang_label)
         lang_card.content_layout.addWidget(self.lang_combo)
         lang_card.content_layout.addWidget(self.detect_lang_changes_check)
         lang_card.content_layout.addWidget(info_label)
+        lang_card.content_layout.addWidget(self.deep_multilang_check)
+        lang_card.content_layout.addWidget(deep_info_label)
         layout.addWidget(lang_card)
 
         # Progress section
@@ -1826,6 +1847,7 @@ class Video2TextQt(QMainWindow):
             model_size = "tiny"  # Auto-select starts with tiny
             language = None
             detect_language_changes = True  # Basic Mode auto-detects language changes
+            use_deep_scan = False  # Basic Mode uses fast detection
         else:
             # Advanced mode settings
             if self.auto_model_check.isChecked():
@@ -1837,8 +1859,9 @@ class Video2TextQt(QMainWindow):
             if language == "Auto-detect":
                 language = None
 
-            # Get multi-language detection setting
+            # Get multi-language detection settings
             detect_language_changes = self.detect_lang_changes_check.isChecked()
+            use_deep_scan = self.deep_multilang_check.isChecked()
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
@@ -1848,6 +1871,7 @@ class Video2TextQt(QMainWindow):
             model_size=model_size,
             language=language,
             detect_language_changes=detect_language_changes,
+            use_deep_scan=use_deep_scan,
             parent=self
         )
 
@@ -1859,7 +1883,7 @@ class Video2TextQt(QMainWindow):
         # Start worker
         self.transcription_worker.start()
 
-        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}, multi-lang={detect_language_changes}")
+        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}, multi-lang={detect_language_changes}, deep-scan={use_deep_scan}")
 
     def on_transcription_progress(self, message, percentage):
         """Handle transcription progress updates."""
@@ -1877,12 +1901,17 @@ class Video2TextQt(QMainWindow):
 
     def on_transcription_complete(self, result):
         """Handle successful transcription completion."""
+        from transcriber_enhanced import EnhancedTranscriber
+
         self.transcription_result = result
 
         # Display result
         text = result.get('text', '')
         language = result.get('language', 'unknown')
         segment_count = len(result.get('segments', []))
+
+        # Get language name
+        lang_name = EnhancedTranscriber.LANGUAGE_NAMES.get(language, language.upper())
 
         # Check for multi-language information
         language_timeline = result.get('language_timeline', '')
@@ -1895,11 +1924,12 @@ class Video2TextQt(QMainWindow):
             # Add language timeline to the displayed text
             display_text = f"{text}\n\n{'='*60}\n🌍 LANGUAGE TIMELINE:\n{'='*60}\n\n{language_timeline}"
 
-            # Count unique languages
+            # Count unique languages and show their names
             unique_langs = set(seg.get('language', 'unknown') for seg in language_segments)
-            lang_info = f"Languages detected: {', '.join(sorted(unique_langs))}"
+            lang_names = [EnhancedTranscriber.LANGUAGE_NAMES.get(code, code.upper()) for code in sorted(unique_langs)]
+            lang_info = f"Languages detected: {', '.join(lang_names)}"
         else:
-            lang_info = f"Language: {language}"
+            lang_info = f"Language: {lang_name}"
 
         # Update UI based on mode
         if self.current_mode == "basic":
@@ -1909,7 +1939,7 @@ class Video2TextQt(QMainWindow):
             if has_multilang:
                 self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
             else:
-                self.basic_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+                self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.basic_sidebar.setCurrentRow(2)
@@ -1928,7 +1958,7 @@ class Video2TextQt(QMainWindow):
             if has_multilang:
                 self.adv_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
             else:
-                self.adv_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+                self.adv_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.adv_sidebar.setCurrentRow(2)
