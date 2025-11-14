@@ -665,12 +665,18 @@ class Video2TextQt(QMainWindow):
         dir_label.setStyleSheet("font-size: 12px; color: #666;")
         card.content_layout.addWidget(dir_label)
 
-        self.recordings_dir_display = QLabel(self.settings["recordings_dir"])
-        self.recordings_dir_display.setStyleSheet(
-            "font-size: 13px; color: #2196F3; padding: 8px; "
-            "background-color: #E3F2FD; border-radius: 4px;"
-        )
-        self.recordings_dir_display.setWordWrap(True)
+        # Create or update the display label (instance variable)
+        if not hasattr(self, 'recordings_dir_display'):
+            self.recordings_dir_display = QLabel(self.settings["recordings_dir"])
+            self.recordings_dir_display.setStyleSheet(
+                "font-size: 13px; color: #2196F3; padding: 8px; "
+                "background-color: #E3F2FD; border-radius: 4px;"
+            )
+            self.recordings_dir_display.setWordWrap(True)
+        else:
+            # Update the text in case it changed
+            self.recordings_dir_display.setText(self.settings["recordings_dir"])
+
         card.content_layout.addWidget(self.recordings_dir_display)
 
         # Buttons row
@@ -790,6 +796,10 @@ class Video2TextQt(QMainWindow):
         file_layout.addWidget(browse_btn)
         file_card.content_layout.addLayout(file_layout)
         layout.addWidget(file_card)
+
+        # Settings card (shared with Basic Mode)
+        settings_card = self.create_settings_card()
+        layout.addWidget(settings_card)
 
         # Recording card
         record_card = Card("Audio Recording")
