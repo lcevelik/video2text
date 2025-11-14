@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QComboBox, QRadioButton, QButtonGroup, QGroupBox,
     QStackedWidget, QFrame, QSizePolicy, QScrollArea, QDialog, QListWidget, QListWidgetItem,
-    QCheckBox
+    QCheckBox, QMenu
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QThread, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QDragEnterEvent, QDropEvent
@@ -711,6 +711,16 @@ class Video2TextQt(QMainWindow):
         self.apply_theme()
         self.center_window()
 
+    def center_window(self):
+        """Center the main window on the primary screen."""
+        try:
+            frame_geom = self.frameGeometry()
+            screen_center = QApplication.primaryScreen().availableGeometry().center()
+            frame_geom.moveCenter(screen_center)
+            self.move(frame_geom.topLeft())
+        except Exception as e:
+            logger.warning(f"Could not center window: {e}")
+
     def load_settings(self):
         """Load settings from config file."""
         default_settings = {
@@ -747,7 +757,8 @@ class Video2TextQt(QMainWindow):
         try:
             # Use Qt's palette to detect system theme
             palette = QApplication.palette()
-            bg_color = palette.color(palette.Window)
+            # Updated for PySide6: use QPalette.ColorRole.Window instead of deprecated attribute
+            bg_color = palette.color(QPalette.ColorRole.Window)
             # If background is dark (luminance < 128), system is in dark mode
             is_dark = bg_color.lightness() < 128
             return is_dark
