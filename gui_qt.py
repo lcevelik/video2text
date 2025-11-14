@@ -1116,16 +1116,6 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Title
-        title = QLabel("📁 Upload File")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # Description
-        desc = QLabel("Drop a video/audio file or click to browse")
-        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        layout.addWidget(desc)
-
         # Drop zone
         self.drop_zone = DropZone(self.is_dark_mode)
         self.drop_zone.file_dropped.connect(self.on_file_dropped_basic)
@@ -1204,19 +1194,6 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Title
-        title = QLabel("🎙️ Record Audio")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # Description
-        desc = QLabel("Record audio from microphone and system speaker")
-        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
-        layout.addWidget(desc)
-
-        # Add spacing
-        layout.addSpacing(30)
-
         # Record toggle button (simplified - no frame, no icon)
         button_container = QWidget()
         button_layout = QHBoxLayout(button_container)
@@ -1266,14 +1243,9 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Title
-        title = QLabel("📄 Transcription Result")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(title)
-
-        # Description
-        self.basic_transcript_desc = QLabel("Your transcription will appear here")
-        self.basic_transcript_desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        # Language info (shown after transcription)
+        self.basic_transcript_desc = QLabel("")
+        self.basic_transcript_desc.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(self.basic_transcript_desc)
 
         # Result text
@@ -1781,7 +1753,7 @@ class Video2TextQt(QMainWindow):
         # Reset UI
         self.basic_result_text.clear()
         self.basic_save_btn.setEnabled(False)
-        self.basic_transcript_desc.setText("Your transcription will appear here")
+        self.basic_transcript_desc.setText("")
         self.basic_upload_progress_label.setText("Ready to transcribe")
         self.basic_upload_progress_bar.setValue(0)
         self.basic_record_progress_label.setText("Ready to transcribe")
