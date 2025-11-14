@@ -420,8 +420,14 @@ class Video2TextQt(QMainWindow):
         layout = QVBoxLayout()
         layout.setSpacing(20)
 
+        # State for recording
+        self.is_recording = False
+        self.recording_start_time = None
+        self.recording_timer = QTimer()
+        self.recording_timer.timeout.connect(self.update_recording_duration)
+
         # Description
-        desc = QLabel("Simple, automatic transcription. Just drop your file and click Transcribe!")
+        desc = QLabel("Simple, automatic transcription. Drop a file or record audio!")
         desc.setStyleSheet("font-size: 14px; color: #666;")
         desc.setAlignment(Qt.AlignCenter)
         layout.addWidget(desc)
@@ -437,23 +443,35 @@ class Video2TextQt(QMainWindow):
         self.basic_file_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.basic_file_label)
 
-        # Buttons
+        # Recording duration (hidden initially)
+        self.recording_duration_label = QLabel("Duration: 0:00")
+        self.recording_duration_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #F44336;")
+        self.recording_duration_label.setAlignment(Qt.AlignCenter)
+        self.recording_duration_label.hide()
+        layout.addWidget(self.recording_duration_label)
+
+        # Main action buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(15)
 
-        browse_btn = ModernButton("📁 Browse")
-        browse_btn.clicked.connect(self.browse_file)
+        # Browse button
+        self.browse_btn = ModernButton("📁 Browse File")
+        self.browse_btn.setMinimumWidth(200)
+        self.browse_btn.clicked.connect(self.browse_file)
 
-        record_btn = ModernButton("🎤 Record (Mic + Speaker)")
-        record_btn.clicked.connect(self.show_recording_dialog)
+        # Record toggle button
+        self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
+        self.basic_record_btn.setMinimumWidth(200)
+        self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
 
         btn_layout.addStretch()
-        btn_layout.addWidget(browse_btn)
-        btn_layout.addWidget(record_btn)
+        btn_layout.addWidget(self.browse_btn)
+        btn_layout.addWidget(self.basic_record_btn)
         btn_layout.addStretch()
 
         layout.addLayout(btn_layout)
 
-        # Transcribe button
+        # Transcribe button (only shown when file is selected, not when recording)
         self.basic_transcribe_btn = ModernButton("✨ Transcribe Now", primary=True)
         self.basic_transcribe_btn.setMinimumHeight(50)
         self.basic_transcribe_btn.setEnabled(False)
@@ -461,7 +479,7 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(self.basic_transcribe_btn)
 
         # Info
-        info = QLabel("🤖 Auto-selection: Starts with fastest model, upgrades if needed")
+        info = QLabel("🎤 Recording auto-transcribes  |  🤖 Auto-selects best model")
         info.setStyleSheet("font-size: 12px; color: #2196F3;")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
@@ -659,8 +677,212 @@ class Video2TextQt(QMainWindow):
         self.statusBar().showMessage(f"File selected: {filename}")
         logger.info(f"Selected file: {file_path}")
 
+    def toggle_basic_recording(self):
+        """Toggle recording in Basic Mode (one-button flow)."""
+        if not self.is_recording:
+            # Start recording
+            self.start_basic_recording()
+        else:
+            # Stop recording and auto-transcribe
+            self.stop_basic_recording()
+
+    def start_basic_recording(self):
+        """Start recording in Basic Mode."""
+        self.is_recording = True
+        self.recording_start_time = time.time()
+
+        # Update UI
+        self.basic_record_btn.setText("⏹️ Stop Recording")
+        self.basic_record_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #F44336;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #D32F2F;
+            }
+        """)
+
+        # Disable other controls
+        self.browse_btn.setEnabled(False)
+        self.basic_transcribe_btn.setEnabled(False)
+        self.drop_zone.setEnabled(False)
+
+        # Show duration label
+        self.recording_duration_label.show()
+        self.recording_timer.start(1000)  # Update every second
+
+        # Update status
+        self.statusBar().showMessage("🔴 Recording from Microphone + Speaker...")
+        self.basic_file_label.setText("Recording in progress...")
+        self.basic_file_label.setStyleSheet("font-size: 12px; color: #F44336;")
+
+        logger.info("Started basic mode recording")
+
+        # Start actual recording in background thread
+        threading.Thread(target=self._basic_recording_worker, daemon=True).start()
+
+    def stop_basic_recording(self):
+        """Stop recording in Basic Mode."""
+        self.is_recording = False
+        self.recording_timer.stop()
+
+        # Update button
+        self.basic_record_btn.setText("🎤 Start Recording")
+        self.basic_record_btn.primary = True
+        self.basic_record_btn.apply_style()
+
+        # Hide duration label
+        self.recording_duration_label.hide()
+
+        # Update status
+        self.statusBar().showMessage("Processing recording...")
+        self.basic_file_label.setText("Processing...")
+
+        logger.info("Stopped basic mode recording")
+
+    def update_recording_duration(self):
+        """Update recording duration display."""
+        if self.recording_start_time:
+            elapsed = int(time.time() - self.recording_start_time)
+            mins = elapsed // 60
+            secs = elapsed % 60
+            self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
+
+    def _basic_recording_worker(self):
+        """Background worker for basic mode recording."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            from scipy.io import wavfile
+            import tempfile
+
+            sample_rate = 16000
+            mic_chunks = []
+            speaker_chunks = []
+
+            # Device detection (same logic as gui_enhanced.py)
+            devices = sd.query_devices()
+
+            # Find microphone
+            mic_device = None
+            try:
+                default_input = sd.default.device[0]
+                if default_input is not None and default_input >= 0:
+                    if devices[default_input]['max_input_channels'] > 0:
+                        mic_device = default_input
+            except:
+                pass
+
+            if mic_device is None:
+                for idx, device in enumerate(devices):
+                    if device['max_input_channels'] > 0:
+                        device_name_lower = device['name'].lower()
+                        if not any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor']):
+                            mic_device = idx
+                            break
+
+            if mic_device is None:
+                logger.error("No microphone found")
+                self.statusBar().showMessage("❌ No microphone found!")
+                return
+
+            # Find loopback device
+            loopback_device = None
+            for idx, device in enumerate(devices):
+                if idx == mic_device:
+                    continue
+                device_name_lower = device['name'].lower()
+                if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
+                    if device['max_input_channels'] > 0:
+                        loopback_device = idx
+                        break
+
+            # Callbacks
+            def mic_callback(indata, frames, time_info, status):
+                if self.is_recording:
+                    mic_chunks.append(indata.copy())
+
+            def speaker_callback(indata, frames, time_info, status):
+                if self.is_recording:
+                    speaker_chunks.append(indata.copy())
+
+            # Start streams
+            mic_stream = sd.InputStream(device=mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
+            mic_stream.start()
+
+            speaker_stream = None
+            if loopback_device is not None:
+                try:
+                    speaker_stream = sd.InputStream(device=loopback_device, samplerate=sample_rate, channels=1, callback=speaker_callback)
+                    speaker_stream.start()
+                except:
+                    pass
+
+            # Record while active
+            while self.is_recording:
+                sd.sleep(100)
+
+            # Stop streams
+            mic_stream.stop()
+            mic_stream.close()
+            if speaker_stream:
+                speaker_stream.stop()
+                speaker_stream.close()
+
+            # Process and save
+            if mic_chunks:
+                mic_data = np.concatenate(mic_chunks, axis=0)
+
+                if speaker_chunks:
+                    speaker_data = np.concatenate(speaker_chunks, axis=0)
+                    max_len = max(len(mic_data), len(speaker_data))
+                    if len(mic_data) < max_len:
+                        mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
+                    if len(speaker_data) < max_len:
+                        speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
+                    final_data = (mic_data * 0.6 + speaker_data * 0.4)
+                    max_val = np.max(np.abs(final_data))
+                    if max_val > 0:
+                        final_data = final_data / max_val * 0.9
+                else:
+                    final_data = mic_data
+
+                # Save to temp file
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                recorded_path = temp_file.name
+                temp_file.close()
+
+                final_data_int16 = (final_data * 32767).astype(np.int16)
+                wavfile.write(recorded_path, sample_rate, final_data_int16)
+
+                duration = len(final_data) / sample_rate
+                logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
+
+                # Load file and auto-start transcription
+                self.video_path = recorded_path
+                self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s) - Starting transcription...")
+
+                # Re-enable controls
+                self.browse_btn.setEnabled(True)
+                self.drop_zone.setEnabled(True)
+
+                # Auto-start transcription
+                QTimer.singleShot(500, self.start_transcription)
+
+        except Exception as e:
+            logger.error(f"Recording error: {e}", exc_info=True)
+            self.statusBar().showMessage(f"❌ Recording error: {str(e)}")
+            self.browse_btn.setEnabled(True)
+            self.drop_zone.setEnabled(True)
+
     def show_recording_dialog(self):
-        """Show recording dialog."""
+        """Show recording dialog (Advanced Mode only)."""
         dialog = RecordingDialog(self)
         if dialog.exec_() and dialog.recorded_path:
             self.load_file(dialog.recorded_path)
