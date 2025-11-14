@@ -423,8 +423,8 @@ class DropZone(QFrame):
     def __init__(self, is_dark_mode=False):
         super().__init__()
         self.setAcceptDrops(True)
-        self.setMinimumHeight(150)
-        self.setMaximumHeight(200)
+        self.setMinimumHeight(120)
+        self.setMaximumHeight(150)
         self.has_file = False
         self.is_dark_mode = is_dark_mode
         self.setCursor(Qt.PointingHandCursor)
@@ -432,14 +432,11 @@ class DropZone(QFrame):
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignCenter)
 
-        self.icon_label = QLabel("🎬")
-        self.icon_label.setStyleSheet("font-size: 48px;")
-        self.icon_label.setAlignment(Qt.AlignCenter)
-
-        self.text_label = QLabel("Drag & Drop Video/Audio\nFile Here")
+        # Just text label, no icon
+        self.text_label = QLabel("Drag and drop video/audio file")
         self.text_label.setAlignment(Qt.AlignCenter)
+        self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
 
-        self.layout.addWidget(self.icon_label)
         self.layout.addWidget(self.text_label)
 
         self.setLayout(self.layout)
@@ -450,24 +447,24 @@ class DropZone(QFrame):
         self.is_dark_mode = is_dark_mode
         self.update_style()
         if not self.has_file:
-            self.text_label.setStyleSheet(f"font-size: 16px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-weight: 500;")
+            self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
 
     def update_style(self, hovering=False):
+        # Background always matches main background (no separate color)
+        bg = Theme.get('bg_primary', self.is_dark_mode)
+
         if self.has_file:
-            color = Theme.get('selected_border', self.is_dark_mode)
-            bg = Theme.get('selected_bg', self.is_dark_mode)
+            color = Theme.get('accent', self.is_dark_mode)
         elif hovering:
-            color = Theme.get('dropzone_hover_border', self.is_dark_mode)
-            bg = Theme.get('dropzone_hover_bg', self.is_dark_mode)
+            color = Theme.get('accent', self.is_dark_mode)
         else:
-            color = Theme.get('dropzone_border', self.is_dark_mode)
-            bg = Theme.get('dropzone_bg', self.is_dark_mode)
+            color = Theme.get('border', self.is_dark_mode)
 
         self.setStyleSheet(f"""
             DropZone {{
                 background-color: {bg};
-                border: 3px dashed {color};
-                border-radius: 12px;
+                border: 2px dashed {color};
+                border-radius: 8px;
             }}
         """)
 
@@ -487,16 +484,14 @@ class DropZone(QFrame):
 
     def set_file(self, filename):
         self.has_file = True
-        self.icon_label.setText("✅")
-        self.text_label.setText(f"Selected: {filename}")
-        self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('selected_text', self.is_dark_mode)}; font-weight: 600;")
+        self.text_label.setText(f"✓ {filename}")
+        self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('accent', self.is_dark_mode)}; font-weight: 600;")
         self.update_style()
 
     def clear_file(self):
         self.has_file = False
-        self.icon_label.setText("🎬")
-        self.text_label.setText("Drag & Drop Video/Audio\nFile Here")
-        self.text_label.setStyleSheet(f"font-size: 16px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-weight: 500;")
+        self.text_label.setText("Drag and drop video/audio file")
+        self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         self.update_style()
 
     def mousePressEvent(self, event):
@@ -709,7 +704,8 @@ class Video2TextQt(QMainWindow):
         self.video_path = None
         self.transcription_result = None
         self.transcription_worker = None  # QThread worker for transcription
-        self.is_dark_mode = self.settings.get("dark_mode", False)
+        self.theme_mode = self.settings.get("theme_mode", "auto")  # auto, light, dark
+        self.is_dark_mode = self.get_effective_theme()
 
         self.setup_ui()
         self.apply_theme()
@@ -719,13 +715,17 @@ class Video2TextQt(QMainWindow):
         """Load settings from config file."""
         default_settings = {
             "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
-            "dark_mode": False
+            "theme_mode": "auto"  # auto, light, dark
         }
 
         try:
             if self.config_file.exists():
                 with open(self.config_file, 'r') as f:
                     settings = json.load(f)
+                    # Migrate old dark_mode setting to theme_mode
+                    if "dark_mode" in settings and "theme_mode" not in settings:
+                        settings["theme_mode"] = "dark" if settings["dark_mode"] else "light"
+                        del settings["dark_mode"]
                     # Merge with defaults for any missing keys
                     return {**default_settings, **settings}
         except Exception as e:
@@ -742,18 +742,52 @@ class Video2TextQt(QMainWindow):
         except Exception as e:
             logger.error(f"Could not save settings: {e}")
 
+    def detect_system_theme(self):
+        """Detect if system is in dark mode."""
+        try:
+            # Use Qt's palette to detect system theme
+            palette = QApplication.palette()
+            bg_color = palette.color(palette.Window)
+            # If background is dark (luminance < 128), system is in dark mode
+            is_dark = bg_color.lightness() < 128
+            return is_dark
+        except Exception as e:
+            logger.warning(f"Could not detect system theme: {e}")
+            return False  # Default to light
+
+    def get_effective_theme(self):
+        """Get the effective theme based on mode setting."""
+        if self.theme_mode == "auto":
+            return self.detect_system_theme()
+        elif self.theme_mode == "dark":
+            return True
+        else:  # light
+            return False
+
     def toggle_theme(self):
-        """Toggle between dark and light mode."""
-        self.is_dark_mode = not self.is_dark_mode
-        self.settings["dark_mode"] = self.is_dark_mode
+        """Cycle through theme modes: auto -> light -> dark -> auto."""
+        modes = ["auto", "light", "dark"]
+        current_index = modes.index(self.theme_mode)
+        next_index = (current_index + 1) % len(modes)
+        self.theme_mode = modes[next_index]
+
+        self.settings["theme_mode"] = self.theme_mode
         self.save_settings()
+
+        # Update effective theme
+        self.is_dark_mode = self.get_effective_theme()
         self.apply_theme()
 
         # Update toggle button text
         if hasattr(self, 'theme_toggle_btn'):
-            self.theme_toggle_btn.setText("☀️ Light Mode" if self.is_dark_mode else "🌙 Dark Mode")
+            if self.theme_mode == "auto":
+                self.theme_toggle_btn.setText("🔄 Auto Theme")
+            elif self.theme_mode == "light":
+                self.theme_toggle_btn.setText("☀️ Light Mode")
+            else:  # dark
+                self.theme_toggle_btn.setText("🌙 Dark Mode")
 
-        logger.info(f"Theme switched to {'dark' if self.is_dark_mode else 'light'} mode")
+        logger.info(f"Theme mode set to: {self.theme_mode} (effective: {'dark' if self.is_dark_mode else 'light'})")
 
     def apply_theme(self):
         """Apply the current theme to all UI elements."""
@@ -916,8 +950,14 @@ class Video2TextQt(QMainWindow):
         layout.addLayout(title_layout)
         layout.addStretch()
 
-        # Theme toggle button
-        self.theme_toggle_btn = QPushButton("🌙 Dark Mode" if not self.is_dark_mode else "☀️ Light Mode")
+        # Theme toggle button - set text based on theme mode
+        if self.theme_mode == "auto":
+            btn_text = "🔄 Auto Theme"
+        elif self.theme_mode == "light":
+            btn_text = "☀️ Light Mode"
+        else:  # dark
+            btn_text = "🌙 Dark Mode"
+        self.theme_toggle_btn = QPushButton(btn_text)
         self.theme_toggle_btn.setMinimumWidth(120)
         self.theme_toggle_btn.setMinimumHeight(35)
         self.theme_toggle_btn.setCursor(Qt.PointingHandCursor)
@@ -1070,6 +1110,7 @@ class Video2TextQt(QMainWindow):
 
         # Settings Card
         settings_card = Card("⚙️ Transcription Settings", self.is_dark_mode)
+        settings_card.setMinimumHeight(200)
 
         # Model selector
         model_label = QLabel("Whisper Model:")
@@ -1077,6 +1118,7 @@ class Video2TextQt(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.addItems(["tiny", "base", "small", "medium", "large"])
         self.model_combo.setCurrentText("large")  # Default to large for better multi-language
+        self.model_combo.setMinimumHeight(35)
         self.model_combo.setStyleSheet(f"""
             QComboBox {{
                 padding: 8px;
@@ -1094,6 +1136,7 @@ class Video2TextQt(QMainWindow):
         settings_card.content_layout.addWidget(model_label)
         settings_card.content_layout.addWidget(self.model_combo)
         settings_card.content_layout.addWidget(model_info)
+        settings_card.content_layout.addSpacing(10)
 
         # Deep scanning checkbox
         self.deep_scan_check = QCheckBox("🔬 Deep multi-language scanning (segment-by-segment)")
@@ -1110,6 +1153,7 @@ class Video2TextQt(QMainWindow):
         settings_card.content_layout.addWidget(deep_info)
 
         layout.addWidget(settings_card)
+        layout.addSpacing(10)
 
         # Progress section
         self.basic_upload_progress_label = QLabel("Ready to transcribe")
@@ -1146,33 +1190,22 @@ class Video2TextQt(QMainWindow):
         desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(desc)
 
-        # Recording button container
-        record_container = QFrame()
-        record_container.setMinimumHeight(200)
-        record_container.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                border-radius: 12px;
-                border: 2px solid {Theme.get('border', self.is_dark_mode)};
-            }}
-        """)
-        record_layout = QVBoxLayout(record_container)
-        record_layout.setAlignment(Qt.AlignCenter)
+        # Add spacing
+        layout.addSpacing(30)
 
-        # Record icon
-        record_icon = QLabel("🎙️")
-        record_icon.setStyleSheet("font-size: 64px;")
-        record_icon.setAlignment(Qt.AlignCenter)
-        record_layout.addWidget(record_icon)
+        # Record toggle button (simplified - no frame, no icon)
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setAlignment(Qt.AlignCenter)
 
-        # Record toggle button
-        self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
+        self.basic_record_btn = ModernButton("Start Recording", primary=True)
         self.basic_record_btn.setMinimumHeight(50)
         self.basic_record_btn.setMinimumWidth(220)
         self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
-        record_layout.addWidget(self.basic_record_btn, 0, Qt.AlignCenter)
+        button_layout.addWidget(self.basic_record_btn)
 
-        layout.addWidget(record_container)
+        layout.addWidget(button_container)
+        layout.addSpacing(20)
 
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
@@ -1192,8 +1225,11 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_bar.setMinimumHeight(25)
         layout.addWidget(self.basic_record_progress_bar)
 
+        layout.addSpacing(10)
+
         # Settings card
         settings_card = self.create_settings_card()
+        settings_card.setMinimumHeight(150)
         layout.addWidget(settings_card)
 
         # Info tip
@@ -1363,7 +1399,7 @@ class Video2TextQt(QMainWindow):
         self.recording_start_time = time.time()
 
         # Update UI
-        self.basic_record_btn.setText("⏹️ Stop Recording")
+        self.basic_record_btn.setText("Stop Recording")
         self.basic_record_btn.setStyleSheet("""
             QPushButton {
                 background-color: #F44336;
@@ -1409,7 +1445,7 @@ class Video2TextQt(QMainWindow):
             self.recording_worker.stop()
 
         # Update button
-        self.basic_record_btn.setText("🎤 Start Recording")
+        self.basic_record_btn.setText("Start Recording")
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
 
