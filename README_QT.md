@@ -96,16 +96,19 @@ Each mode features a clean sidebar with three organized tabs:
 - 💾 **Save Options** - Export as TXT, SRT, or VTT
 - 🔄 **Auto-Navigation** - Automatically shown when transcription completes
 - 📋 **Format Selection** - Choose output format before saving
+- 🔄 **New Transcription** - Clear results and start fresh for next meeting
 
 ### **Basic Mode**
 - ✨ **Simplified Interface** - Only essential controls
 - 🤖 **Smart Model Selection** - Automatically chooses best model
-- 🚀 **Automatic Workflow** - Drop file → transcribe → view results
+- 🌐 **Automatic Multi-Language Detection** - Detects when speakers switch languages (no configuration needed)
+- 🚀 **Automatic Workflow** - Drop file → transcribe → view results with language timeline
 - 🎯 **Perfect for Beginners** - No configuration needed
 
 ### **Advanced Mode**
 - ⚙️ **Full Control** - Manual model selection (tiny/base/small/medium/large)
 - 🌍 **Language Options** - Choose from 99 supported languages
+- 🌐 **Multi-Language Detection** - Track when speakers switch languages (perfect for multilingual meetings)
 - 📝 **Multiple Formats** - TXT, SRT, VTT output
 - 🎛️ **Fine-Tuning** - All advanced options available
 - 💬 **Custom Instructions** - Add context for better accuracy
@@ -185,9 +188,14 @@ Each mode features a clean sidebar with three organized tabs:
 1. Make sure **Basic Mode** is selected
 2. Go to **Upload Tab** (sidebar)
 3. **Drop your file** into the drop zone (or click to browse)
-4. **Wait** - transcription starts automatically
+4. **Wait** - transcription starts automatically with multi-language detection enabled
 5. **View results** - automatically navigate to Transcript tab
+   - Includes full transcription in all languages
+   - Language timeline appended showing when each language was spoken
 6. **Save** - choose format and click "Save Transcription"
+7. **Start fresh** - click "🔄 New Transcription" to clear and process another meeting
+
+**Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings without any configuration!
 
 ### **Advanced Mode Step-by-Step**
 
@@ -196,13 +204,51 @@ Each mode features a clean sidebar with three organized tabs:
    - Drop or browse for your file
    - Choose model size (or use Auto-select)
    - Select language (or use Auto-detect)
+   - **For multilingual meetings**: Check "🌍 Detect language changes"
    - Add custom instructions (optional)
    - Click "Start Transcription"
 3. **Transcript Tab**:
    - Wait for transcription to complete
-   - Review results
+   - Review results (includes language timeline if multi-language detection was enabled)
    - Select output format
    - Click "Save Transcription"
+
+### **Multi-Language Detection (For Multilingual Meetings)**
+
+Perfect for international meetings, conferences, or recordings with multiple languages:
+
+**In Basic Mode** (Automatic):
+- Multi-language detection is **always enabled** - no configuration needed!
+- Just drop your file and transcribe
+- Results automatically include language timeline
+
+**In Advanced Mode** (Manual Control):
+1. Go to Upload Tab
+2. Check the box: **"🌍 Detect language changes (for multilingual meetings)"**
+3. Start transcription as normal
+
+**What You Get:**
+- Full transcription with all languages
+- **Language Timeline** showing when each language was spoken
+- Example timeline format:
+  ```
+  [00:00:15 - 00:02:30] Language: EN
+  [00:02:30 - 00:05:45] Language: ES
+  [00:05:45 - 00:08:00] Language: EN
+  ```
+- Automatic detection of: English, Spanish, Chinese, Japanese, Korean, Arabic, Russian, Hebrew, Thai, and more
+
+**Supported Language Detection:**
+- **Character-based detection** for CJK (Chinese, Japanese, Korean)
+- **Script detection** for Arabic, Cyrillic, Hebrew, Thai
+- **Latin-based languages** (English, Spanish, French, German, etc.)
+
+**Use Cases:**
+- International business meetings
+- Multilingual conferences
+- Customer support calls
+- Educational content with multiple languages
+- Any recording where speakers switch between languages
 
 ## 📸 UI Components
 

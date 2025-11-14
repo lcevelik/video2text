@@ -17,13 +17,15 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QComboBox, QRadioButton, QButtonGroup, QGroupBox,
-    QStackedWidget, QFrame, QSizePolicy, QScrollArea, QDialog, QListWidget, QListWidgetItem
+    QStackedWidget, QFrame, QSizePolicy, QScrollArea, QDialog, QListWidget, QListWidgetItem,
+    QCheckBox
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QThread, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QDragEnterEvent, QDropEvent
 
 from audio_extractor import AudioExtractor
 from transcriber import Transcriber
+from transcriber_enhanced import EnhancedTranscriber
 
 logger = logging.getLogger(__name__)
 
@@ -243,17 +245,19 @@ class TranscriptionWorker(QThread):
     transcription_complete = Signal(dict)  # result dictionary
     transcription_error = Signal(str)  # error message
 
-    def __init__(self, video_path, model_size='tiny', language=None, parent=None):
+    def __init__(self, video_path, model_size='tiny', language=None, detect_language_changes=False, parent=None):
         super().__init__(parent)
         self.video_path = video_path
         self.model_size = model_size
         self.language = language
+        self.detect_language_changes = detect_language_changes
 
     def run(self):
         """Execute transcription in background thread."""
         try:
             from audio_extractor import AudioExtractor
             from transcriber import Transcriber
+            from transcriber_enhanced import EnhancedTranscriber
 
             # Step 1: Extract audio from video if needed
             self.progress_update.emit("Extracting audio...", 10)
@@ -270,7 +274,11 @@ class TranscriptionWorker(QThread):
             # Step 2: Load and run transcription
             self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 40)
 
-            transcriber = Transcriber(model_size=self.model_size)
+            # Use EnhancedTranscriber if language change detection is enabled
+            if self.detect_language_changes:
+                transcriber = EnhancedTranscriber(model_size=self.model_size)
+            else:
+                transcriber = Transcriber(model_size=self.model_size)
 
             # Define progress callback
             def progress_callback(message):
@@ -283,12 +291,20 @@ class TranscriptionWorker(QThread):
                     self.progress_update.emit(message, 70)
 
             # Transcribe
-            self.progress_update.emit("Transcribing audio...", 60)
-            result = transcriber.transcribe(
-                audio_path,
-                language=self.language if self.language and self.language != "Auto-detect" else None,
-                progress_callback=progress_callback
-            )
+            if self.detect_language_changes:
+                self.progress_update.emit("Transcribing with multi-language detection...", 60)
+                result = transcriber.transcribe_multilang(
+                    audio_path,
+                    detect_language_changes=True,
+                    progress_callback=progress_callback
+                )
+            else:
+                self.progress_update.emit("Transcribing audio...", 60)
+                result = transcriber.transcribe(
+                    audio_path,
+                    language=self.language if self.language and self.language != "Auto-detect" else None,
+                    progress_callback=progress_callback
+                )
 
             self.progress_update.emit("Transcription complete!", 100)
 
@@ -1208,11 +1224,21 @@ class Video2TextQt(QMainWindow):
         """)
         layout.addWidget(self.basic_result_text, 1)
 
-        # Save button
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+
         self.basic_save_btn = ModernButton("💾 Save Transcription", primary=True)
         self.basic_save_btn.setEnabled(False)
         self.basic_save_btn.clicked.connect(self.save_transcription)
-        layout.addWidget(self.basic_save_btn)
+
+        self.basic_clear_btn = ModernButton("🔄 New Transcription", primary=False)
+        self.basic_clear_btn.setEnabled(False)
+        self.basic_clear_btn.clicked.connect(self.clear_for_new_transcription)
+
+        button_layout.addWidget(self.basic_save_btn)
+        button_layout.addWidget(self.basic_clear_btn)
+        layout.addLayout(button_layout)
 
         widget.setLayout(layout)
         return widget
@@ -1334,12 +1360,29 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(model_card)
 
         # Language card
-        lang_card = Card("Language", self.is_dark_mode)
+        lang_card = Card("Language Settings", self.is_dark_mode)
+
+        # Language selector
+        lang_label = QLabel("Primary Language:")
+        lang_label.setStyleSheet(f"font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
         self.lang_combo = QComboBox()
         self.lang_combo.addItems(["Auto-detect", "English", "Spanish", "French", "German",
                                    "Italian", "Portuguese", "Russian", "Japanese", "Korean",
                                    "Chinese", "Arabic"])
+
+        # Multi-language detection checkbox
+        self.detect_lang_changes_check = QCheckBox("🌍 Detect language changes (for multilingual meetings)")
+        self.detect_lang_changes_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px;")
+        self.detect_lang_changes_check.setChecked(False)
+
+        info_label = QLabel("ℹ️ Enable this for meetings where people speak different languages.\nCreates a timeline showing when each language was spoken.")
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
+
+        lang_card.content_layout.addWidget(lang_label)
         lang_card.content_layout.addWidget(self.lang_combo)
+        lang_card.content_layout.addWidget(self.detect_lang_changes_check)
+        lang_card.content_layout.addWidget(info_label)
         layout.addWidget(lang_card)
 
         # Progress section
@@ -1448,11 +1491,21 @@ class Video2TextQt(QMainWindow):
         """)
         layout.addWidget(self.adv_result_text, 1)
 
-        # Save button
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+
         self.adv_save_btn = ModernButton("💾 Save Transcription", primary=True)
         self.adv_save_btn.setEnabled(False)
         self.adv_save_btn.clicked.connect(self.save_transcription)
-        layout.addWidget(self.adv_save_btn)
+
+        self.adv_clear_btn = ModernButton("🔄 New Transcription", primary=False)
+        self.adv_clear_btn.setEnabled(False)
+        self.adv_clear_btn.clicked.connect(self.clear_for_new_transcription)
+
+        button_layout.addWidget(self.adv_save_btn)
+        button_layout.addWidget(self.adv_clear_btn)
+        layout.addLayout(button_layout)
 
         widget.setLayout(layout)
         return widget
@@ -1772,6 +1825,7 @@ class Video2TextQt(QMainWindow):
         if self.current_mode == "basic":
             model_size = "tiny"  # Auto-select starts with tiny
             language = None
+            detect_language_changes = True  # Basic Mode auto-detects language changes
         else:
             # Advanced mode settings
             if self.auto_model_check.isChecked():
@@ -1783,6 +1837,9 @@ class Video2TextQt(QMainWindow):
             if language == "Auto-detect":
                 language = None
 
+            # Get multi-language detection setting
+            detect_language_changes = self.detect_lang_changes_check.isChecked()
+
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
 
@@ -1790,6 +1847,7 @@ class Video2TextQt(QMainWindow):
             self.video_path,
             model_size=model_size,
             language=language,
+            detect_language_changes=detect_language_changes,
             parent=self
         )
 
@@ -1801,7 +1859,7 @@ class Video2TextQt(QMainWindow):
         # Start worker
         self.transcription_worker.start()
 
-        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}")
+        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}, multi-lang={detect_language_changes}")
 
     def on_transcription_progress(self, message, percentage):
         """Handle transcription progress updates."""
@@ -1826,37 +1884,65 @@ class Video2TextQt(QMainWindow):
         language = result.get('language', 'unknown')
         segment_count = len(result.get('segments', []))
 
+        # Check for multi-language information
+        language_timeline = result.get('language_timeline', '')
+        language_segments = result.get('language_segments', [])
+        has_multilang = bool(language_timeline or language_segments)
+
+        # Prepare display text
+        display_text = text
+        if has_multilang and language_timeline:
+            # Add language timeline to the displayed text
+            display_text = f"{text}\n\n{'='*60}\n🌍 LANGUAGE TIMELINE:\n{'='*60}\n\n{language_timeline}"
+
+            # Count unique languages
+            unique_langs = set(seg.get('language', 'unknown') for seg in language_segments)
+            lang_info = f"Languages detected: {', '.join(sorted(unique_langs))}"
+        else:
+            lang_info = f"Language: {language}"
+
         # Update UI based on mode
         if self.current_mode == "basic":
-            self.basic_result_text.setPlainText(text)
+            self.basic_result_text.setPlainText(display_text)
             self.basic_save_btn.setEnabled(True)
-            self.basic_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+            self.basic_clear_btn.setEnabled(True)
+            if has_multilang:
+                self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
+            else:
+                self.basic_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.basic_sidebar.setCurrentRow(2)
             self.basic_tab_stack.setCurrentIndex(2)
 
             # Update progress bars
-            self.basic_upload_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.basic_upload_progress_label.setText(f"✅ Complete! {lang_info}")
             self.basic_upload_progress_bar.setValue(100)
-            self.basic_record_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.basic_record_progress_label.setText(f"✅ Complete! {lang_info}")
             self.basic_record_progress_bar.setValue(100)
         else:
-            self.adv_result_text.setPlainText(text)
+            self.adv_result_text.setPlainText(display_text)
             self.adv_save_btn.setEnabled(True)
+            self.adv_clear_btn.setEnabled(True)
             self.adv_start_btn.setEnabled(True)
-            self.adv_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+            if has_multilang:
+                self.adv_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
+            else:
+                self.adv_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.adv_sidebar.setCurrentRow(2)
             self.adv_tab_stack.setCurrentIndex(2)
 
             # Update progress bar
-            self.adv_upload_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.adv_upload_progress_label.setText(f"✅ Complete! {lang_info}")
             self.adv_upload_progress_bar.setValue(100)
 
-        self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, language: {language})")
+        status_msg = f"Transcription complete ({segment_count} segments, {lang_info})"
+        self.statusBar().showMessage(status_msg)
 
+        if has_multilang:
+            logger.info(f"Multi-language transcription complete: {len(language_segments)} language segments detected")
         logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
 
     def on_transcription_error(self, error_message):
@@ -1950,6 +2036,63 @@ class Video2TextQt(QMainWindow):
                 "Save Error",
                 f"Failed to save transcription:\n\n{str(e)}"
             )
+
+    def clear_for_new_transcription(self):
+        """Clear current transcription and reset UI for a new transcription."""
+        # Ask for confirmation
+        reply = QMessageBox.question(
+            self,
+            "New Transcription",
+            "Start a new transcription? This will clear the current results.\n\n"
+            "(Make sure you've saved your transcription if needed!)",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        # Clear state
+        self.video_path = None
+        self.transcription_result = None
+
+        # Reset UI based on mode
+        if self.current_mode == "basic":
+            # Clear Basic Mode UI
+            self.basic_result_text.clear()
+            self.basic_save_btn.setEnabled(False)
+            self.basic_clear_btn.setEnabled(False)
+            self.basic_transcript_desc.setText("Your transcription will appear here")
+            self.basic_upload_progress_label.setText("Ready to transcribe")
+            self.basic_upload_progress_bar.setValue(0)
+            self.basic_record_progress_label.setText("Ready to transcribe")
+            self.basic_record_progress_bar.setValue(0)
+
+            # Clear drop zone
+            if hasattr(self, 'drop_zone'):
+                self.drop_zone.clear_file()
+
+            # Navigate back to Upload tab
+            self.basic_sidebar.setCurrentRow(0)
+            self.basic_tab_stack.setCurrentIndex(0)
+
+        else:
+            # Clear Advanced Mode UI
+            self.adv_result_text.clear()
+            self.adv_save_btn.setEnabled(False)
+            self.adv_clear_btn.setEnabled(False)
+            self.adv_start_btn.setEnabled(False)
+            self.adv_transcript_desc.setText("Your transcription will appear here")
+            self.adv_upload_progress_label.setText("Ready to transcribe")
+            self.adv_upload_progress_bar.setValue(0)
+            self.adv_file_label.setText("No file selected")
+
+            # Navigate back to Upload tab
+            self.adv_sidebar.setCurrentRow(0)
+            self.adv_tab_stack.setCurrentIndex(0)
+
+        self.statusBar().showMessage("Ready for new transcription")
+        logger.info("Cleared for new transcription")
 
 
 def main():
