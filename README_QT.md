@@ -96,6 +96,7 @@ Each mode features a clean sidebar with three organized tabs:
 - 💾 **Save Options** - Export as TXT, SRT, or VTT
 - 🔄 **Auto-Navigation** - Automatically shown when transcription completes
 - 📋 **Format Selection** - Choose output format before saving
+- 🔄 **New Transcription** - Clear results and start fresh for next meeting
 
 ### **Basic Mode**
 - ✨ **Simplified Interface** - Only essential controls
@@ -192,6 +193,7 @@ Each mode features a clean sidebar with three organized tabs:
    - Includes full transcription in all languages
    - Language timeline appended showing when each language was spoken
 6. **Save** - choose format and click "Save Transcription"
+7. **Start fresh** - click "🔄 New Transcription" to clear and process another meeting
 
 **Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings without any configuration!
 

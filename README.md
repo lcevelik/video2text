@@ -269,7 +269,8 @@ The modern Qt interface features a **sidebar with three main tabs**:
 3. **Transcript Tab**:
    - View transcription results (includes language timeline if multiple languages detected)
    - Choose output format (TXT, SRT, VTT)
-   - Click "Save Transcription" to export
+   - Click "💾 Save Transcription" to export
+   - Click "🔄 New Transcription" to clear and start fresh
    - Auto-navigates here when transcription completes
 
 **Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings!
