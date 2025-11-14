@@ -67,64 +67,93 @@ class EnhancedTranscriber(Transcriber):
         detect_language_changes: bool = True,
         initial_prompt: Optional[str] = None,
         progress_callback=None,
-        use_segment_retranscription: bool = True
+        use_segment_retranscription: bool = True,
+        detection_model: str = "base",
+        transcription_model: str = "medium"
     ) -> Dict[str, Any]:
         """
-        Transcribe audio with multi-language detection.
+        Transcribe audio with multi-language detection using two-pass approach.
 
         For TRUE multi-language support (code-switching), this method:
-        1. Does initial transcription to get segment boundaries
-        2. Re-transcribes each segment individually to detect its language
+        1. PASS 1: Uses fast model (base) to detect segment boundaries and languages
+        2. PASS 2: Uses accurate model (medium) to re-transcribe each segment
         3. Combines results with proper language labels
+
+        This two-pass approach is faster and more accurate than using one large model.
 
         Args:
             audio_path: Path to the audio file
             detect_language_changes: Whether to detect language changes
             initial_prompt: Optional initial prompt
             progress_callback: Optional callback for progress updates
-            use_segment_retranscription: If True, re-transcribe segments individually for better
-                                         multi-language detection (slower but more accurate)
+            use_segment_retranscription: If True, re-transcribe segments individually
+            detection_model: Model for Pass 1 (default: "base" - fast detection)
+            transcription_model: Model for Pass 2 (default: "medium" - accurate transcription)
 
         Returns:
             dict: Enhanced transcription result with language information
         """
-        # First pass: transcribe to get segment boundaries
-        if progress_callback:
-            progress_callback("Initial transcription pass...")
-
-        result = self.transcribe(
-            audio_path,
-            language=None,  # Auto-detect
-            initial_prompt=initial_prompt,
-            progress_callback=progress_callback
-        )
-
         if detect_language_changes and use_segment_retranscription:
-            # Second pass: re-transcribe each segment to detect its specific language
+            # PASS 1: Fast detection using base model
             if progress_callback:
-                progress_callback("Detecting languages per segment...")
+                progress_callback(f"Pass 1: Detecting languages with {detection_model} model...")
 
-            self.language_segments = self._retranscribe_segments(
+            # Create temporary transcriber with detection model
+            from transcriber import Transcriber
+            detection_transcriber = Transcriber(model_size=detection_model)
+
+            # Quick pass to get segments and detect languages
+            detection_result = detection_transcriber.transcribe(
                 audio_path,
-                result.get('segments', []),
+                language=None,  # Auto-detect
+                initial_prompt=initial_prompt,
+                progress_callback=None  # Don't spam progress
+            )
+
+            logger.info(f"Pass 1 complete: Detected {len(detection_result.get('segments', []))} segments")
+
+            # PASS 2: Accurate transcription using transcription model per segment
+            if progress_callback:
+                progress_callback(f"Pass 2: Transcribing segments with {transcription_model} model...")
+
+            self.language_segments = self._retranscribe_segments_with_model(
+                audio_path,
+                detection_result.get('segments', []),
+                transcription_model,
                 progress_callback
             )
 
-            # Rebuild the full text from language-aware segments
+            # Build result
+            result = {}
             result['text'] = ' '.join(seg['text'] for seg in self.language_segments)
+            result['segments'] = detection_result.get('segments', [])
+            result['language'] = detection_result.get('language', 'unknown')
             result['language_segments'] = self.language_segments
+            result['language_timeline'] = self._create_language_timeline(
+                self.language_segments
+            )
 
-            # Add language timeline
-            result['language_timeline'] = self._create_language_timeline(
-                self.language_segments
+            logger.info(f"Pass 2 complete: Transcribed with {len(set(s['language'] for s in self.language_segments))} languages detected")
+
+        else:
+            # Single pass: use current model
+            if progress_callback:
+                progress_callback("Transcribing...")
+
+            result = self.transcribe(
+                audio_path,
+                language=None,  # Auto-detect
+                initial_prompt=initial_prompt,
+                progress_callback=progress_callback
             )
-        elif detect_language_changes:
-            # Fallback: use character-based detection (less accurate)
-            self.language_segments = self._detect_language_segments(result)
-            result['language_segments'] = self.language_segments
-            result['language_timeline'] = self._create_language_timeline(
-                self.language_segments
-            )
+
+            if detect_language_changes:
+                # Fallback: use character-based detection (less accurate)
+                self.language_segments = self._detect_language_segments(result)
+                result['language_segments'] = self.language_segments
+                result['language_timeline'] = self._create_language_timeline(
+                    self.language_segments
+                )
 
         return result
 
@@ -257,6 +286,110 @@ class EnhancedTranscriber(Transcriber):
         merged.append(current)
 
         return merged
+
+    def _retranscribe_segments_with_model(
+        self,
+        audio_path: str,
+        segments: List[Dict[str, Any]],
+        model_name: str,
+        progress_callback=None
+    ) -> List[Dict[str, Any]]:
+        """
+        Re-transcribe each segment individually using a SPECIFIC model.
+
+        This is similar to _retranscribe_segments() but allows using a different
+        model than the one this EnhancedTranscriber was initialized with.
+
+        This is the KEY to the two-pass approach:
+        - Pass 1 uses fast model (base) for detection
+        - Pass 2 uses accurate model (medium) for transcription
+
+        Args:
+            audio_path: Path to the full audio file
+            segments: List of segments from initial transcription
+            model_name: Name of the model to use (e.g., "medium", "large")
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            List of language segments with accurate per-segment transcription
+        """
+        import subprocess
+
+        language_segments = []
+        total_segments = len(segments)
+
+        logger.info(f"Re-transcribing {total_segments} segments using {model_name} model")
+
+        # Create a transcriber with the specified model
+        transcriber = Transcriber(model_size=model_name)
+
+        for i, segment in enumerate(segments):
+            start_time = segment.get('start', 0)
+            end_time = segment.get('end', 0)
+            duration = end_time - start_time
+
+            if duration < 0.1:  # Skip very short segments
+                continue
+
+            # Progress update
+            if progress_callback and i % 5 == 0:  # Update every 5 segments
+                progress_callback(f"Transcribing: {i+1}/{total_segments} segments ({model_name} model)")
+
+            try:
+                # Extract audio segment using ffmpeg
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                    temp_path = temp_audio.name
+
+                # Use ffmpeg to extract the specific time range
+                subprocess.run([
+                    'ffmpeg', '-i', audio_path,
+                    '-ss', str(start_time),
+                    '-t', str(duration),
+                    '-ar', '16000',  # Whisper expects 16kHz
+                    '-ac', '1',       # Mono
+                    '-y',             # Overwrite
+                    temp_path
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+                # Transcribe this segment alone to detect its language
+                segment_result = transcriber.transcribe(
+                    temp_path,
+                    language=None,  # Auto-detect for THIS segment
+                    progress_callback=None  # Don't spam progress for each segment
+                )
+
+                detected_lang = segment_result.get('language', 'unknown')
+                transcribed_text = segment_result.get('text', '').strip()
+
+                logger.debug(f"Segment {i}: {detected_lang} - {transcribed_text[:50]}...")
+
+                # Add to our language segments
+                language_segments.append({
+                    'language': detected_lang,
+                    'start': start_time,
+                    'end': end_time,
+                    'text': transcribed_text
+                })
+
+                # Clean up temp file
+                os.unlink(temp_path)
+
+            except Exception as e:
+                logger.error(f"Failed to re-transcribe segment {i}: {e}")
+                # Fallback: use original segment text with unknown language
+                language_segments.append({
+                    'language': 'unknown',
+                    'start': start_time,
+                    'end': end_time,
+                    'text': segment.get('text', '').strip()
+                })
+
+        # Merge consecutive segments with the same language
+        merged_segments = self._merge_consecutive_language_segments(language_segments)
+
+        logger.info(f"Detected {len(set(s['language'] for s in merged_segments))} unique languages")
+
+        return merged_segments
 
     def _detect_language_segments(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

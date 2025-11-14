@@ -299,7 +299,9 @@ class TranscriptionWorker(QThread):
                     audio_path,
                     detect_language_changes=True,
                     use_segment_retranscription=self.use_deep_scan,
-                    progress_callback=progress_callback
+                    progress_callback=progress_callback,
+                    detection_model="base",  # Fast model for language detection (Pass 1)
+                    transcription_model=self.model_size  # User-selected model for accurate transcription (Pass 2)
                 )
             else:
                 self.progress_update.emit("Transcribing audio...", 60)
@@ -1133,53 +1135,6 @@ class Video2TextQt(QMainWindow):
         self.drop_zone.clicked.connect(self.browse_file)
         layout.addWidget(self.drop_zone)
 
-        # Settings Card
-        settings_card = Card("⚙️ Transcription Settings", self.is_dark_mode)
-        settings_card.setMinimumHeight(200)
-
-        # Model selector
-        model_label = QLabel("Whisper Model:")
-        model_label.setStyleSheet(f"font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        self.model_combo = QComboBox()
-        self.model_combo.addItems(["tiny", "base", "small", "medium", "large"])
-        self.model_combo.setCurrentText("large")  # Default to large for better multi-language
-        self.model_combo.setMinimumHeight(35)
-        self.model_combo.setStyleSheet(f"""
-            QComboBox {{
-                padding: 8px;
-                border: 1px solid {Theme.get('border', self.is_dark_mode)};
-                border-radius: 6px;
-                background-color: {Theme.get('input_bg', self.is_dark_mode)};
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-            }}
-        """)
-
-        model_info = QLabel("ℹ️ Larger models are more accurate for multi-language.\n💡 'large' recommended for code-switching (Czech ↔ English)")
-        model_info.setWordWrap(True)
-        model_info.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
-
-        settings_card.content_layout.addWidget(model_label)
-        settings_card.content_layout.addWidget(self.model_combo)
-        settings_card.content_layout.addWidget(model_info)
-        settings_card.content_layout.addSpacing(10)
-
-        # Deep scanning checkbox
-        self.deep_scan_check = QCheckBox("🔬 Deep multi-language scanning (segment-by-segment)")
-        self.deep_scan_check.setChecked(True)  # Default enabled for TRUE multi-language support
-        self.deep_scan_check.setStyleSheet(f"color: {Theme.get('text_primary', self.is_dark_mode)}; padding: 5px; font-weight: bold;")
-
-        deep_info = QLabel("✅ Enabled: Re-transcribes each segment for accurate language detection.\n"
-                          "Perfect for code-switching (Czech → English → Czech).\n"
-                          "⏱️ Slower but handles language mixing correctly.")
-        deep_info.setWordWrap(True)
-        deep_info.setStyleSheet(f"color: {Theme.get('info', self.is_dark_mode)}; font-size: 11px; padding: 5px;")
-
-        settings_card.content_layout.addWidget(self.deep_scan_check)
-        settings_card.content_layout.addWidget(deep_info)
-
-        layout.addWidget(settings_card)
-        layout.addSpacing(10)
-
         # Progress section
         self.basic_upload_progress_label = QLabel("Ready to transcribe")
         self.basic_upload_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
@@ -1558,11 +1513,11 @@ class Video2TextQt(QMainWindow):
         self.basic_upload_progress_bar.setValue(0)
         self.basic_record_progress_bar.setValue(0)
 
-        # Get transcription settings from UI
-        model_size = self.model_combo.currentText()  # User-selected model (default: large)
+        # Optimal transcription settings (automatically configured)
+        model_size = "large"  # Best accuracy for multi-language transcription
         language = None  # Always auto-detect for multi-language
         detect_language_changes = True  # Always enabled for multi-language support
-        use_deep_scan = self.deep_scan_check.isChecked()  # User can toggle (default: True)
+        use_deep_scan = True  # Always enabled: two-pass detection for code-switching
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
