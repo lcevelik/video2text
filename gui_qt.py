@@ -359,29 +359,40 @@ class ModernButton(QPushButton):
 class Card(QFrame):
     """Modern card widget with shadow effect."""
 
-    def __init__(self, title=""):
+    def __init__(self, title="", is_dark_mode=False):
         super().__init__()
+        self.is_dark_mode = is_dark_mode
+        self.title = title
         self.setFrameShape(QFrame.StyledPanel)
-        self.setStyleSheet("""
-            Card {
-                background-color: white;
-                border-radius: 12px;
-                border: 1px solid #E0E0E0;
-            }
-        """)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
 
         if title:
-            title_label = QLabel(title)
-            title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #333;")
-            layout.addWidget(title_label)
+            self.title_label = QLabel(title)
+            layout.addWidget(self.title_label)
+        else:
+            self.title_label = None
 
         self.content_layout = QVBoxLayout()
         layout.addLayout(self.content_layout)
 
         self.setLayout(layout)
+        self.update_theme(is_dark_mode)
+
+    def update_theme(self, is_dark_mode):
+        """Update card theme."""
+        self.is_dark_mode = is_dark_mode
+        self.setStyleSheet(f"""
+            Card {{
+                background-color: {Theme.get('card_bg', is_dark_mode)};
+                border-radius: 12px;
+                border: 1px solid {Theme.get('card_border', is_dark_mode)};
+            }}
+        """)
+
+        if self.title_label:
+            self.title_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Theme.get('text_primary', is_dark_mode)};")
 
 
 class DropZone(QFrame):
@@ -390,12 +401,13 @@ class DropZone(QFrame):
     file_dropped = Signal(str)
     clicked = Signal()  # Signal emitted when user clicks the drop zone
 
-    def __init__(self):
+    def __init__(self, is_dark_mode=False):
         super().__init__()
         self.setAcceptDrops(True)
         self.setMinimumHeight(150)
         self.setMaximumHeight(200)
         self.has_file = False
+        self.is_dark_mode = is_dark_mode
         self.setCursor(Qt.PointingHandCursor)
 
         self.layout = QVBoxLayout()
@@ -406,7 +418,6 @@ class DropZone(QFrame):
         self.icon_label.setAlignment(Qt.AlignCenter)
 
         self.text_label = QLabel("Drag & Drop Video/Audio\nFile Here")
-        self.text_label.setStyleSheet("font-size: 16px; color: #555; font-weight: 500;")
         self.text_label.setAlignment(Qt.AlignCenter)
 
         self.layout.addWidget(self.icon_label)
@@ -415,16 +426,23 @@ class DropZone(QFrame):
         self.setLayout(self.layout)
         self.update_style()
 
+    def set_theme(self, is_dark_mode):
+        """Update theme colors."""
+        self.is_dark_mode = is_dark_mode
+        self.update_style()
+        if not self.has_file:
+            self.text_label.setStyleSheet(f"font-size: 16px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-weight: 500;")
+
     def update_style(self, hovering=False):
         if self.has_file:
-            color = "#4CAF50"
-            bg = "#E8F5E9"
+            color = Theme.get('selected_border', self.is_dark_mode)
+            bg = Theme.get('selected_bg', self.is_dark_mode)
         elif hovering:
-            color = "#2196F3"
-            bg = "#E3F2FD"
+            color = Theme.get('dropzone_hover_border', self.is_dark_mode)
+            bg = Theme.get('dropzone_hover_bg', self.is_dark_mode)
         else:
-            color = "#E0E0E0"
-            bg = "#FAFAFA"
+            color = Theme.get('dropzone_border', self.is_dark_mode)
+            bg = Theme.get('dropzone_bg', self.is_dark_mode)
 
         self.setStyleSheet(f"""
             DropZone {{
@@ -452,14 +470,14 @@ class DropZone(QFrame):
         self.has_file = True
         self.icon_label.setText("✅")
         self.text_label.setText(f"Selected: {filename}")
-        self.text_label.setStyleSheet("font-size: 14px; color: #2E7D32; font-weight: 600;")
+        self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('selected_text', self.is_dark_mode)}; font-weight: 600;")
         self.update_style()
 
     def clear_file(self):
         self.has_file = False
         self.icon_label.setText("🎬")
         self.text_label.setText("Drag & Drop Video/Audio\nFile Here")
-        self.text_label.setStyleSheet("font-size: 16px; color: #555; font-weight: 500;")
+        self.text_label.setStyleSheet(f"font-size: 16px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-weight: 500;")
         self.update_style()
 
     def mousePressEvent(self, event):
@@ -492,7 +510,7 @@ class RecordingDialog(QDialog):
         layout.addWidget(title)
 
         # Info card
-        info_card = Card()
+        info_card = Card(is_dark_mode=False)  # Dialog uses light mode
         info_card.content_layout.addWidget(QLabel("What will be recorded:"))
         info_card.content_layout.addWidget(QLabel("🎤 Microphone: Your voice and ambient sounds"))
         info_card.content_layout.addWidget(QLabel("🔊 Speaker: System audio, music, video calls"))
@@ -781,7 +799,53 @@ class Video2TextQt(QMainWindow):
             }}
         """)
 
+        # Update sidebars if they exist
+        if hasattr(self, 'basic_sidebar'):
+            self.update_sidebar_theme(self.basic_sidebar)
+        if hasattr(self, 'adv_sidebar'):
+            self.update_sidebar_theme(self.adv_sidebar)
+
+        # Update DropZone theme
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.set_theme(self.is_dark_mode)
+
+        # Update all Card widgets
+        self.update_all_cards_theme()
+
         logger.info(f"Applied {'dark' if self.is_dark_mode else 'light'} theme")
+
+    def update_all_cards_theme(self):
+        """Update theme for all Card widgets."""
+        for widget in self.findChildren(Card):
+            widget.update_theme(self.is_dark_mode)
+
+    def update_sidebar_theme(self, sidebar):
+        """Update sidebar theme colors."""
+        sidebar.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
+                border: none;
+                border-right: 1px solid {Theme.get('border', self.is_dark_mode)};
+                padding: 10px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin: 2px 0px;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.get('accent', self.is_dark_mode)};
+                color: white;
+            }}
+        """)
 
     def setup_ui(self):
         """Setup the main UI."""
@@ -800,19 +864,11 @@ class Video2TextQt(QMainWindow):
         mode_switcher = self.create_mode_switcher()
         layout.addWidget(mode_switcher)
 
-        # Stacked widget for modes
+        # Stacked widget for modes (each mode now contains sidebar + tabs)
         self.mode_stack = QStackedWidget()
         self.mode_stack.addWidget(self.create_basic_mode())
         self.mode_stack.addWidget(self.create_advanced_mode())
-        layout.addWidget(self.mode_stack)
-
-        # Progress section
-        progress_section = self.create_progress_section()
-        layout.addWidget(progress_section)
-
-        # Result section
-        result_section = self.create_result_section()
-        layout.addWidget(result_section, 1)
+        layout.addWidget(self.mode_stack, 1)
 
         # Status bar
         self.statusBar().showMessage("Ready")
@@ -885,7 +941,7 @@ class Video2TextQt(QMainWindow):
 
     def create_settings_card(self):
         """Create settings card for recordings directory."""
-        card = Card("⚙️ Recordings Settings")
+        card = Card("⚙️ Recordings Settings", self.is_dark_mode)
 
         # Current directory display
         dir_label = QLabel("Recordings save to:")
@@ -925,12 +981,7 @@ class Video2TextQt(QMainWindow):
         return card
 
     def create_basic_mode(self):
-        """Create basic mode interface."""
-        widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(25)
-        layout.setContentsMargins(30, 30, 30, 30)
-
+        """Create basic mode interface with sidebar navigation."""
         # State for recording
         self.is_recording = False
         self.recording_start_time = None
@@ -938,98 +989,306 @@ class Video2TextQt(QMainWindow):
         self.recording_timer = QTimer()
         self.recording_timer.timeout.connect(self.update_recording_duration)
 
+        # Main container
+        container = QWidget()
+        main_layout = QHBoxLayout(container)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Sidebar
+        self.basic_sidebar = self.create_sidebar()
+        main_layout.addWidget(self.basic_sidebar)
+
+        # Tab content stack
+        self.basic_tab_stack = QStackedWidget()
+        self.basic_tab_stack.addWidget(self.create_basic_upload_tab())
+        self.basic_tab_stack.addWidget(self.create_basic_record_tab())
+        self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())
+        main_layout.addWidget(self.basic_tab_stack, 1)
+
+        # Connect sidebar to tab switching
+        self.basic_sidebar.currentRowChanged.connect(self.basic_tab_stack.setCurrentIndex)
+
+        return container
+
+    def create_sidebar(self):
+        """Create sidebar navigation widget."""
+        sidebar = QListWidget()
+        sidebar.setMaximumWidth(180)
+        sidebar.setMinimumWidth(180)
+        sidebar.setSpacing(5)
+        sidebar.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
+                border: none;
+                border-right: 1px solid {Theme.get('border', self.is_dark_mode)};
+                padding: 10px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin: 2px 0px;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.get('accent', self.is_dark_mode)};
+                color: white;
+            }}
+        """)
+
+        # Add tab items
+        upload_item = QListWidgetItem("📁 Upload")
+        record_item = QListWidgetItem("🎙️ Record")
+        transcript_item = QListWidgetItem("📄 Transcript")
+
+        sidebar.addItem(upload_item)
+        sidebar.addItem(record_item)
+        sidebar.addItem(transcript_item)
+
+        # Set first item as selected
+        sidebar.setCurrentRow(0)
+
+        return sidebar
+
+    def create_basic_upload_tab(self):
+        """Create Upload tab for Basic mode."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("📁 Upload File")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
+
         # Description
-        desc = QLabel("Simple, automatic transcription. Drop a file or record audio!")
-        desc.setStyleSheet("font-size: 15px; color: #555; margin-bottom: 10px;")
-        desc.setAlignment(Qt.AlignCenter)
+        desc = QLabel("Drop a video/audio file or click to browse")
+        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(desc)
 
-        # Main action row: Drop zone AND Recording button (same line, equal size)
-        action_layout = QHBoxLayout()
-        action_layout.setSpacing(20)
-
-        # Drop zone (left side)
-        self.drop_zone = DropZone()
-        self.drop_zone.file_dropped.connect(self.on_file_dropped_basic)  # Auto-transcribe
+        # Drop zone
+        self.drop_zone = DropZone(self.is_dark_mode)
+        self.drop_zone.file_dropped.connect(self.on_file_dropped_basic)
         self.drop_zone.clicked.connect(self.browse_file)
-        self.drop_zone.setMinimumHeight(150)
-        self.drop_zone.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        action_layout.addWidget(self.drop_zone, 1)
+        layout.addWidget(self.drop_zone)
 
-        # Recording button container (right side, same size as drop zone)
+        # Progress section
+        self.basic_upload_progress_label = QLabel("Ready to transcribe")
+        self.basic_upload_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(self.basic_upload_progress_label)
+
+        self.basic_upload_progress_bar = QProgressBar()
+        self.basic_upload_progress_bar.setMinimumHeight(25)
+        layout.addWidget(self.basic_upload_progress_bar)
+
+        # Info tip
+        info = QLabel("💡 Files automatically transcribe when dropped or selected")
+        info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
+        layout.addWidget(info)
+
+        layout.addStretch()
+        widget.setLayout(layout)
+        return widget
+
+    def create_basic_record_tab(self):
+        """Create Record tab for Basic mode."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("🎙️ Record Audio")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
+
+        # Description
+        desc = QLabel("Record audio from microphone and system speaker")
+        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(desc)
+
+        # Recording button container
         record_container = QFrame()
-        record_container.setMinimumHeight(150)
-        record_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        record_container.setStyleSheet("""
-            QFrame {
-                background-color: #F5F5F5;
+        record_container.setMinimumHeight(200)
+        record_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
                 border-radius: 12px;
-                border: 2px solid #E0E0E0;
-            }
+                border: 2px solid {Theme.get('border', self.is_dark_mode)};
+            }}
         """)
         record_layout = QVBoxLayout(record_container)
         record_layout.setAlignment(Qt.AlignCenter)
 
         # Record icon
         record_icon = QLabel("🎙️")
-        record_icon.setStyleSheet("font-size: 48px;")
+        record_icon.setStyleSheet("font-size: 64px;")
         record_icon.setAlignment(Qt.AlignCenter)
         record_layout.addWidget(record_icon)
 
         # Record toggle button
         self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
         self.basic_record_btn.setMinimumHeight(50)
-        self.basic_record_btn.setMinimumWidth(200)
+        self.basic_record_btn.setMinimumWidth(220)
         self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
         record_layout.addWidget(self.basic_record_btn, 0, Qt.AlignCenter)
 
-        action_layout.addWidget(record_container, 1)
-        layout.addLayout(action_layout)
+        layout.addWidget(record_container)
 
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
         self.recording_duration_label.setStyleSheet(
-            "font-size: 18px; font-weight: bold; color: #F44336; "
-            "margin-top: 15px; margin-bottom: 15px;"
+            f"font-size: 18px; font-weight: bold; color: {Theme.get('error', self.is_dark_mode)};"
         )
         self.recording_duration_label.setAlignment(Qt.AlignCenter)
         self.recording_duration_label.hide()
         layout.addWidget(self.recording_duration_label)
 
-        # Transcribe button - HIDDEN in basic mode (auto-transcribe on drop)
-        self.basic_transcribe_btn = ModernButton("✨ Transcribe Now", primary=True)
-        self.basic_transcribe_btn.setEnabled(False)
-        self.basic_transcribe_btn.clicked.connect(self.start_transcription)
-        self.basic_transcribe_btn.hide()  # Hidden - not needed in Basic Mode
-        layout.addWidget(self.basic_transcribe_btn)
+        # Progress section
+        self.basic_record_progress_label = QLabel("Ready to record")
+        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(self.basic_record_progress_label)
 
-        # Info tip
-        info = QLabel("💡 Tip: Files auto-transcribe when dropped • Recording auto-transcribes when stopped")
-        info.setStyleSheet("font-size: 12px; color: #2196F3; margin-top: 15px;")
-        info.setAlignment(Qt.AlignCenter)
-        layout.addWidget(info)
+        self.basic_record_progress_bar = QProgressBar()
+        self.basic_record_progress_bar.setMinimumHeight(25)
+        layout.addWidget(self.basic_record_progress_bar)
 
-        # Add spacer
-        layout.addSpacing(20)
-
-        # Settings card - moved to bottom, less intrusive
+        # Settings card
         settings_card = self.create_settings_card()
         layout.addWidget(settings_card)
 
-        # Status label (hidden file info, only shown when needed)
-        self.basic_file_label = QLabel("")
-        self.basic_file_label.setStyleSheet("font-size: 11px; color: #999;")
-        self.basic_file_label.setAlignment(Qt.AlignCenter)
-        self.basic_file_label.setWordWrap(True)
-        self.basic_file_label.hide()  # Hidden by default
-        layout.addWidget(self.basic_file_label)
+        # Info tip
+        info = QLabel("💡 Recording automatically transcribes when stopped")
+        info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
+        layout.addWidget(info)
 
         layout.addStretch()
         widget.setLayout(layout)
         return widget
 
+    def create_basic_transcript_tab(self):
+        """Create Transcript tab for Basic mode."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("📄 Transcription Result")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
+
+        # Description
+        self.basic_transcript_desc = QLabel("Your transcription will appear here")
+        self.basic_transcript_desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(self.basic_transcript_desc)
+
+        # Result text
+        self.basic_result_text = QTextEdit()
+        self.basic_result_text.setPlaceholderText("Transcription text will appear here...")
+        self.basic_result_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {Theme.get('input_bg', self.is_dark_mode)};
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: 1px solid {Theme.get('border', self.is_dark_mode)};
+                border-radius: 8px;
+                padding: 15px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 13px;
+                line-height: 1.6;
+            }}
+        """)
+        layout.addWidget(self.basic_result_text, 1)
+
+        # Save button
+        self.basic_save_btn = ModernButton("💾 Save Transcription", primary=True)
+        self.basic_save_btn.setEnabled(False)
+        self.basic_save_btn.clicked.connect(self.save_transcription)
+        layout.addWidget(self.basic_save_btn)
+
+        widget.setLayout(layout)
+        return widget
+
     def create_advanced_mode(self):
-        """Create advanced mode interface."""
+        """Create advanced mode interface with sidebar navigation."""
+        # Main container
+        container = QWidget()
+        main_layout = QHBoxLayout(container)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Sidebar
+        self.adv_sidebar = self.create_sidebar_advanced()
+        main_layout.addWidget(self.adv_sidebar)
+
+        # Tab content stack
+        self.adv_tab_stack = QStackedWidget()
+        self.adv_tab_stack.addWidget(self.create_adv_upload_tab())
+        self.adv_tab_stack.addWidget(self.create_adv_record_tab())
+        self.adv_tab_stack.addWidget(self.create_adv_transcript_tab())
+        main_layout.addWidget(self.adv_tab_stack, 1)
+
+        # Connect sidebar to tab switching
+        self.adv_sidebar.currentRowChanged.connect(self.adv_tab_stack.setCurrentIndex)
+
+        return container
+
+    def create_sidebar_advanced(self):
+        """Create sidebar navigation widget for advanced mode."""
+        sidebar = QListWidget()
+        sidebar.setMaximumWidth(180)
+        sidebar.setMinimumWidth(180)
+        sidebar.setSpacing(5)
+        sidebar.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
+                border: none;
+                border-right: 1px solid {Theme.get('border', self.is_dark_mode)};
+                padding: 10px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin: 2px 0px;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.get('accent', self.is_dark_mode)};
+                color: white;
+            }}
+        """)
+
+        # Add tab items
+        upload_item = QListWidgetItem("📁 Upload")
+        record_item = QListWidgetItem("🎙️ Record")
+        transcript_item = QListWidgetItem("📄 Transcript")
+
+        sidebar.addItem(upload_item)
+        sidebar.addItem(record_item)
+        sidebar.addItem(transcript_item)
+
+        # Set first item as selected
+        sidebar.setCurrentRow(0)
+
+        return sidebar
+
+    def create_adv_upload_tab(self):
+        """Create Upload tab for Advanced mode."""
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -1037,12 +1296,18 @@ class Video2TextQt(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("📁 Upload & Configure")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
 
         # File selection card
-        file_card = Card("Media File")
+        file_card = Card("Media File", self.is_dark_mode)
         file_layout = QHBoxLayout()
         self.adv_file_label = QLabel("No file selected")
+        self.adv_file_label.setStyleSheet(f"color: {Theme.get('text_secondary', self.is_dark_mode)};")
         browse_btn = ModernButton("Browse...")
         browse_btn.clicked.connect(self.browse_file)
         file_layout.addWidget(self.adv_file_label, 1)
@@ -1050,20 +1315,8 @@ class Video2TextQt(QMainWindow):
         file_card.content_layout.addLayout(file_layout)
         layout.addWidget(file_card)
 
-        # Settings card (shared with Basic Mode)
-        settings_card = self.create_settings_card()
-        layout.addWidget(settings_card)
-
-        # Recording card
-        record_card = Card("Audio Recording")
-        record_btn = ModernButton("🎤 Record (Mic + Speaker)", primary=True)
-        record_btn.clicked.connect(self.show_recording_dialog)
-        record_card.content_layout.addWidget(record_btn)
-        record_card.content_layout.addWidget(QLabel("Records both microphone and speaker audio simultaneously"))
-        layout.addWidget(record_card)
-
         # Model selection card
-        model_card = Card("Whisper Model")
+        model_card = Card("Whisper Model", self.is_dark_mode)
         self.auto_model_check = QRadioButton("🤖 Auto-select model (recommended)")
         self.auto_model_check.setChecked(True)
         self.manual_model_check = QRadioButton("Manual selection")
@@ -1081,7 +1334,7 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(model_card)
 
         # Language card
-        lang_card = Card("Language")
+        lang_card = Card("Language", self.is_dark_mode)
         self.lang_combo = QComboBox()
         self.lang_combo.addItems(["Auto-detect", "English", "Spanish", "French", "German",
                                    "Italian", "Portuguese", "Russian", "Japanese", "Korean",
@@ -1089,8 +1342,83 @@ class Video2TextQt(QMainWindow):
         lang_card.content_layout.addWidget(self.lang_combo)
         layout.addWidget(lang_card)
 
+        # Progress section
+        self.adv_upload_progress_label = QLabel("Ready to transcribe")
+        self.adv_upload_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(self.adv_upload_progress_label)
+
+        self.adv_upload_progress_bar = QProgressBar()
+        self.adv_upload_progress_bar.setMinimumHeight(25)
+        layout.addWidget(self.adv_upload_progress_bar)
+
+        # Action button
+        self.adv_start_btn = ModernButton("✨ Start Transcription", primary=True)
+        self.adv_start_btn.setEnabled(False)
+        self.adv_start_btn.setMinimumHeight(45)
+        self.adv_start_btn.clicked.connect(self.start_transcription)
+        layout.addWidget(self.adv_start_btn)
+
+        layout.addStretch()
+        widget.setLayout(layout)
+        scroll.setWidget(widget)
+        return scroll
+
+    def create_adv_record_tab(self):
+        """Create Record tab for Advanced mode."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("🎙️ Audio Recording")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
+
+        # Description
+        desc = QLabel("Record audio from both microphone and system speaker")
+        desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(desc)
+
+        # Recording card
+        record_card = Card("Recording Controls", self.is_dark_mode)
+        record_btn = ModernButton("🎤 Start Recording (Mic + Speaker)", primary=True)
+        record_btn.setMinimumHeight(50)
+        record_btn.clicked.connect(self.show_recording_dialog)
+        record_card.content_layout.addWidget(record_btn)
+
+        info_label = QLabel("Records both microphone and speaker audio simultaneously")
+        info_label.setStyleSheet(f"font-size: 12px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        record_card.content_layout.addWidget(info_label)
+        layout.addWidget(record_card)
+
+        # Settings card
+        settings_card = self.create_settings_card()
+        layout.addWidget(settings_card)
+
+        layout.addStretch()
+        widget.setLayout(layout)
+        return widget
+
+    def create_adv_transcript_tab(self):
+        """Create Transcript tab for Advanced mode."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title
+        title = QLabel("📄 Transcription Result")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(title)
+
+        # Description
+        self.adv_transcript_desc = QLabel("Your transcription will appear here")
+        self.adv_transcript_desc.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        layout.addWidget(self.adv_transcript_desc)
+
         # Output format card
-        format_card = Card("Output Format")
+        format_card = Card("Output Format", self.is_dark_mode)
         format_layout = QHBoxLayout()
         self.txt_radio = QRadioButton("Plain Text (.txt)")
         self.srt_radio = QRadioButton("SRT Subtitles (.srt)")
@@ -1103,72 +1431,32 @@ class Video2TextQt(QMainWindow):
         format_card.content_layout.addLayout(format_layout)
         layout.addWidget(format_card)
 
-        # Action buttons
-        btn_layout = QHBoxLayout()
-        self.adv_start_btn = ModernButton("Start Transcription", primary=True)
-        self.adv_start_btn.setEnabled(False)
-        self.adv_start_btn.clicked.connect(self.start_transcription)
-        btn_layout.addWidget(self.adv_start_btn)
-        layout.addLayout(btn_layout)
-
-        layout.addStretch()
-        widget.setLayout(layout)
-        scroll.setWidget(widget)
-        return scroll
-
-    def create_progress_section(self):
-        """Create progress section."""
-        card = Card("Progress")
-
-        self.progress_label = QLabel("Ready")
-        self.progress_label.setStyleSheet("font-size: 13px; color: #555;")
-
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setMinimumHeight(30)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 2px solid #E0E0E0;
+        # Result text
+        self.adv_result_text = QTextEdit()
+        self.adv_result_text.setPlaceholderText("Transcription text will appear here...")
+        self.adv_result_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {Theme.get('input_bg', self.is_dark_mode)};
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: 1px solid {Theme.get('border', self.is_dark_mode)};
                 border-radius: 8px;
-                text-align: center;
-                background-color: white;
-            }
-            QProgressBar::chunk {
-                background-color: #2196F3;
-                border-radius: 6px;
-            }
-        """)
-
-        card.content_layout.addWidget(self.progress_label)
-        card.content_layout.addWidget(self.progress_bar)
-
-        return card
-
-    def create_result_section(self):
-        """Create result section."""
-        card = Card("Transcription Result")
-
-        self.result_text = QTextEdit()
-        self.result_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #FAFAFA;
-                color: #333;
-                border: 1px solid #E0E0E0;
-                border-radius: 8px;
-                padding: 10px;
+                padding: 15px;
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 13px;
-                line-height: 1.5;
-            }
+                line-height: 1.6;
+            }}
         """)
+        layout.addWidget(self.adv_result_text, 1)
 
-        self.save_btn = ModernButton("💾 Save Transcription", primary=True)
-        self.save_btn.setEnabled(False)
-        self.save_btn.clicked.connect(self.save_transcription)
+        # Save button
+        self.adv_save_btn = ModernButton("💾 Save Transcription", primary=True)
+        self.adv_save_btn.setEnabled(False)
+        self.adv_save_btn.clicked.connect(self.save_transcription)
+        layout.addWidget(self.adv_save_btn)
 
-        card.content_layout.addWidget(self.result_text, 1)
-        card.content_layout.addWidget(self.save_btn)
+        widget.setLayout(layout)
+        return widget
 
-        return card
 
     def center_window(self):
         """Center window on screen."""
@@ -1322,9 +1610,7 @@ class Video2TextQt(QMainWindow):
             }
         """)
 
-        # Disable other controls
-        self.browse_btn.setEnabled(False)
-        self.basic_transcribe_btn.setEnabled(False)
+        # Disable drop zone during recording
         self.drop_zone.setEnabled(False)
 
         # Show duration label
@@ -1333,8 +1619,8 @@ class Video2TextQt(QMainWindow):
 
         # Update status
         self.statusBar().showMessage("🔴 Recording from Microphone + Speaker...")
-        self.basic_file_label.setText("Recording in progress...")
-        self.basic_file_label.setStyleSheet("font-size: 12px; color: #F44336;")
+        self.basic_record_progress_label.setText("Recording in progress...")
+        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)}; font-weight: bold;")
 
         logger.info("Started basic mode recording")
 
@@ -1363,7 +1649,8 @@ class Video2TextQt(QMainWindow):
 
         # Update status
         self.statusBar().showMessage("Processing recording...")
-        self.basic_file_label.setText("Processing...")
+        self.basic_record_progress_label.setText("Processing recording...")
+        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('warning', self.is_dark_mode)};")
 
         logger.info("Stopped basic mode recording")
 
@@ -1382,8 +1669,11 @@ class Video2TextQt(QMainWindow):
         self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s) - Starting transcription...")
 
         # Re-enable controls
-        self.browse_btn.setEnabled(True)
         self.drop_zone.setEnabled(True)
+
+        # Update progress label
+        self.basic_record_progress_label.setText(f"Recording complete ({duration:.1f}s) - Starting transcription...")
+        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('success', self.is_dark_mode)};")
 
         # Auto-start transcription
         QTimer.singleShot(500, self.start_transcription)
@@ -1391,8 +1681,11 @@ class Video2TextQt(QMainWindow):
     def on_recording_error(self, error_message):
         """Slot called when recording encounters an error (thread-safe)."""
         self.statusBar().showMessage(error_message)
-        self.browse_btn.setEnabled(True)
         self.drop_zone.setEnabled(True)
+
+        # Update progress label
+        self.basic_record_progress_label.setText(f"Error: {error_message}")
+        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)};")
 
         # Reset recording state
         self.is_recording = False
@@ -1463,15 +1756,17 @@ class Video2TextQt(QMainWindow):
             QMessageBox.warning(self, "No File", "Please select a file first.")
             return
 
-        # Disable buttons
+        # Disable buttons and clear results
         if self.current_mode == "basic":
-            self.basic_transcribe_btn.setEnabled(False)
+            self.basic_save_btn.setEnabled(False)
+            self.basic_result_text.clear()
+            self.basic_upload_progress_bar.setValue(0)
+            self.basic_record_progress_bar.setValue(0)
         else:
+            self.adv_save_btn.setEnabled(False)
+            self.adv_result_text.clear()
+            self.adv_upload_progress_bar.setValue(0)
             self.adv_start_btn.setEnabled(False)
-
-        self.save_btn.setEnabled(False)
-        self.result_text.clear()
-        self.progress_bar.setValue(0)
 
         # Get transcription settings
         if self.current_mode == "basic":
@@ -1490,7 +1785,6 @@ class Video2TextQt(QMainWindow):
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
-        self.progress_label.setText("Initializing...")
 
         self.transcription_worker = TranscriptionWorker(
             self.video_path,
@@ -1511,8 +1805,16 @@ class Video2TextQt(QMainWindow):
 
     def on_transcription_progress(self, message, percentage):
         """Handle transcription progress updates."""
-        self.progress_label.setText(message)
-        self.progress_bar.setValue(percentage)
+        # Update progress bars based on current mode
+        if self.current_mode == "basic":
+            self.basic_upload_progress_label.setText(message)
+            self.basic_upload_progress_bar.setValue(percentage)
+            self.basic_record_progress_label.setText(message)
+            self.basic_record_progress_bar.setValue(percentage)
+        else:
+            self.adv_upload_progress_label.setText(message)
+            self.adv_upload_progress_bar.setValue(percentage)
+
         self.statusBar().showMessage(message)
 
     def on_transcription_complete(self, result):
@@ -1521,28 +1823,52 @@ class Video2TextQt(QMainWindow):
 
         # Display result
         text = result.get('text', '')
-        self.result_text.setPlainText(text)
-
-        # Show completion message
         language = result.get('language', 'unknown')
         segment_count = len(result.get('segments', []))
 
-        self.progress_label.setText(f"✅ Complete! Language: {language}, {segment_count} segments")
-        self.progress_bar.setValue(100)
-        self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, language: {language})")
-
-        # Re-enable buttons
-        self.save_btn.setEnabled(True)
+        # Update UI based on mode
         if self.current_mode == "basic":
-            self.basic_transcribe_btn.setEnabled(True)
+            self.basic_result_text.setPlainText(text)
+            self.basic_save_btn.setEnabled(True)
+            self.basic_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+
+            # Auto-navigate to Transcript tab (index 2)
+            self.basic_sidebar.setCurrentRow(2)
+            self.basic_tab_stack.setCurrentIndex(2)
+
+            # Update progress bars
+            self.basic_upload_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.basic_upload_progress_bar.setValue(100)
+            self.basic_record_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.basic_record_progress_bar.setValue(100)
         else:
+            self.adv_result_text.setPlainText(text)
+            self.adv_save_btn.setEnabled(True)
             self.adv_start_btn.setEnabled(True)
+            self.adv_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+
+            # Auto-navigate to Transcript tab (index 2)
+            self.adv_sidebar.setCurrentRow(2)
+            self.adv_tab_stack.setCurrentIndex(2)
+
+            # Update progress bar
+            self.adv_upload_progress_label.setText(f"✅ Complete! Language: {language}")
+            self.adv_upload_progress_bar.setValue(100)
+
+        self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, language: {language})")
 
         logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
 
     def on_transcription_error(self, error_message):
         """Handle transcription error."""
-        self.progress_label.setText(f"❌ Error: {error_message}")
+        # Update UI based on mode
+        if self.current_mode == "basic":
+            self.basic_upload_progress_label.setText(f"❌ Error: {error_message}")
+            self.basic_record_progress_label.setText(f"❌ Error: {error_message}")
+        else:
+            self.adv_upload_progress_label.setText(f"❌ Error: {error_message}")
+            self.adv_start_btn.setEnabled(True)
+
         self.statusBar().showMessage("Transcription failed")
 
         QMessageBox.critical(
@@ -1550,12 +1876,6 @@ class Video2TextQt(QMainWindow):
             "Transcription Error",
             f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details."
         )
-
-        # Re-enable buttons
-        if self.current_mode == "basic":
-            self.basic_transcribe_btn.setEnabled(True)
-        else:
-            self.adv_start_btn.setEnabled(True)
 
         logger.error(f"Transcription failed: {error_message}")
 
