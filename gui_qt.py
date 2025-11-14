@@ -167,6 +167,71 @@ class RecordingWorker(QThread):
             self.recording_error.emit(f"❌ Recording error: {str(e)}")
 
 
+class TranscriptionWorker(QThread):
+    """Qt worker thread for transcription with proper signal handling."""
+
+    # Signals for thread-safe communication
+    progress_update = Signal(str, int)  # (message, percentage)
+    transcription_complete = Signal(dict)  # result dictionary
+    transcription_error = Signal(str)  # error message
+
+    def __init__(self, video_path, model_size='tiny', language=None, parent=None):
+        super().__init__(parent)
+        self.video_path = video_path
+        self.model_size = model_size
+        self.language = language
+
+    def run(self):
+        """Execute transcription in background thread."""
+        try:
+            from audio_extractor import AudioExtractor
+            from transcriber import Transcriber
+
+            # Step 1: Extract audio from video if needed
+            self.progress_update.emit("Extracting audio...", 10)
+
+            extractor = AudioExtractor()
+            audio_path = extractor.extract_audio(self.video_path)
+
+            if not audio_path or not Path(audio_path).exists():
+                self.transcription_error.emit("Failed to extract audio from video")
+                return
+
+            self.progress_update.emit(f"Audio extracted successfully", 30)
+
+            # Step 2: Load and run transcription
+            self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 40)
+
+            transcriber = Transcriber(model_size=self.model_size)
+
+            # Define progress callback
+            def progress_callback(message):
+                # Update progress during transcription
+                if "Starting" in message:
+                    self.progress_update.emit(message, 50)
+                elif "completed" in message.lower():
+                    self.progress_update.emit(message, 90)
+                else:
+                    self.progress_update.emit(message, 70)
+
+            # Transcribe
+            self.progress_update.emit("Transcribing audio...", 60)
+            result = transcriber.transcribe(
+                audio_path,
+                language=self.language if self.language and self.language != "Auto-detect" else None,
+                progress_callback=progress_callback
+            )
+
+            self.progress_update.emit("Transcription complete!", 100)
+
+            # Emit result
+            self.transcription_complete.emit(result)
+
+        except Exception as e:
+            logger.error(f"Transcription error: {e}", exc_info=True)
+            self.transcription_error.emit(f"Transcription failed: {str(e)}")
+
+
 class ModernButton(QPushButton):
     """Modern styled button with hover effects."""
 
@@ -536,8 +601,7 @@ class Video2TextQt(QMainWindow):
         # State
         self.video_path = None
         self.transcription_result = None
-        self.transcriber = None
-        self.audio_extractor = AudioExtractor()
+        self.transcription_worker = None  # QThread worker for transcription
         self.current_mode = "basic"
 
         self.setup_ui()
@@ -1242,29 +1306,163 @@ class Video2TextQt(QMainWindow):
         self.result_text.clear()
         self.progress_bar.setValue(0)
 
-        # TODO: Implement transcription in background thread
-        self.statusBar().showMessage("Transcribing...")
-        self.progress_label.setText("Starting transcription...")
+        # Get transcription settings
+        if self.current_mode == "basic":
+            model_size = "tiny"  # Auto-select starts with tiny
+            language = None
+        else:
+            # Advanced mode settings
+            if self.auto_model_check.isChecked():
+                model_size = "tiny"  # Start with tiny for auto-selection
+            else:
+                model_size = self.model_combo.currentText()
 
-        QMessageBox.information(self, "Coming Soon",
-                               "Transcription implementation in progress.\n"
-                               "All UI elements are ready!")
+            language = self.lang_combo.currentText()
+            if language == "Auto-detect":
+                language = None
+
+        # Start transcription worker
+        self.statusBar().showMessage("Starting transcription...")
+        self.progress_label.setText("Initializing...")
+
+        self.transcription_worker = TranscriptionWorker(
+            self.video_path,
+            model_size=model_size,
+            language=language,
+            parent=self
+        )
+
+        # Connect signals
+        self.transcription_worker.progress_update.connect(self.on_transcription_progress)
+        self.transcription_worker.transcription_complete.connect(self.on_transcription_complete)
+        self.transcription_worker.transcription_error.connect(self.on_transcription_error)
+
+        # Start worker
+        self.transcription_worker.start()
+
+        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}")
+
+    def on_transcription_progress(self, message, percentage):
+        """Handle transcription progress updates."""
+        self.progress_label.setText(message)
+        self.progress_bar.setValue(percentage)
+        self.statusBar().showMessage(message)
+
+    def on_transcription_complete(self, result):
+        """Handle successful transcription completion."""
+        self.transcription_result = result
+
+        # Display result
+        text = result.get('text', '')
+        self.result_text.setPlainText(text)
+
+        # Show completion message
+        language = result.get('language', 'unknown')
+        segment_count = len(result.get('segments', []))
+
+        self.progress_label.setText(f"✅ Complete! Language: {language}, {segment_count} segments")
+        self.progress_bar.setValue(100)
+        self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, language: {language})")
+
+        # Re-enable buttons
+        self.save_btn.setEnabled(True)
+        if self.current_mode == "basic":
+            self.basic_transcribe_btn.setEnabled(True)
+        else:
+            self.adv_start_btn.setEnabled(True)
+
+        logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
+
+    def on_transcription_error(self, error_message):
+        """Handle transcription error."""
+        self.progress_label.setText(f"❌ Error: {error_message}")
+        self.statusBar().showMessage("Transcription failed")
+
+        QMessageBox.critical(
+            self,
+            "Transcription Error",
+            f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details."
+        )
+
+        # Re-enable buttons
+        if self.current_mode == "basic":
+            self.basic_transcribe_btn.setEnabled(True)
+        else:
+            self.adv_start_btn.setEnabled(True)
+
+        logger.error(f"Transcription failed: {error_message}")
 
     def save_transcription(self):
         """Save transcription to file."""
         if not self.transcription_result:
+            QMessageBox.warning(self, "No Transcription", "Please transcribe a file first.")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
+        # Determine default filename and filter
+        if self.video_path:
+            default_name = Path(self.video_path).stem
+        else:
+            default_name = "transcription"
+
+        file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Save Transcription",
-            "",
-            "Text Files (*.txt);;SRT Files (*.srt);;VTT Files (*.vtt)"
+            default_name,
+            "Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)"
         )
 
-        if file_path:
-            # TODO: Implement save logic
-            QMessageBox.information(self, "Saved", f"Transcription saved to:\n{file_path}")
+        if not file_path:
+            return
+
+        try:
+            # Determine format from extension or filter
+            ext = Path(file_path).suffix.lower()
+
+            if ext == '.txt' or 'Text' in selected_filter:
+                # Save as plain text
+                content = self.transcription_result.get('text', '')
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+            elif ext == '.srt' or 'SRT' in selected_filter:
+                # Save as SRT subtitles
+                from transcriber import Transcriber
+                transcriber = Transcriber()
+                content = transcriber.format_as_srt(self.transcription_result)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+            elif ext == '.vtt' or 'VTT' in selected_filter:
+                # Save as VTT subtitles (similar to SRT but with VTT header)
+                from transcriber import Transcriber
+                transcriber = Transcriber()
+                srt_content = transcriber.format_as_srt(self.transcription_result)
+                # Convert SRT to VTT format
+                vtt_content = "WEBVTT\n\n" + srt_content.replace(',', '.')
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(vtt_content)
+
+            else:
+                # Default to text
+                content = self.transcription_result.get('text', '')
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+            self.statusBar().showMessage(f"Saved to: {file_path}")
+            QMessageBox.information(
+                self,
+                "Saved Successfully",
+                f"Transcription saved to:\n{file_path}"
+            )
+            logger.info(f"Transcription saved to: {file_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to save transcription: {e}")
+            QMessageBox.critical(
+                self,
+                "Save Error",
+                f"Failed to save transcription:\n\n{str(e)}"
+            )
 
 
 def main():
