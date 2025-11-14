@@ -263,6 +263,12 @@ class RecordingDialog(QDialog):
         self.timer.timeout.connect(self.update_duration)
 
     def start_recording(self):
+        # Check device availability first
+        if not self.check_audio_devices():
+            # Show helpful message with retry option
+            self.show_no_device_dialog()
+            return
+
         self.recording = True
         self.start_time = time.time()
         self.status_label.setText("🔴 Recording from Microphone + Speaker...")
@@ -288,6 +294,59 @@ class RecordingDialog(QDialog):
             mins = elapsed // 60
             secs = elapsed % 60
             self.duration_label.setText(f"Duration: {mins}:{secs:02d}")
+
+    def check_audio_devices(self):
+        """Check if audio input devices are available."""
+        try:
+            import sounddevice as sd
+            devices = sd.query_devices()
+
+            # Check for any input device
+            has_input = any(d['max_input_channels'] > 0 for d in devices)
+
+            if has_input:
+                logger.info(f"Audio devices available: {sum(1 for d in devices if d['max_input_channels'] > 0)} input device(s)")
+                return True
+            else:
+                logger.warning("No audio input devices found")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error checking audio devices: {e}")
+            return False
+
+    def show_no_device_dialog(self):
+        """Show dialog when no audio device is found."""
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("No Microphone Found")
+        msg.setText("No audio input device detected!")
+        msg.setInformativeText(
+            "Please:\n"
+            "1. Connect a microphone\n"
+            "2. Check your audio settings\n"
+            "3. Make sure device is enabled\n\n"
+            "Click 'Retry' to check again, or 'Cancel' to go back."
+        )
+        msg.setStandardButtons(QMessageBox.Retry | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Retry)
+
+        result = msg.exec()
+
+        if result == QMessageBox.Retry:
+            # User wants to try again - re-check devices
+            logger.info("User requested device detection retry (Advanced Mode)")
+            if self.check_audio_devices():
+                QMessageBox.information(
+                    self,
+                    "Device Found",
+                    "✅ Audio input device detected!\n\nYou can now start recording."
+                )
+                # Automatically start recording
+                self.start_recording()
+            else:
+                # Still no device - show dialog again
+                self.show_no_device_dialog()
 
     def _record_worker(self):
         """Actual recording logic - same as enhanced version."""
@@ -680,11 +739,68 @@ class Video2TextQt(QMainWindow):
     def toggle_basic_recording(self):
         """Toggle recording in Basic Mode (one-button flow)."""
         if not self.is_recording:
-            # Start recording
-            self.start_basic_recording()
+            # Check device availability first
+            if self.check_audio_devices():
+                self.start_basic_recording()
+            else:
+                # Show helpful message with retry option
+                self.show_no_device_dialog()
         else:
             # Stop recording and auto-transcribe
             self.stop_basic_recording()
+
+    def check_audio_devices(self):
+        """Check if audio input devices are available."""
+        try:
+            import sounddevice as sd
+            devices = sd.query_devices()
+
+            # Check for any input device
+            has_input = any(d['max_input_channels'] > 0 for d in devices)
+
+            if has_input:
+                logger.info(f"Audio devices available: {sum(1 for d in devices if d['max_input_channels'] > 0)} input device(s)")
+                return True
+            else:
+                logger.warning("No audio input devices found")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error checking audio devices: {e}")
+            return False
+
+    def show_no_device_dialog(self):
+        """Show dialog when no audio device is found."""
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("No Microphone Found")
+        msg.setText("No audio input device detected!")
+        msg.setInformativeText(
+            "Please:\n"
+            "1. Connect a microphone\n"
+            "2. Check your audio settings\n"
+            "3. Make sure device is enabled\n\n"
+            "Click 'Retry' to check again, or 'Cancel' to go back."
+        )
+        msg.setStandardButtons(QMessageBox.Retry | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Retry)
+
+        result = msg.exec()
+
+        if result == QMessageBox.Retry:
+            # User wants to try again - re-check devices
+            logger.info("User requested device detection retry")
+            if self.check_audio_devices():
+                QMessageBox.information(
+                    self,
+                    "Device Found",
+                    "✅ Audio input device detected!\n\nYou can now start recording."
+                )
+                # Automatically start recording
+                self.start_basic_recording()
+            else:
+                # Still no device - show dialog again
+                self.show_no_device_dialog()
 
     def start_basic_recording(self):
         """Start recording in Basic Mode."""
