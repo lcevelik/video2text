@@ -10,7 +10,6 @@ import os
 import logging
 import json
 import time
-import threading
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +26,140 @@ from audio_extractor import AudioExtractor
 from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
+
+
+class RecordingWorker(QThread):
+    """Qt worker thread for audio recording with proper signal handling."""
+
+    # Signals for thread-safe communication with main thread
+    recording_complete = Signal(str, float)  # (file_path, duration)
+    recording_error = Signal(str)  # error_message
+    status_update = Signal(str)  # status_message
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.is_recording = True
+
+    def stop(self):
+        """Stop the recording."""
+        self.is_recording = False
+
+    def run(self):
+        """Execute recording in background thread."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            from scipy.io import wavfile
+            import tempfile
+
+            sample_rate = 16000
+            mic_chunks = []
+            speaker_chunks = []
+
+            # Device detection
+            devices = sd.query_devices()
+
+            # Find microphone
+            mic_device = None
+            try:
+                default_input = sd.default.device[0]
+                if default_input is not None and default_input >= 0:
+                    if devices[default_input]['max_input_channels'] > 0:
+                        mic_device = default_input
+            except:
+                pass
+
+            if mic_device is None:
+                for idx, device in enumerate(devices):
+                    if device['max_input_channels'] > 0:
+                        device_name_lower = device['name'].lower()
+                        if not any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor']):
+                            mic_device = idx
+                            break
+
+            if mic_device is None:
+                logger.error("No microphone found in worker")
+                self.recording_error.emit("❌ No microphone found!")
+                return
+
+            # Find loopback device
+            loopback_device = None
+            for idx, device in enumerate(devices):
+                if idx == mic_device:
+                    continue
+                device_name_lower = device['name'].lower()
+                if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
+                    if device['max_input_channels'] > 0:
+                        loopback_device = idx
+                        break
+
+            # Callbacks
+            def mic_callback(indata, frames, time_info, status):
+                if self.is_recording:
+                    mic_chunks.append(indata.copy())
+
+            def speaker_callback(indata, frames, time_info, status):
+                if self.is_recording:
+                    speaker_chunks.append(indata.copy())
+
+            # Start streams
+            mic_stream = sd.InputStream(device=mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
+            mic_stream.start()
+
+            speaker_stream = None
+            if loopback_device is not None:
+                try:
+                    speaker_stream = sd.InputStream(device=loopback_device, samplerate=sample_rate, channels=1, callback=speaker_callback)
+                    speaker_stream.start()
+                except:
+                    pass
+
+            # Record while active
+            while self.is_recording:
+                sd.sleep(100)
+
+            # Stop streams
+            mic_stream.stop()
+            mic_stream.close()
+            if speaker_stream:
+                speaker_stream.stop()
+                speaker_stream.close()
+
+            # Process and save
+            if mic_chunks:
+                mic_data = np.concatenate(mic_chunks, axis=0)
+
+                if speaker_chunks:
+                    speaker_data = np.concatenate(speaker_chunks, axis=0)
+                    max_len = max(len(mic_data), len(speaker_data))
+                    if len(mic_data) < max_len:
+                        mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
+                    if len(speaker_data) < max_len:
+                        speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
+                    final_data = (mic_data * 0.6 + speaker_data * 0.4)
+                    max_val = np.max(np.abs(final_data))
+                    if max_val > 0:
+                        final_data = final_data / max_val * 0.9
+                else:
+                    final_data = mic_data
+
+                # Save to temp file
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                recorded_path = temp_file.name
+                temp_file.close()
+
+                final_data_int16 = (final_data * 32767).astype(np.int16)
+                wavfile.write(recorded_path, sample_rate, final_data_int16)
+
+                duration = len(final_data) / sample_rate
+                logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
+
+                # Emit signal to main thread
+                self.recording_complete.emit(recorded_path, duration)
+
+        except Exception as e:
+            logger.error(f"Recording error: {e}", exc_info=True)
+            self.recording_error.emit(f"❌ Recording error: {str(e)}")
 
 
 class ModernButton(QPushButton):
@@ -200,6 +333,7 @@ class RecordingDialog(QDialog):
         self.recording = False
         self.start_time = None
         self.recorded_path = None
+        self.worker = None  # QThread worker for recording
 
         self.setup_ui()
 
@@ -277,11 +411,19 @@ class RecordingDialog(QDialog):
         self.stop_btn.setEnabled(True)
         self.timer.start(1000)
 
-        # Start actual recording in thread
-        threading.Thread(target=self._record_worker, daemon=True).start()
+        # Start actual recording in QThread worker
+        self.worker = RecordingWorker(self)
+        self.worker.recording_complete.connect(self.on_recording_complete)
+        self.worker.recording_error.connect(self.on_recording_error)
+        self.worker.start()
 
     def stop_recording(self):
         self.recording = False
+
+        # Stop the worker thread
+        if self.worker:
+            self.worker.stop()
+
         self.status_label.setText("⏹️ Stopping recording...")
         self.status_label.setStyleSheet("font-size: 14px; color: #FF9800;")
         self.start_btn.setEnabled(True)
@@ -348,20 +490,22 @@ class RecordingDialog(QDialog):
                 # Still no device - show dialog again
                 self.show_no_device_dialog()
 
-    def _record_worker(self):
-        """Actual recording logic - same as enhanced version."""
-        try:
-            import sounddevice as sd
-            import numpy as np
-            from scipy.io import wavfile
+    def on_recording_complete(self, recorded_path, duration):
+        """Slot called when recording completes successfully (thread-safe)."""
+        self.recorded_path = recorded_path
+        self.status_label.setText(f"✅ Recording complete ({duration:.1f}s)")
+        self.status_label.setStyleSheet("font-size: 14px; color: #4CAF50; font-weight: bold;")
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
 
-            # Same logic as gui_enhanced.py _record_audio_simultaneous
-            # ... (keeping the recording logic)
-
-        except Exception as e:
-            logger.error(f"Recording error: {e}", exc_info=True)
-            self.status_label.setText(f"❌ Error: {str(e)}")
-            self.status_label.setStyleSheet("font-size: 14px; color: #F44336;")
+    def on_recording_error(self, error_message):
+        """Slot called when recording encounters an error (thread-safe)."""
+        self.status_label.setText(f"❌ Error: {error_message}")
+        self.status_label.setStyleSheet("font-size: 14px; color: #F44336;")
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.recording = False
+        self.timer.stop()
 
 
 class Video2TextQt(QMainWindow):
@@ -482,6 +626,7 @@ class Video2TextQt(QMainWindow):
         # State for recording
         self.is_recording = False
         self.recording_start_time = None
+        self.recording_worker = None  # QThread worker for recording
         self.recording_timer = QTimer()
         self.recording_timer.timeout.connect(self.update_recording_duration)
 
@@ -840,13 +985,20 @@ class Video2TextQt(QMainWindow):
 
         logger.info("Started basic mode recording")
 
-        # Start actual recording in background thread
-        threading.Thread(target=self._basic_recording_worker, daemon=True).start()
+        # Start actual recording in QThread worker
+        self.recording_worker = RecordingWorker(self)
+        self.recording_worker.recording_complete.connect(self.on_recording_complete)
+        self.recording_worker.recording_error.connect(self.on_recording_error)
+        self.recording_worker.start()
 
     def stop_basic_recording(self):
         """Stop recording in Basic Mode."""
         self.is_recording = False
         self.recording_timer.stop()
+
+        # Stop the worker thread
+        if self.recording_worker:
+            self.recording_worker.stop()
 
         # Update button
         self.basic_record_btn.setText("🎤 Start Recording")
@@ -870,132 +1022,32 @@ class Video2TextQt(QMainWindow):
             secs = elapsed % 60
             self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
 
-    def _basic_recording_worker(self):
-        """Background worker for basic mode recording."""
-        try:
-            import sounddevice as sd
-            import numpy as np
-            from scipy.io import wavfile
-            import tempfile
+    def on_recording_complete(self, recorded_path, duration):
+        """Slot called when recording completes successfully (thread-safe)."""
+        # Load file and update UI
+        self.video_path = recorded_path
+        self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s) - Starting transcription...")
 
-            sample_rate = 16000
-            mic_chunks = []
-            speaker_chunks = []
+        # Re-enable controls
+        self.browse_btn.setEnabled(True)
+        self.drop_zone.setEnabled(True)
 
-            # Device detection (same logic as gui_enhanced.py)
-            devices = sd.query_devices()
+        # Auto-start transcription
+        QTimer.singleShot(500, self.start_transcription)
 
-            # Find microphone
-            mic_device = None
-            try:
-                default_input = sd.default.device[0]
-                if default_input is not None and default_input >= 0:
-                    if devices[default_input]['max_input_channels'] > 0:
-                        mic_device = default_input
-            except:
-                pass
+    def on_recording_error(self, error_message):
+        """Slot called when recording encounters an error (thread-safe)."""
+        self.statusBar().showMessage(error_message)
+        self.browse_btn.setEnabled(True)
+        self.drop_zone.setEnabled(True)
 
-            if mic_device is None:
-                for idx, device in enumerate(devices):
-                    if device['max_input_channels'] > 0:
-                        device_name_lower = device['name'].lower()
-                        if not any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor']):
-                            mic_device = idx
-                            break
-
-            if mic_device is None:
-                logger.error("No microphone found")
-                self.statusBar().showMessage("❌ No microphone found!")
-                return
-
-            # Find loopback device
-            loopback_device = None
-            for idx, device in enumerate(devices):
-                if idx == mic_device:
-                    continue
-                device_name_lower = device['name'].lower()
-                if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
-                    if device['max_input_channels'] > 0:
-                        loopback_device = idx
-                        break
-
-            # Callbacks
-            def mic_callback(indata, frames, time_info, status):
-                if self.is_recording:
-                    mic_chunks.append(indata.copy())
-
-            def speaker_callback(indata, frames, time_info, status):
-                if self.is_recording:
-                    speaker_chunks.append(indata.copy())
-
-            # Start streams
-            mic_stream = sd.InputStream(device=mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
-            mic_stream.start()
-
-            speaker_stream = None
-            if loopback_device is not None:
-                try:
-                    speaker_stream = sd.InputStream(device=loopback_device, samplerate=sample_rate, channels=1, callback=speaker_callback)
-                    speaker_stream.start()
-                except:
-                    pass
-
-            # Record while active
-            while self.is_recording:
-                sd.sleep(100)
-
-            # Stop streams
-            mic_stream.stop()
-            mic_stream.close()
-            if speaker_stream:
-                speaker_stream.stop()
-                speaker_stream.close()
-
-            # Process and save
-            if mic_chunks:
-                mic_data = np.concatenate(mic_chunks, axis=0)
-
-                if speaker_chunks:
-                    speaker_data = np.concatenate(speaker_chunks, axis=0)
-                    max_len = max(len(mic_data), len(speaker_data))
-                    if len(mic_data) < max_len:
-                        mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
-                    if len(speaker_data) < max_len:
-                        speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
-                    final_data = (mic_data * 0.6 + speaker_data * 0.4)
-                    max_val = np.max(np.abs(final_data))
-                    if max_val > 0:
-                        final_data = final_data / max_val * 0.9
-                else:
-                    final_data = mic_data
-
-                # Save to temp file
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                recorded_path = temp_file.name
-                temp_file.close()
-
-                final_data_int16 = (final_data * 32767).astype(np.int16)
-                wavfile.write(recorded_path, sample_rate, final_data_int16)
-
-                duration = len(final_data) / sample_rate
-                logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
-
-                # Load file and auto-start transcription
-                self.video_path = recorded_path
-                self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s) - Starting transcription...")
-
-                # Re-enable controls
-                self.browse_btn.setEnabled(True)
-                self.drop_zone.setEnabled(True)
-
-                # Auto-start transcription
-                QTimer.singleShot(500, self.start_transcription)
-
-        except Exception as e:
-            logger.error(f"Recording error: {e}", exc_info=True)
-            self.statusBar().showMessage(f"❌ Recording error: {str(e)}")
-            self.browse_btn.setEnabled(True)
-            self.drop_zone.setEnabled(True)
+        # Reset recording state
+        self.is_recording = False
+        self.recording_timer.stop()
+        self.basic_record_btn.setText("🎤 Start Recording")
+        self.basic_record_btn.primary = True
+        self.basic_record_btn.apply_style()
+        self.recording_duration_label.hide()
 
     def show_recording_dialog(self):
         """Show recording dialog (Advanced Mode only)."""
