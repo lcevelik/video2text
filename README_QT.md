@@ -100,7 +100,8 @@ Each mode features a clean sidebar with three organized tabs:
 ### **Basic Mode**
 - ✨ **Simplified Interface** - Only essential controls
 - 🤖 **Smart Model Selection** - Automatically chooses best model
-- 🚀 **Automatic Workflow** - Drop file → transcribe → view results
+- 🌐 **Automatic Multi-Language Detection** - Detects when speakers switch languages (no configuration needed)
+- 🚀 **Automatic Workflow** - Drop file → transcribe → view results with language timeline
 - 🎯 **Perfect for Beginners** - No configuration needed
 
 ### **Advanced Mode**
@@ -186,9 +187,13 @@ Each mode features a clean sidebar with three organized tabs:
 1. Make sure **Basic Mode** is selected
 2. Go to **Upload Tab** (sidebar)
 3. **Drop your file** into the drop zone (or click to browse)
-4. **Wait** - transcription starts automatically
+4. **Wait** - transcription starts automatically with multi-language detection enabled
 5. **View results** - automatically navigate to Transcript tab
+   - Includes full transcription in all languages
+   - Language timeline appended showing when each language was spoken
 6. **Save** - choose format and click "Save Transcription"
+
+**Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings without any configuration!
 
 ### **Advanced Mode Step-by-Step**
 
@@ -210,8 +215,13 @@ Each mode features a clean sidebar with three organized tabs:
 
 Perfect for international meetings, conferences, or recordings with multiple languages:
 
-**How to Use:**
-1. In Advanced Mode → Upload Tab
+**In Basic Mode** (Automatic):
+- Multi-language detection is **always enabled** - no configuration needed!
+- Just drop your file and transcribe
+- Results automatically include language timeline
+
+**In Advanced Mode** (Manual Control):
+1. Go to Upload Tab
 2. Check the box: **"🌍 Detect language changes (for multilingual meetings)"**
 3. Start transcription as normal
 

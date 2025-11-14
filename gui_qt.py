@@ -1805,7 +1805,7 @@ class Video2TextQt(QMainWindow):
         if self.current_mode == "basic":
             model_size = "tiny"  # Auto-select starts with tiny
             language = None
-            detect_language_changes = False
+            detect_language_changes = True  # Basic Mode auto-detects language changes
         else:
             # Advanced mode settings
             if self.auto_model_check.isChecked():

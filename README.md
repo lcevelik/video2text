@@ -28,7 +28,7 @@ The latest and most advanced interface with:
 - 🎯 **Auto-Transcribe**: Drop files and transcription starts automatically
 - 📱 **Basic & Advanced Modes**: Simple for beginners, powerful for experts
 - 🎙️ **Integrated Recording**: Record mic + speaker with one click
-- 🌐 **Multi-Language Detection**: Perfect for multilingual meetings - tracks when speakers switch languages
+- 🌐 **Automatic Multi-Language Detection**: Always enabled in Basic Mode - perfect for multilingual meetings
 
 **How to run:**
 ```bash
@@ -257,7 +257,7 @@ The modern Qt interface features a **sidebar with three main tabs**:
 #### Basic Mode:
 1. **Upload Tab**:
    - Drag & drop your video/audio file (or click to browse)
-   - Transcription starts automatically
+   - Transcription starts automatically with multi-language detection
    - Progress updates in real-time
 
 2. **Record Tab**:
@@ -267,22 +267,31 @@ The modern Qt interface features a **sidebar with three main tabs**:
    - Recording automatically loads for transcription
 
 3. **Transcript Tab**:
-   - View transcription results
+   - View transcription results (includes language timeline if multiple languages detected)
    - Choose output format (TXT, SRT, VTT)
    - Click "Save Transcription" to export
    - Auto-navigates here when transcription completes
+
+**Note:** Basic Mode automatically detects language changes - perfect for multilingual meetings!
 
 #### Advanced Mode:
 Same three tabs with additional controls:
 - Manual model selection (tiny, base, small, medium, large)
 - Language selection (99 languages supported)
-- **Multi-language detection** - Enable "Detect language changes" for multilingual meetings
+- **Multi-language detection** - Toggle on/off via checkbox (enabled by default in Basic Mode)
 - Custom instructions for better accuracy
 
 #### Multi-Language Detection:
 Perfect for international meetings where people speak different languages:
-1. In Advanced Mode → Upload Tab
-2. Check **"🌍 Detect language changes (for multilingual meetings)"**
+
+**In Basic Mode** (Automatic):
+- Multi-language detection is always enabled
+- Just drop your file and transcribe
+- Results automatically include language timeline
+
+**In Advanced Mode** (Manual Control):
+1. Go to Upload Tab
+2. Check **"🌍 Detect language changes (for multilingual meetings)"** if desired
 3. Transcribe your file
 4. Results will include a **language timeline** showing when each language was spoken
 
