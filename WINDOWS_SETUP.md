@@ -64,15 +64,30 @@ ffmpeg -version
 
 Navigate to the project folder in PowerShell:
 ```powershell
-cd C:\Users\libor\Desktop\VideoToText
+cd C:\Users\YourUsername\Desktop\video2text
 ```
 
-**If `python` works:**
+**Choose which GUI you want to use:**
+
+**Option 1: Qt GUI (Recommended - Modern Interface)**
+Installs all dependencies including PySide6 for the modern Qt interface:
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-**If only `py` works:**
+**Option 2: Enhanced Tkinter GUI**
+Same command, includes all dependencies:
+```powershell
+python -m pip install -r requirements.txt
+```
+
+**Option 3: Original GUI (Minimal)**
+Install only core dependencies:
+```powershell
+python -m pip install openai-whisper torch torchaudio ffmpeg-python
+```
+
+**If only `py` works instead of `python`:**
 ```powershell
 py -m pip install -r requirements.txt
 ```
@@ -80,6 +95,11 @@ py -m pip install -r requirements.txt
 **If you get permission errors, use:**
 ```powershell
 python -m pip install --user -r requirements.txt
+```
+
+**For Qt GUI specifically (if installing separately):**
+```powershell
+python -m pip install PySide6>=6.6.0
 ```
 
 ### Step 4: Verify Installation
@@ -96,12 +116,31 @@ py test_whisper.py
 
 ### Step 5: Run the Application
 
+**Qt GUI (Recommended - Modern Interface):**
+```powershell
+python gui_qt.py
+```
+
+**Enhanced Tkinter GUI:**
+```powershell
+run_enhanced.bat
+```
+Or manually:
+```powershell
+python main_enhanced.py
+```
+
+**Original GUI:**
 ```powershell
 python main.py
 ```
 
-Or:
+**If `python` doesn't work, use `py` instead:**
 ```powershell
+py gui_qt.py
+# or
+py main_enhanced.py
+# or
 py main.py
 ```
 

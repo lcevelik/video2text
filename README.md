@@ -10,15 +10,69 @@ A desktop application that transcribes audio from video files or audio files dir
 - 🤖 **Whisper Integration**: Uses OpenAI Whisper for high-quality transcription
 - 🚀 **GPU Acceleration**: Automatically uses GPU (CUDA) if available, falls back to CPU
 - 📊 **Progress Tracking**: Real-time progress updates during transcription
-- 💾 **Multiple Output Formats**: Save as plain text (.txt) or SRT subtitles (.srt)
+- 💾 **Multiple Output Formats**: Save as plain text (.txt), SRT subtitles (.srt), or VTT subtitles (.vtt)
 - 🎛️ **Model Selection**: Choose from different Whisper model sizes (tiny, base, small, medium, large)
+- 🎨 **Modern Qt GUI**: Professional sidebar navigation with tabbed interface and dark/light themes
+- 🎙️ **Audio Recording**: Record from microphone and system audio simultaneously
+- 🌍 **Multi-Language Support**: Auto-detect languages with 99 language support
 - 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
+
+## GUI Versions
+
+Video2Text offers **three GUI options** to suit your needs:
+
+### 🎨 **Qt GUI** (Recommended - Modern & Professional)
+The latest and most advanced interface with:
+- ✨ **Sidebar Navigation**: Clean tabs for Upload, Record, and Transcript
+- 🌓 **Dark/Light Mode**: Toggle themes for comfortable viewing
+- 🎯 **Auto-Transcribe**: Drop files and transcription starts automatically
+- 📱 **Basic & Advanced Modes**: Simple for beginners, powerful for experts
+- 🎙️ **Integrated Recording**: Record mic + speaker with one click
+
+**How to run:**
+```bash
+python gui_qt.py
+```
+
+**See:** `README_QT.md` for detailed Qt GUI documentation
+
+### 📱 **Enhanced Tkinter GUI** (Feature-Rich)
+Advanced features with traditional interface:
+- Dual-mode interface (Basic/Advanced)
+- Automatic model selection
+- Audio recording support
+- Multi-language detection
+
+**How to run:**
+```bash
+./run_enhanced.sh    # Linux/macOS
+run_enhanced.bat     # Windows
+```
+
+**See:** `README_ENHANCED.md` for detailed documentation
+
+### 📋 **Original GUI** (Lightweight)
+Simple, straightforward interface:
+- Minimal dependencies (Tkinter built-in)
+- All core transcription features
+- Smallest footprint
+
+**How to run:**
+```bash
+python main.py
+```
 
 ## Requirements
 
+### Core Requirements (All Versions)
 - Python 3.8 or higher
 - ffmpeg (for audio extraction)
 - CUDA-capable GPU (optional, for faster transcription)
+
+### GUI-Specific Requirements
+- **Qt GUI**: PySide6 >= 6.6.0 (install via `pip install PySide6`)
+- **Enhanced GUI**: sounddevice, scipy, Pillow (for recording features)
+- **Original GUI**: Tkinter (usually built-in with Python)
 
 ## Installation
 
@@ -106,10 +160,32 @@ ffmpeg -version
 
 1. Navigate to the project directory:
 ```bash
-cd VideoToText
+cd video2text
 ```
 
 2. Install Python packages:
+
+**For Qt GUI (Recommended):**
+```bash
+# Install all dependencies including PySide6
+pip install -r requirements.txt
+
+# Or install PySide6 separately
+pip install PySide6>=6.6.0
+```
+
+**For Enhanced Tkinter GUI:**
+```bash
+pip install -r requirements.txt
+```
+
+**For Original GUI (Minimal):**
+```bash
+# Install only core dependencies
+pip install openai-whisper torch torchaudio ffmpeg-python
+```
+
+**Platform-specific commands:**
 
 **Windows:**
 ```powershell
@@ -155,21 +231,72 @@ This script will:
 
 ### Starting the Application
 
-Run the main application:
+Choose your preferred GUI:
 
+**Qt GUI (Recommended):**
+```bash
+python gui_qt.py
+```
+
+**Enhanced Tkinter GUI:**
+```bash
+./run_enhanced.sh    # Linux/macOS
+run_enhanced.bat     # Windows
+```
+
+**Original GUI:**
 ```bash
 python main.py
 ```
 
-### Using the Application
+### Using the Qt GUI (Recommended)
+
+The modern Qt interface features a **sidebar with three main tabs**:
+
+#### Basic Mode:
+1. **Upload Tab**:
+   - Drag & drop your video/audio file (or click to browse)
+   - Transcription starts automatically
+   - Progress updates in real-time
+
+2. **Record Tab**:
+   - Click "Start Recording" to record audio
+   - Records both microphone and system audio
+   - Configure recording directory in settings
+   - Recording automatically loads for transcription
+
+3. **Transcript Tab**:
+   - View transcription results
+   - Choose output format (TXT, SRT, VTT)
+   - Click "Save Transcription" to export
+   - Auto-navigates here when transcription completes
+
+#### Advanced Mode:
+Same three tabs with additional controls:
+- Manual model selection (tiny, base, small, medium, large)
+- Language selection (99 languages supported)
+- Custom instructions for better accuracy
+
+#### Dark/Light Mode:
+- Click the theme toggle button (🌙/☀️) in the header
+- Preference is saved automatically
+
+### Using the Enhanced GUI
+
+1. **Select Mode**: Choose Basic Mode (simple) or Advanced Mode (full control)
+2. **Select Media File**: Browse or drag-and-drop a video/audio file
+3. **Choose Settings** (Advanced Mode):
+   - Model size (or use Auto-select)
+   - Language (or use Auto-detect)
+   - Output format (TXT, SRT, VTT)
+4. **Start Transcription**: Click "Transcribe Now" or "Start Transcription"
+5. **Review Results**: Transcription appears in the text area
+6. **Save**: Click "Save Transcription"
+
+### Using the Original GUI
 
 1. **Select Media File**: Click "Browse..." to select a video or audio file
-2. **Choose Model Size**: Select a Whisper model from the dropdown:
-   - **tiny**: Fastest, least accurate (good for quick tests)
-   - **base**: Balanced speed/accuracy (recommended for most users)
-   - **small**: Better accuracy, slower
-   - **medium**: Good accuracy, slow
-   - **large**: Best accuracy, very slow (requires significant RAM)
+2. **Choose Model Size**: Select a Whisper model from the dropdown
 3. **Select Output Format**: Choose between plain text (.txt) or SRT subtitles (.srt)
 4. **Start Transcription**: Click "Start Transcription"
 5. **Wait for Completion**: The progress bar will show the current status

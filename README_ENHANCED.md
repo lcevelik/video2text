@@ -4,6 +4,8 @@
 
 This enhanced version provides a powerful, user-friendly application for transcribing video and audio files using OpenAI's Whisper model. It features dual modes, automatic model selection, multi-language support, and audio recording capabilities.
 
+> **💡 Looking for the latest interface?** Check out the **Qt GUI** version (`README_QT.md`) which features a modern sidebar navigation, dark/light themes, and auto-transcription workflow. This Enhanced Tkinter version remains fully functional and offers all the same core features with a traditional interface.
+
 ## ✨ New Features
 
 ### 🎨 Dual Mode Interface
@@ -402,24 +404,31 @@ For issues, questions, or suggestions:
 
 ## 🗺️ Roadmap
 
-**v2.0** (Current)
+**v2.0** (Current - Enhanced Tkinter)
 - ✅ Dual-mode interface
 - ✅ Auto model selection
 - ✅ Audio recording
 - ✅ Multi-language support
 - ✅ Standalone packaging
 
-**v2.1** (Planned)
-- ⏳ Dark mode theme
+**v3.0** (Current - Qt GUI)
+- ✅ Modern sidebar navigation
+- ✅ Dark/light mode themes
+- ✅ Auto-transcription workflow
+- ✅ Auto-navigation between tabs
+- ✅ Proper threading (QThread)
+
+**v2.1/v3.1** (Planned)
 - ⏳ Real-time transcription
 - ⏳ GPU memory optimization
 - ⏳ Better progress estimation
+- ⏳ Desktop notifications
 
-**v2.2** (Future)
+**v2.2/v3.2** (Future)
 - ⏳ Speaker diarization
 - ⏳ Translation support
 - ⏳ Cloud backup
-- ⏳ Mobile version
+- ⏳ Batch processing
 
 ---
 
