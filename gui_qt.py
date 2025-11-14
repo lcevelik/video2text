@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QComboBox, QRadioButton, QButtonGroup, QGroupBox,
-    QStackedWidget, QFrame, QSizePolicy, QScrollArea, QDialog
+    QStackedWidget, QFrame, QSizePolicy, QScrollArea, QDialog, QListWidget, QListWidgetItem
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QThread, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QDragEnterEvent, QDropEvent
@@ -26,6 +26,74 @@ from audio_extractor import AudioExtractor
 from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
+
+
+class Theme:
+    """Theme colors for light and dark modes."""
+
+    LIGHT = {
+        'bg_primary': '#FFFFFF',
+        'bg_secondary': '#F5F5F5',
+        'bg_tertiary': '#FAFAFA',
+        'text_primary': '#333333',
+        'text_secondary': '#555555',
+        'text_disabled': '#999999',
+        'border': '#E0E0E0',
+        'accent': '#2196F3',
+        'accent_hover': '#1976D2',
+        'success': '#4CAF50',
+        'success_hover': '#45a049',
+        'error': '#F44336',
+        'warning': '#FF9800',
+        'info': '#2196F3',
+        'card_bg': '#FFFFFF',
+        'card_border': '#E0E0E0',
+        'input_bg': '#FAFAFA',
+        'button_bg': '#FFFFFF',
+        'button_text': '#333333',
+        'dropzone_bg': '#FAFAFA',
+        'dropzone_border': '#E0E0E0',
+        'dropzone_hover_bg': '#E3F2FD',
+        'dropzone_hover_border': '#2196F3',
+        'selected_bg': '#E8F5E9',
+        'selected_border': '#4CAF50',
+        'selected_text': '#2E7D32',
+    }
+
+    DARK = {
+        'bg_primary': '#1E1E1E',
+        'bg_secondary': '#252525',
+        'bg_tertiary': '#2D2D2D',
+        'text_primary': '#E0E0E0',
+        'text_secondary': '#B0B0B0',
+        'text_disabled': '#666666',
+        'border': '#404040',
+        'accent': '#42A5F5',
+        'accent_hover': '#64B5F6',
+        'success': '#66BB6A',
+        'success_hover': '#81C784',
+        'error': '#EF5350',
+        'warning': '#FFA726',
+        'info': '#42A5F5',
+        'card_bg': '#252525',
+        'card_border': '#404040',
+        'input_bg': '#2D2D2D',
+        'button_bg': '#303030',
+        'button_text': '#E0E0E0',
+        'dropzone_bg': '#2D2D2D',
+        'dropzone_border': '#404040',
+        'dropzone_hover_bg': '#1E3A5F',
+        'dropzone_hover_border': '#42A5F5',
+        'selected_bg': '#1B3A2F',
+        'selected_border': '#66BB6A',
+        'selected_text': '#81C784',
+    }
+
+    @staticmethod
+    def get(key, is_dark=False):
+        """Get theme color by key."""
+        theme = Theme.DARK if is_dark else Theme.LIGHT
+        return theme.get(key, '#000000')
 
 
 class RecordingWorker(QThread):
@@ -605,14 +673,17 @@ class Video2TextQt(QMainWindow):
         self.transcription_result = None
         self.transcription_worker = None  # QThread worker for transcription
         self.current_mode = "basic"
+        self.is_dark_mode = self.settings.get("dark_mode", False)
 
         self.setup_ui()
+        self.apply_theme()
         self.center_window()
 
     def load_settings(self):
         """Load settings from config file."""
         default_settings = {
-            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings")
+            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
+            "dark_mode": False
         }
 
         try:
@@ -634,6 +705,83 @@ class Video2TextQt(QMainWindow):
             logger.info(f"Settings saved to {self.config_file}")
         except Exception as e:
             logger.error(f"Could not save settings: {e}")
+
+    def toggle_theme(self):
+        """Toggle between dark and light mode."""
+        self.is_dark_mode = not self.is_dark_mode
+        self.settings["dark_mode"] = self.is_dark_mode
+        self.save_settings()
+        self.apply_theme()
+
+        # Update toggle button text
+        if hasattr(self, 'theme_toggle_btn'):
+            self.theme_toggle_btn.setText("☀️ Light Mode" if self.is_dark_mode else "🌙 Dark Mode")
+
+        logger.info(f"Theme switched to {'dark' if self.is_dark_mode else 'light'} mode")
+
+    def apply_theme(self):
+        """Apply the current theme to all UI elements."""
+        # Get theme colors
+        bg = Theme.get('bg_primary', self.is_dark_mode)
+        text = Theme.get('text_primary', self.is_dark_mode)
+        border = Theme.get('border', self.is_dark_mode)
+        accent = Theme.get('accent', self.is_dark_mode)
+
+        # Main window stylesheet
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {bg};
+                color: {text};
+            }}
+            QWidget {{
+                background-color: {bg};
+                color: {text};
+            }}
+            QLabel {{
+                color: {text};
+            }}
+            QPushButton {{
+                background-color: {Theme.get('button_bg', self.is_dark_mode)};
+                color: {Theme.get('button_text', self.is_dark_mode)};
+                border: 2px solid {border};
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                border-color: {accent};
+                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
+            }}
+            QTextEdit {{
+                background-color: {Theme.get('input_bg', self.is_dark_mode)};
+                color: {text};
+                border: 1px solid {border};
+                border-radius: 8px;
+            }}
+            QProgressBar {{
+                border: 2px solid {border};
+                border-radius: 8px;
+                text-align: center;
+                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
+                color: {text};
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+                border-radius: 6px;
+            }}
+            QComboBox {{
+                background-color: {Theme.get('input_bg', self.is_dark_mode)};
+                color: {text};
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 5px;
+            }}
+            QRadioButton {{
+                color: {text};
+            }}
+        """)
+
+        logger.info(f"Applied {'dark' if self.is_dark_mode else 'light'} theme")
 
     def setup_ui(self):
         """Setup the main UI."""
@@ -687,19 +835,28 @@ class Video2TextQt(QMainWindow):
         header = QWidget()
         layout = QHBoxLayout()
 
-        title = QLabel("🎬 Video2Text")
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #2196F3;")
+        # Title and subtitle
+        self.title_label = QLabel("🎬 Video2Text")
+        self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #2196F3;")
 
-        subtitle = QLabel("AI-Powered Transcription with Whisper")
-        subtitle.setStyleSheet("font-size: 14px; color: #666;")
+        self.subtitle_label = QLabel("AI-Powered Transcription with Whisper")
+        self.subtitle_label.setStyleSheet("font-size: 14px; color: #666;")
 
         title_layout = QVBoxLayout()
-        title_layout.addWidget(title)
-        title_layout.addWidget(subtitle)
+        title_layout.addWidget(self.title_label)
+        title_layout.addWidget(self.subtitle_label)
         title_layout.setSpacing(5)
 
         layout.addLayout(title_layout)
         layout.addStretch()
+
+        # Theme toggle button
+        self.theme_toggle_btn = QPushButton("🌙 Dark Mode" if not self.is_dark_mode else "☀️ Light Mode")
+        self.theme_toggle_btn.setMinimumWidth(120)
+        self.theme_toggle_btn.setMinimumHeight(35)
+        self.theme_toggle_btn.setCursor(Qt.PointingHandCursor)
+        self.theme_toggle_btn.clicked.connect(self.toggle_theme)
+        layout.addWidget(self.theme_toggle_btn)
 
         header.setLayout(layout)
         return header
