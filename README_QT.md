@@ -1,14 +1,16 @@
 # Video2Text - Modern Qt Interface
 
-## 🎨 Beautiful, User-Friendly GUI
+## 🎨 Beautiful, User-Friendly GUI with Sidebar Navigation
 
-This is the **modern Qt-based interface** for Video2Text, built with PySide6 for a polished, professional appearance across all platforms.
+This is the **modern Qt-based interface** for Video2Text, built with PySide6 for a polished, professional appearance across all platforms. Features a **sidebar navigation system** with organized tabs and **dark/light theme support**.
 
 ---
 
 ## ✨ Why Qt Version?
 
 ### **Modern Design**
+- 🎯 **Sidebar Navigation** - Clean tabs for Upload, Record, and Transcript
+- 🌓 **Dark/Light Mode** - Toggle themes for comfortable viewing in any lighting
 - 🎨 **Card-based layout** - Clean, organized interface
 - 🌈 **Professional styling** - Polished buttons, smooth transitions
 - 📱 **Responsive design** - Adapts to different screen sizes
@@ -22,9 +24,11 @@ This is the **modern Qt-based interface** for Video2Text, built with PySide6 for
 
 ### **Enhanced User Experience**
 - 🎯 **Simpler interface** - Less technical, more approachable
+- ⚡ **Auto-transcribe** - Drop files and transcription starts automatically (Basic Mode)
+- 🔄 **Auto-navigation** - Automatically switches to Transcript tab when done
 - 🚀 **Smoother animations** - Professional feel
 - 💡 **Better visual hierarchy** - Easy to understand
-- 🎭 **Dark/Light themes** - Comfortable for any lighting
+- 🎭 **Persistent preferences** - Your theme and settings are saved
 
 ---
 
@@ -72,24 +76,54 @@ Plus the core dependencies (whisper, torch, etc.)
 
 ## 🎯 Features
 
-### **Basic Mode**
+### **Sidebar Navigation** (Both Modes)
+Each mode features a clean sidebar with three organized tabs:
+
+#### **Upload Tab**
 - 📁 **Drag & Drop** - Visual drop zone for files
-- 🎤 **One-Click Recording** - Record mic + speaker
-- ✨ **Auto Transcribe** - Single button to start
+- 🎯 **Auto-Transcribe** - Drop file and transcription starts automatically (Basic Mode)
+- 📊 **Progress Tracking** - Real-time progress updates
+- ⚡ **Click to Browse** - Alternative to drag-and-drop
+
+#### **Record Tab**
+- 🎤 **Dual Recording** - Captures mic + speaker simultaneously
+- 📁 **Directory Selection** - Choose where recordings are saved
+- ⏺️ **One-Click Recording** - Start/stop with single button
+- 🔄 **Auto-Load** - Recorded audio automatically loads for transcription
+
+#### **Transcript Tab**
+- 📝 **Results Display** - View transcription with formatting
+- 💾 **Save Options** - Export as TXT, SRT, or VTT
+- 🔄 **Auto-Navigation** - Automatically shown when transcription completes
+- 📋 **Format Selection** - Choose output format before saving
+
+### **Basic Mode**
+- ✨ **Simplified Interface** - Only essential controls
 - 🤖 **Smart Model Selection** - Automatically chooses best model
+- 🚀 **Automatic Workflow** - Drop file → transcribe → view results
+- 🎯 **Perfect for Beginners** - No configuration needed
 
 ### **Advanced Mode**
-- ⚙️ **Full Control** - Manual model selection
-- 🌍 **Language Options** - Choose specific language
+- ⚙️ **Full Control** - Manual model selection (tiny/base/small/medium/large)
+- 🌍 **Language Options** - Choose from 99 supported languages
 - 📝 **Multiple Formats** - TXT, SRT, VTT output
 - 🎛️ **Fine-Tuning** - All advanced options available
+- 💬 **Custom Instructions** - Add context for better accuracy
+
+### **Theme System**
+- 🌓 **Dark/Light Mode** - Toggle with one click
+- 💾 **Persistent Preference** - Your choice is saved
+- 🎨 **Complete Integration** - All UI elements themed
+- 👁️ **Comfortable Viewing** - Optimized for any lighting condition
 
 ### **Modern UI Elements**
+- 📂 **Sidebar Navigation** - Clean, organized tabs
 - 💳 **Cards** - Organized content sections
-- 🎨 **Styled Buttons** - Primary/secondary styling
+- 🎨 **Styled Buttons** - Primary/secondary styling with hover effects
 - 📊 **Smooth Progress** - Animated progress bars
-- 🎬 **Drop Zone** - Visual file upload area
+- 🎬 **Drop Zone** - Visual file upload area with feedback
 - 🔔 **Status Updates** - Clear feedback messages
+- 🌈 **Theme-Aware Widgets** - All elements respond to theme changes
 
 ---
 
@@ -109,14 +143,75 @@ Plus the core dependencies (whisper, torch, etc.)
 
 ---
 
+## 📘 How to Use the Qt GUI
+
+### **Basic Workflow**
+
+1. **Launch the Application**
+   ```bash
+   python gui_qt.py
+   ```
+
+2. **Choose Your Mode**
+   - Click **"📱 Basic Mode"** for simplified interface (recommended for beginners)
+   - Click **"⚙️ Advanced Mode"** for full control
+
+3. **Use the Sidebar Tabs**
+
+   **Upload Tab** (Start here):
+   - Drag and drop your video/audio file
+   - Or click the drop zone to browse
+   - In Basic Mode, transcription starts automatically!
+
+   **Record Tab** (Optional):
+   - Click "Start Recording" to record audio
+   - Records both microphone and system audio
+   - Configure recording directory in settings
+   - Recorded audio loads automatically
+
+   **Transcript Tab** (Results):
+   - View your transcription results
+   - Choose output format (TXT, SRT, VTT)
+   - Click "Save Transcription" to export
+   - Automatically shown when transcription completes
+
+4. **Toggle Theme** (Optional)
+   - Click the 🌙/☀️ button in the header
+   - Switch between dark and light modes
+   - Your preference is saved automatically
+
+### **Basic Mode Step-by-Step**
+
+1. Make sure **Basic Mode** is selected
+2. Go to **Upload Tab** (sidebar)
+3. **Drop your file** into the drop zone (or click to browse)
+4. **Wait** - transcription starts automatically
+5. **View results** - automatically navigate to Transcript tab
+6. **Save** - choose format and click "Save Transcription"
+
+### **Advanced Mode Step-by-Step**
+
+1. Select **Advanced Mode**
+2. **Upload Tab**:
+   - Drop or browse for your file
+   - Choose model size (or use Auto-select)
+   - Select language (or use Auto-detect)
+   - Add custom instructions (optional)
+   - Click "Start Transcription"
+3. **Transcript Tab**:
+   - Wait for transcription to complete
+   - Review results
+   - Select output format
+   - Click "Save Transcription"
+
 ## 📸 UI Components
 
 ### **1. Header**
 ```
-🎬 Video2Text
+🎬 Video2Text                          🌙 Dark Mode
 AI-Powered Transcription with Whisper
 ```
-Clean, professional branding
+Clean, professional branding with theme toggle
 
 ### **2. Mode Switcher**
 ```
@@ -124,39 +219,53 @@ Clean, professional branding
 ```
 Toggle between simple and advanced interfaces
 
-### **3. Drop Zone (Basic Mode)**
+### **3. Sidebar Navigation**
+```
+┌─────────────┐
+│ 📤 Upload   │ ← Currently selected (highlighted)
+│ 🎤 Record   │
+│ 📝 Transcript│
+└─────────────┘
+```
+Three main sections organized as tabs
+
+### **4. Upload Tab**
 ```
 ┌────────────────────────────┐
 │          🎬                │
 │  Drag & Drop File Here     │
-│    or click Browse         │
+│    or click to browse      │
 └────────────────────────────┘
-```
-Visual file upload area
 
-### **4. Cards (Advanced Mode)**
+Progress: ████████░░░░░ 75%
+Transcribing audio...
 ```
-┌─ Media File ───────────────┐
-│  📁 No file selected       │
-│  [Browse...]              │
+Visual file upload with progress tracking
+
+### **5. Record Tab**
+```
+┌─ Recording Settings ───────┐
+│  Directory: ~/Recordings   │
+│  [Change Directory]        │
 └───────────────────────────┘
 
-┌─ Whisper Model ────────────┐
-│  ○ 🤖 Auto-select (✓)     │
-│  ○ Manual selection        │
-│  [tiny ▼]                  │
-└───────────────────────────┘
-```
-Organized, easy-to-understand sections
+[🎤 Start Recording]
 
-### **5. Progress**
+Recording: 00:23 ⏺️
 ```
-┌─ Progress ─────────────────┐
-│  Transcribing audio...     │
-│  ████████░░░░░ 75%        │
+Recording controls and settings
+
+### **6. Transcript Tab**
+```
+┌─ Results ──────────────────┐
+│  Your transcription text   │
+│  appears here with proper  │
+│  formatting...             │
 └───────────────────────────┘
+
+Format: [TXT ▼]  [💾 Save Transcription]
 ```
-Clear visual feedback
+Results display with save options
 
 ---
 
@@ -177,21 +286,40 @@ Clear visual feedback
 ### **Architecture**
 ```python
 Video2TextQt (QMainWindow)
-├── Header (title, subtitle)
+├── Header (title, subtitle, theme toggle button)
 ├── Mode Switcher (basic/advanced)
-├── Stacked Widget
-│   ├── Basic Mode (DropZone, buttons)
-│   └── Advanced Mode (Cards, controls)
-├── Progress Section (label, bar)
-├── Result Section (text edit, save)
-└── Status Bar
+├── Stacked Widget (Mode Container)
+│   ├── Basic Mode
+│   │   ├── Sidebar (QListWidget) - Tab navigation
+│   │   └── Tab Stack (QStackedWidget)
+│   │       ├── Upload Tab (drop zone, progress)
+│   │       ├── Record Tab (recording controls, settings)
+│   │       └── Transcript Tab (results, save options)
+│   └── Advanced Mode
+│       ├── Sidebar (QListWidget) - Tab navigation
+│       └── Tab Stack (QStackedWidget)
+│           ├── Upload Tab (drop zone, file info, progress)
+│           ├── Record Tab (recording controls, directory settings)
+│           └── Transcript Tab (results, format selection, save)
+├── Status Bar (current operation feedback)
+└── Theme System (Light/Dark color palettes)
 ```
 
 ### **Custom Widgets**
-- `ModernButton` - Styled buttons with hover effects
-- `Card` - Container with shadow and rounded corners
-- `DropZone` - Drag-and-drop file upload area
-- `RecordingDialog` - Modern recording interface
+- `ModernButton` - Styled buttons with hover effects and theme support
+- `Card` - Container with shadow, rounded corners, and theme-aware colors
+- `DropZone` - Drag-and-drop file upload area with theme-aware styling
+- `RecordingDialog` - Modern recording interface with dual-stream capture
+- `RecordingWorker` - QThread for background audio recording
+- `TranscriptionWorker` - QThread for background transcription
+- `Theme` - Color palette manager for dark/light modes
+
+### **Threading Architecture**
+The Qt GUI uses proper QThread workers for all background tasks:
+- **RecordingWorker**: Handles audio recording in background thread
+- **TranscriptionWorker**: Handles transcription in background thread
+- **Signal/Slot Communication**: Thread-safe updates to GUI
+- **No Blocking**: Main UI thread remains responsive during long operations
 
 ---
 
@@ -237,23 +365,34 @@ Border:    #E0E0E0
 
 ---
 
+## ✅ Recently Implemented Features
+
+### **Latest Updates**
+- ✅ **Dark/Light Mode** - Complete theme system with toggle button
+- ✅ **Sidebar Navigation** - Clean tab-based interface
+- ✅ **Auto-Navigation** - Automatically switch to Transcript tab when done
+- ✅ **Auto-Transcribe** - Drop files and start transcription automatically (Basic Mode)
+- ✅ **Persistent Settings** - Your preferences are saved (theme, recording directory)
+- ✅ **Theme-Aware Widgets** - All UI elements adapt to selected theme
+- ✅ **Proper Threading** - QThread workers for responsive UI
+
 ## 🔮 Future Enhancements
 
 ### **Planned Features**
-- 🌓 **Dark Mode** - Toggle dark/light themes
-- 🎨 **Custom Themes** - User-selectable color schemes
+- 🎨 **Custom Themes** - User-selectable color schemes beyond dark/light
 - 📊 **Real-time Waveform** - Visual audio feedback during recording
 - 🎬 **Video Preview** - Thumbnail preview of video files
 - 📈 **Statistics Dashboard** - Usage metrics and history
 - 🔔 **Desktop Notifications** - Completion alerts
 - 🌐 **Multi-language UI** - Interface in multiple languages
-- 💾 **Settings Panel** - Persistent user preferences
+- 📝 **Recent Files** - Quick access to recently transcribed files
+- 🔍 **Search Transcripts** - Search through saved transcriptions
 
 ### **Technical Improvements**
-- ⚡ **Async Operations** - Non-blocking transcription
 - 🔄 **Auto-updates** - Update checker
 - 📦 **Smaller Packaging** - Optimized builds
 - 🎯 **Accessibility** - Screen reader support
+- 🎤 **Real-time Transcription** - Live transcription as you speak
 
 ---
 
