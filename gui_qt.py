@@ -299,7 +299,9 @@ class TranscriptionWorker(QThread):
                     audio_path,
                     detect_language_changes=True,
                     use_segment_retranscription=self.use_deep_scan,
-                    progress_callback=progress_callback
+                    progress_callback=progress_callback,
+                    detection_model="base",  # Fast model for language detection (Pass 1)
+                    transcription_model=self.model_size  # User-selected model for accurate transcription (Pass 2)
                 )
             else:
                 self.progress_update.emit("Transcribing audio...", 60)
