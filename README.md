@@ -28,6 +28,7 @@ The latest and most advanced interface with:
 - 🎯 **Auto-Transcribe**: Drop files and transcription starts automatically
 - 📱 **Basic & Advanced Modes**: Simple for beginners, powerful for experts
 - 🎙️ **Integrated Recording**: Record mic + speaker with one click
+- 🌐 **Multi-Language Detection**: Perfect for multilingual meetings - tracks when speakers switch languages
 
 **How to run:**
 ```bash
@@ -275,7 +276,28 @@ The modern Qt interface features a **sidebar with three main tabs**:
 Same three tabs with additional controls:
 - Manual model selection (tiny, base, small, medium, large)
 - Language selection (99 languages supported)
+- **Multi-language detection** - Enable "Detect language changes" for multilingual meetings
 - Custom instructions for better accuracy
+
+#### Multi-Language Detection:
+Perfect for international meetings where people speak different languages:
+1. In Advanced Mode → Upload Tab
+2. Check **"🌍 Detect language changes (for multilingual meetings)"**
+3. Transcribe your file
+4. Results will include a **language timeline** showing when each language was spoken
+
+Example output:
+```
+[Transcription text in all languages]
+
+============================================================
+🌍 LANGUAGE TIMELINE:
+============================================================
+
+[00:00:15 - 00:02:30] Language: EN
+[00:02:30 - 00:05:45] Language: ES
+[00:05:45 - 00:08:00] Language: EN
+```
 
 #### Dark/Light Mode:
 - Click the theme toggle button (🌙/☀️) in the header

@@ -106,6 +106,7 @@ Each mode features a clean sidebar with three organized tabs:
 ### **Advanced Mode**
 - ⚙️ **Full Control** - Manual model selection (tiny/base/small/medium/large)
 - 🌍 **Language Options** - Choose from 99 supported languages
+- 🌐 **Multi-Language Detection** - Track when speakers switch languages (perfect for multilingual meetings)
 - 📝 **Multiple Formats** - TXT, SRT, VTT output
 - 🎛️ **Fine-Tuning** - All advanced options available
 - 💬 **Custom Instructions** - Add context for better accuracy
@@ -196,13 +197,46 @@ Each mode features a clean sidebar with three organized tabs:
    - Drop or browse for your file
    - Choose model size (or use Auto-select)
    - Select language (or use Auto-detect)
+   - **For multilingual meetings**: Check "🌍 Detect language changes"
    - Add custom instructions (optional)
    - Click "Start Transcription"
 3. **Transcript Tab**:
    - Wait for transcription to complete
-   - Review results
+   - Review results (includes language timeline if multi-language detection was enabled)
    - Select output format
    - Click "Save Transcription"
+
+### **Multi-Language Detection (For Multilingual Meetings)**
+
+Perfect for international meetings, conferences, or recordings with multiple languages:
+
+**How to Use:**
+1. In Advanced Mode → Upload Tab
+2. Check the box: **"🌍 Detect language changes (for multilingual meetings)"**
+3. Start transcription as normal
+
+**What You Get:**
+- Full transcription with all languages
+- **Language Timeline** showing when each language was spoken
+- Example timeline format:
+  ```
+  [00:00:15 - 00:02:30] Language: EN
+  [00:02:30 - 00:05:45] Language: ES
+  [00:05:45 - 00:08:00] Language: EN
+  ```
+- Automatic detection of: English, Spanish, Chinese, Japanese, Korean, Arabic, Russian, Hebrew, Thai, and more
+
+**Supported Language Detection:**
+- **Character-based detection** for CJK (Chinese, Japanese, Korean)
+- **Script detection** for Arabic, Cyrillic, Hebrew, Thai
+- **Latin-based languages** (English, Spanish, French, German, etc.)
+
+**Use Cases:**
+- International business meetings
+- Multilingual conferences
+- Customer support calls
+- Educational content with multiple languages
+- Any recording where speakers switch between languages
 
 ## 📸 UI Components
 
