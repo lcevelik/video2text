@@ -337,8 +337,8 @@ class DropZone(QFrame):
         self.icon_label.setStyleSheet("font-size: 48px;")
         self.icon_label.setAlignment(Qt.AlignCenter)
 
-        self.text_label = QLabel("Drag & Drop Video/Audio File Here\n\nor click Browse")
-        self.text_label.setStyleSheet("font-size: 16px; color: #666;")
+        self.text_label = QLabel("Drag & Drop Video/Audio\nFile Here")
+        self.text_label.setStyleSheet("font-size: 16px; color: #555; font-weight: 500;")
         self.text_label.setAlignment(Qt.AlignCenter)
 
         self.layout.addWidget(self.icon_label)
@@ -383,13 +383,15 @@ class DropZone(QFrame):
     def set_file(self, filename):
         self.has_file = True
         self.icon_label.setText("✅")
-        self.text_label.setText(f"Selected: {filename}\n\nClick to change")
+        self.text_label.setText(f"Selected: {filename}")
+        self.text_label.setStyleSheet("font-size: 14px; color: #2E7D32; font-weight: 600;")
         self.update_style()
 
     def clear_file(self):
         self.has_file = False
         self.icon_label.setText("🎬")
-        self.text_label.setText("Drag & Drop Video/Audio File Here\n\nor click Browse")
+        self.text_label.setText("Drag & Drop Video/Audio\nFile Here")
+        self.text_label.setStyleSheet("font-size: 16px; color: #555; font-weight: 500;")
         self.update_style()
 
     def mousePressEvent(self, event):
@@ -781,75 +783,71 @@ class Video2TextQt(QMainWindow):
 
         # Description
         desc = QLabel("Simple, automatic transcription. Drop a file or record audio!")
-        desc.setStyleSheet("font-size: 15px; color: #666; margin-bottom: 10px;")
+        desc.setStyleSheet("font-size: 15px; color: #555; margin-bottom: 10px;")
         desc.setAlignment(Qt.AlignCenter)
         layout.addWidget(desc)
 
-        # Drop zone - more prominent
+        # Main action row: Drop zone AND Recording button (same line, equal size)
+        action_layout = QHBoxLayout()
+        action_layout.setSpacing(20)
+
+        # Drop zone (left side)
         self.drop_zone = DropZone()
-        self.drop_zone.file_dropped.connect(self.load_file)
+        self.drop_zone.file_dropped.connect(self.on_file_dropped_basic)  # Auto-transcribe
         self.drop_zone.clicked.connect(self.browse_file)
-        layout.addWidget(self.drop_zone)
+        self.drop_zone.setMinimumHeight(150)
+        self.drop_zone.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        action_layout.addWidget(self.drop_zone, 1)
+
+        # Recording button container (right side, same size as drop zone)
+        record_container = QFrame()
+        record_container.setMinimumHeight(150)
+        record_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        record_container.setStyleSheet("""
+            QFrame {
+                background-color: #F5F5F5;
+                border-radius: 12px;
+                border: 2px solid #E0E0E0;
+            }
+        """)
+        record_layout = QVBoxLayout(record_container)
+        record_layout.setAlignment(Qt.AlignCenter)
+
+        # Record icon
+        record_icon = QLabel("🎙️")
+        record_icon.setStyleSheet("font-size: 48px;")
+        record_icon.setAlignment(Qt.AlignCenter)
+        record_layout.addWidget(record_icon)
+
+        # Record toggle button
+        self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
+        self.basic_record_btn.setMinimumHeight(50)
+        self.basic_record_btn.setMinimumWidth(200)
+        self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
+        record_layout.addWidget(self.basic_record_btn, 0, Qt.AlignCenter)
+
+        action_layout.addWidget(record_container, 1)
+        layout.addLayout(action_layout)
 
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
         self.recording_duration_label.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: #F44336; "
-            "margin-top: 10px; margin-bottom: 10px;"
+            "font-size: 18px; font-weight: bold; color: #F44336; "
+            "margin-top: 15px; margin-bottom: 15px;"
         )
         self.recording_duration_label.setAlignment(Qt.AlignCenter)
         self.recording_duration_label.hide()
         layout.addWidget(self.recording_duration_label)
 
-        # Main action buttons - cleaner layout
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(20)
-
-        # Browse button
-        self.browse_btn = ModernButton("📁 Browse File")
-        self.browse_btn.setMinimumWidth(180)
-        self.browse_btn.setMinimumHeight(45)
-        self.browse_btn.clicked.connect(self.browse_file)
-
-        # Record toggle button
-        self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
-        self.basic_record_btn.setMinimumWidth(180)
-        self.basic_record_btn.setMinimumHeight(45)
-        self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
-
-        btn_layout.addStretch()
-        btn_layout.addWidget(self.browse_btn)
-        btn_layout.addWidget(self.basic_record_btn)
-        btn_layout.addStretch()
-
-        layout.addLayout(btn_layout)
-
-        # Transcribe button - more prominent
+        # Transcribe button - HIDDEN in basic mode (auto-transcribe on drop)
         self.basic_transcribe_btn = ModernButton("✨ Transcribe Now", primary=True)
-        self.basic_transcribe_btn.setMinimumHeight(55)
         self.basic_transcribe_btn.setEnabled(False)
         self.basic_transcribe_btn.clicked.connect(self.start_transcription)
-        self.basic_transcribe_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 15px 30px;
-                font-size: 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:disabled {
-                background-color: #BDBDBD;
-            }
-        """)
+        self.basic_transcribe_btn.hide()  # Hidden - not needed in Basic Mode
         layout.addWidget(self.basic_transcribe_btn)
 
         # Info tip
-        info = QLabel("💡 Tip: Recording auto-transcribes • Auto-selects best model")
+        info = QLabel("💡 Tip: Files auto-transcribe when dropped • Recording auto-transcribes when stopped")
         info.setStyleSheet("font-size: 12px; color: #2196F3; margin-top: 15px;")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
@@ -966,7 +964,7 @@ class Video2TextQt(QMainWindow):
         card = Card("Progress")
 
         self.progress_label = QLabel("Ready")
-        self.progress_label.setStyleSheet("font-size: 13px; color: #666;")
+        self.progress_label.setStyleSheet("font-size: 13px; color: #555;")
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimumHeight(30)
@@ -996,11 +994,13 @@ class Video2TextQt(QMainWindow):
         self.result_text.setStyleSheet("""
             QTextEdit {
                 background-color: #FAFAFA;
+                color: #333;
                 border: 1px solid #E0E0E0;
                 border-radius: 8px;
                 padding: 10px;
                 font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 12px;
+                font-size: 13px;
+                line-height: 1.5;
             }
         """)
 
@@ -1038,6 +1038,14 @@ class Video2TextQt(QMainWindow):
         self.basic_btn.apply_style()
         self.advanced_btn.apply_style()
 
+    def on_file_dropped_basic(self, file_path):
+        """Handle file drop in Basic Mode - auto-start transcription."""
+        self.load_file(file_path)
+        # Auto-start transcription in Basic Mode
+        if self.current_mode == "basic":
+            # Small delay to let UI update
+            QTimer.singleShot(100, self.start_transcription)
+
     def browse_file(self):
         """Browse for video/audio file."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -1049,6 +1057,9 @@ class Video2TextQt(QMainWindow):
 
         if file_path:
             self.load_file(file_path)
+            # Auto-start transcription in Basic Mode
+            if self.current_mode == "basic":
+                QTimer.singleShot(100, self.start_transcription)
 
     def load_file(self, file_path):
         """Load a video or audio file."""
@@ -1058,8 +1069,7 @@ class Video2TextQt(QMainWindow):
         # Update UI based on mode
         if self.current_mode == "basic":
             self.drop_zone.set_file(filename)
-            self.basic_file_label.setText(f"Selected: {filename}")
-            self.basic_transcribe_btn.setEnabled(True)
+            # No need to enable transcribe button - auto-transcribes
         else:
             self.adv_file_label.setText(filename)
             self.adv_start_btn.setEnabled(True)
