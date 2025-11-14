@@ -255,12 +255,15 @@ class DropZone(QFrame):
     """Drag and drop zone for files."""
 
     file_dropped = Signal(str)
+    clicked = Signal()  # Signal emitted when user clicks the drop zone
 
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        self.setMinimumHeight(200)
+        self.setMinimumHeight(150)
+        self.setMaximumHeight(200)
         self.has_file = False
+        self.setCursor(Qt.PointingHandCursor)
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignCenter)
@@ -325,7 +328,8 @@ class DropZone(QFrame):
         self.update_style()
 
     def mousePressEvent(self, event):
-        self.parent().parent().parent().browse_file()  # Trigger browse
+        """Handle mouse click - emit signal instead of navigating parent chain."""
+        self.clicked.emit()
 
 
 class RecordingDialog(QDialog):
@@ -701,7 +705,8 @@ class Video2TextQt(QMainWindow):
         """Create basic mode interface."""
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(20)
+        layout.setSpacing(25)
+        layout.setContentsMargins(30, 30, 30, 30)
 
         # State for recording
         self.is_recording = False
@@ -712,44 +717,40 @@ class Video2TextQt(QMainWindow):
 
         # Description
         desc = QLabel("Simple, automatic transcription. Drop a file or record audio!")
-        desc.setStyleSheet("font-size: 14px; color: #666;")
+        desc.setStyleSheet("font-size: 15px; color: #666; margin-bottom: 10px;")
         desc.setAlignment(Qt.AlignCenter)
         layout.addWidget(desc)
 
-        # Drop zone
+        # Drop zone - more prominent
         self.drop_zone = DropZone()
         self.drop_zone.file_dropped.connect(self.load_file)
+        self.drop_zone.clicked.connect(self.browse_file)
         layout.addWidget(self.drop_zone)
 
-        # Settings card
-        settings_card = self.create_settings_card()
-        layout.addWidget(settings_card)
-
-        # File info
-        self.basic_file_label = QLabel("No file selected")
-        self.basic_file_label.setStyleSheet("font-size: 12px; color: #999;")
-        self.basic_file_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.basic_file_label)
-
-        # Recording duration (hidden initially)
+        # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
-        self.recording_duration_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #F44336;")
+        self.recording_duration_label.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: #F44336; "
+            "margin-top: 10px; margin-bottom: 10px;"
+        )
         self.recording_duration_label.setAlignment(Qt.AlignCenter)
         self.recording_duration_label.hide()
         layout.addWidget(self.recording_duration_label)
 
-        # Main action buttons
+        # Main action buttons - cleaner layout
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(15)
+        btn_layout.setSpacing(20)
 
         # Browse button
         self.browse_btn = ModernButton("📁 Browse File")
-        self.browse_btn.setMinimumWidth(200)
+        self.browse_btn.setMinimumWidth(180)
+        self.browse_btn.setMinimumHeight(45)
         self.browse_btn.clicked.connect(self.browse_file)
 
         # Record toggle button
         self.basic_record_btn = ModernButton("🎤 Start Recording", primary=True)
-        self.basic_record_btn.setMinimumWidth(200)
+        self.basic_record_btn.setMinimumWidth(180)
+        self.basic_record_btn.setMinimumHeight(45)
         self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
 
         btn_layout.addStretch()
@@ -759,18 +760,50 @@ class Video2TextQt(QMainWindow):
 
         layout.addLayout(btn_layout)
 
-        # Transcribe button (only shown when file is selected, not when recording)
+        # Transcribe button - more prominent
         self.basic_transcribe_btn = ModernButton("✨ Transcribe Now", primary=True)
-        self.basic_transcribe_btn.setMinimumHeight(50)
+        self.basic_transcribe_btn.setMinimumHeight(55)
         self.basic_transcribe_btn.setEnabled(False)
         self.basic_transcribe_btn.clicked.connect(self.start_transcription)
+        self.basic_transcribe_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 15px 30px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:disabled {
+                background-color: #BDBDBD;
+            }
+        """)
         layout.addWidget(self.basic_transcribe_btn)
 
-        # Info
-        info = QLabel("🎤 Recording auto-transcribes  |  🤖 Auto-selects best model")
-        info.setStyleSheet("font-size: 12px; color: #2196F3;")
+        # Info tip
+        info = QLabel("💡 Tip: Recording auto-transcribes • Auto-selects best model")
+        info.setStyleSheet("font-size: 12px; color: #2196F3; margin-top: 15px;")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
+
+        # Add spacer
+        layout.addSpacing(20)
+
+        # Settings card - moved to bottom, less intrusive
+        settings_card = self.create_settings_card()
+        layout.addWidget(settings_card)
+
+        # Status label (hidden file info, only shown when needed)
+        self.basic_file_label = QLabel("")
+        self.basic_file_label.setStyleSheet("font-size: 11px; color: #999;")
+        self.basic_file_label.setAlignment(Qt.AlignCenter)
+        self.basic_file_label.setWordWrap(True)
+        self.basic_file_label.hide()  # Hidden by default
+        layout.addWidget(self.basic_file_label)
 
         layout.addStretch()
         widget.setLayout(layout)
@@ -784,7 +817,8 @@ class Video2TextQt(QMainWindow):
 
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(15)
+        layout.setSpacing(20)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         # File selection card
         file_card = Card("Media File")
