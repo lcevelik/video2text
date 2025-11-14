@@ -283,31 +283,40 @@ Same three tabs with additional controls:
 - Custom instructions for better accuracy
 
 #### Multi-Language Detection:
-Perfect for international meetings where people speak different languages:
+Perfect for international meetings where people speak different languages or switch languages mid-conversation (code-switching):
 
 **In Basic Mode** (Automatic):
 - Multi-language detection is always enabled
 - Just drop your file and transcribe
 - Results automatically include language timeline
+- Uses fast detection (good for most use cases)
 
 **In Advanced Mode** (Manual Control):
 1. Go to Upload Tab
-2. Check **"🌍 Detect language changes (for multilingual meetings)"** if desired
-3. Transcribe your file
-4. Results will include a **language timeline** showing when each language was spoken
+2. Check **"🌍 Detect language changes (for multilingual meetings)"**
+3. **For TRUE code-switching** (Czech ↔ English ↔ Czech in same meeting):
+   - Check **"🔬 Deep multi-language scanning (SLOW but accurate)"**
+   - Re-transcribes each segment individually for accurate language detection
+   - ⚠️ Much slower but handles language mixing correctly
+4. Transcribe your file
+5. Results will include a **language timeline** showing when each language was spoken
 
 Example output:
 ```
-[Transcription text in all languages]
+[Transcription text in all languages - each part correctly transcribed]
 
 ============================================================
 🌍 LANGUAGE TIMELINE:
 ============================================================
 
-[00:00:15 - 00:02:30] Language: EN
-[00:02:30 - 00:05:45] Language: ES
-[00:05:45 - 00:08:00] Language: EN
+[00:00:15 - 00:02:30] Language: English (EN)
+[00:02:30 - 00:05:45] Language: Spanish (ES)
+[00:05:45 - 00:08:00] Language: Czech (CS)
 ```
+
+**Detection Modes:**
+- **Fast** (default): Whisper's primary language + character analysis
+- **Deep Scanning** (Advanced): Re-transcribes each segment for true multi-language support
 
 #### Dark/Light Mode:
 - Click the theme toggle button (🌙/☀️) in the header
