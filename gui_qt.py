@@ -1877,12 +1877,17 @@ class Video2TextQt(QMainWindow):
 
     def on_transcription_complete(self, result):
         """Handle successful transcription completion."""
+        from transcriber_enhanced import EnhancedTranscriber
+
         self.transcription_result = result
 
         # Display result
         text = result.get('text', '')
         language = result.get('language', 'unknown')
         segment_count = len(result.get('segments', []))
+
+        # Get language name
+        lang_name = EnhancedTranscriber.LANGUAGE_NAMES.get(language, language.upper())
 
         # Check for multi-language information
         language_timeline = result.get('language_timeline', '')
@@ -1895,11 +1900,12 @@ class Video2TextQt(QMainWindow):
             # Add language timeline to the displayed text
             display_text = f"{text}\n\n{'='*60}\n🌍 LANGUAGE TIMELINE:\n{'='*60}\n\n{language_timeline}"
 
-            # Count unique languages
+            # Count unique languages and show their names
             unique_langs = set(seg.get('language', 'unknown') for seg in language_segments)
-            lang_info = f"Languages detected: {', '.join(sorted(unique_langs))}"
+            lang_names = [EnhancedTranscriber.LANGUAGE_NAMES.get(code, code.upper()) for code in sorted(unique_langs)]
+            lang_info = f"Languages detected: {', '.join(lang_names)}"
         else:
-            lang_info = f"Language: {language}"
+            lang_info = f"Language: {lang_name}"
 
         # Update UI based on mode
         if self.current_mode == "basic":
@@ -1909,7 +1915,7 @@ class Video2TextQt(QMainWindow):
             if has_multilang:
                 self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
             else:
-                self.basic_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+                self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.basic_sidebar.setCurrentRow(2)
@@ -1928,7 +1934,7 @@ class Video2TextQt(QMainWindow):
             if has_multilang:
                 self.adv_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
             else:
-                self.adv_transcript_desc.setText(f"Language: {language} | {segment_count} segments")
+                self.adv_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
 
             # Auto-navigate to Transcript tab (index 2)
             self.adv_sidebar.setCurrentRow(2)

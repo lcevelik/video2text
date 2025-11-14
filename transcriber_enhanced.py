@@ -18,6 +18,38 @@ logger = logging.getLogger(__name__)
 class EnhancedTranscriber(Transcriber):
     """Enhanced transcriber with multi-language support."""
 
+    # Common language code to name mapping
+    LANGUAGE_NAMES = {
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'pl': 'Polish',
+        'nl': 'Dutch',
+        'ru': 'Russian',
+        'zh': 'Chinese',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'ar': 'Arabic',
+        'he': 'Hebrew',
+        'th': 'Thai',
+        'vi': 'Vietnamese',
+        'tr': 'Turkish',
+        'cs': 'Czech',
+        'ro': 'Romanian',
+        'sv': 'Swedish',
+        'da': 'Danish',
+        'no': 'Norwegian',
+        'fi': 'Finnish',
+        'el': 'Greek',
+        'hi': 'Hindi',
+        'id': 'Indonesian',
+        'uk': 'Ukrainian',
+        'unknown': 'Unknown'
+    }
+
     def __init__(self, model_size='base'):
         """
         Initialize the Enhanced Transcriber.
@@ -81,22 +113,27 @@ class EnhancedTranscriber(Transcriber):
         if not segments:
             return []
 
+        # Get the language detected by Whisper
+        whisper_detected_lang = result.get('language', 'unknown')
+        logger.info(f"Whisper detected language: {whisper_detected_lang}")
+
         language_segments = []
         current_language = None
         current_start = None
         current_texts = []
 
         for segment in segments:
-            # Whisper doesn't provide per-segment language in standard output
-            # We use the overall detected language and look for patterns
-            # In a production system, you might re-transcribe suspicious segments
-
             text = segment.get('text', '').strip()
             start = segment.get('start', 0)
             end = segment.get('end', 0)
 
-            # Simple heuristic: check for character sets
+            # Use Whisper's detected language first, fallback to character-based heuristic
+            # Whisper detects one language per audio, but we check for obvious script changes
             detected_lang = self._guess_language_from_text(text)
+
+            # If character detection shows Latin script (defaults to 'en'), use Whisper's detection
+            if detected_lang == 'en' and whisper_detected_lang != 'unknown':
+                detected_lang = whisper_detected_lang
 
             if current_language is None:
                 current_language = detected_lang
@@ -189,10 +226,11 @@ class EnhancedTranscriber(Transcriber):
         for segment in language_segments:
             start_str = self._format_timestamp_readable(segment['start'])
             end_str = self._format_timestamp_readable(segment['end'])
-            lang = segment['language']
+            lang_code = segment['language']
+            lang_name = self.LANGUAGE_NAMES.get(lang_code, lang_code.upper())
 
             timeline.append(
-                f"[{start_str} - {end_str}] Language: {lang.upper()}"
+                f"[{start_str} - {end_str}] Language: {lang_name} ({lang_code.upper()})"
             )
 
         return '\n'.join(timeline)
