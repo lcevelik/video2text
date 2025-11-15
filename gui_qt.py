@@ -120,7 +120,7 @@ class RecordingWorker(QThread):
         try:
             import sounddevice as sd
             import numpy as np
-            from scipy.io import wavfile
+            from pydub import AudioSegment
             from datetime import datetime
 
             sample_rate = 16000
@@ -219,12 +219,20 @@ class RecordingWorker(QThread):
 
                 # Generate filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"recording_{timestamp}.wav"
+                filename = f"recording_{timestamp}.mp3"
                 recorded_path = str(self.output_dir / filename)
 
-                # Save recording
+                # Save recording as high-quality MP3 (320kbps)
                 final_data_int16 = (final_data * 32767).astype(np.int16)
-                wavfile.write(recorded_path, sample_rate, final_data_int16)
+
+                # Convert numpy array to AudioSegment and export as MP3
+                audio_segment = AudioSegment(
+                    final_data_int16.tobytes(),
+                    frame_rate=sample_rate,
+                    sample_width=2,  # 16-bit audio = 2 bytes
+                    channels=1  # mono
+                )
+                audio_segment.export(recorded_path, format="mp3", bitrate="320k")
 
                 duration = len(final_data) / sample_rate
                 logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
@@ -1805,6 +1813,13 @@ class Video2TextQt(QMainWindow):
             logger.info(f"Multi-language transcription complete: {len(language_segments)} language segments detected")
         logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
 
+        # Clear file field after transcription completes (ready for next file)
+        # Keep the transcript visible but allow user to easily upload a new file
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.clear_file()
+        # Reset video path so user must select new file
+        self.video_path = None
+
     def on_transcription_error(self, error_message: str):
         """Handle transcription error (worker signal)."""
         if hasattr(self, 'basic_upload_progress_label'):
@@ -1823,6 +1838,12 @@ class Video2TextQt(QMainWindow):
         except Exception:
             pass
         logger.error(f"Transcription failed: {error_message}")
+
+        # Clear file field after error (ready for retry or new file)
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.clear_file()
+        # Reset video path so user must select file again
+        self.video_path = None
 
     def clear_for_new_transcription(self):
         """Reset UI to allow starting a new transcription."""
@@ -1846,6 +1867,9 @@ class Video2TextQt(QMainWindow):
         # Reset overlay
         if hasattr(self, 'performance_overlay') and self.performance_overlay:
             self.performance_overlay.setText("")
+        # Clear file field in upload drop zone
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.clear_file()
         # Reset mode selection for new file
         self.multi_language_mode = None
         try:
