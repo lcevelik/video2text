@@ -263,11 +263,18 @@ class TranscriptionWorker(QThread):
             from transcriber import Transcriber
             from transcriber_enhanced import EnhancedTranscriber
 
-            # Step 1: Extract audio from video if needed
+            # Step 1: Extract audio from video if needed (with progress callback)
             self.progress_update.emit("Extracting audio...", 10)
 
             extractor = AudioExtractor()
-            audio_path = extractor.extract_audio(self.video_path)
+
+            # Define progress callback for audio extraction
+            def audio_progress_callback(message, percentage):
+                # Map audio extraction progress (5-30%) to overall progress (10-30%)
+                overall_pct = 10 + int((percentage / 30.0) * 20)
+                self.progress_update.emit(message, overall_pct)
+
+            audio_path = extractor.extract_audio(self.video_path, progress_callback=audio_progress_callback)
 
             if not audio_path or not Path(audio_path).exists():
                 self.transcription_error.emit("Failed to extract audio from video")
