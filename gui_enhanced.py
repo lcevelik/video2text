@@ -909,7 +909,7 @@ then upgrades to larger models if quality is insufficient.
         try:
             import sounddevice as sd
             import numpy as np
-            from scipy.io import wavfile
+            from pydub import AudioSegment
 
             sample_rate = 16000  # Whisper's preferred sample rate
 
@@ -1088,13 +1088,21 @@ then upgrades to larger models if quality is insufficient.
 
                 # Save to temporary file
                 import tempfile
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
                 self.recorded_audio_path = temp_file.name
                 temp_file.close()
 
-                # Convert to int16 for WAV file
+                # Convert to int16 and save as high-quality MP3 (320kbps)
                 final_data_int16 = (final_data * 32767).astype(np.int16)
-                wavfile.write(self.recorded_audio_path, sample_rate, final_data_int16)
+
+                # Convert numpy array to AudioSegment and export as MP3
+                audio_segment = AudioSegment(
+                    final_data_int16.tobytes(),
+                    frame_rate=sample_rate,
+                    sample_width=2,  # 16-bit audio = 2 bytes
+                    channels=1  # mono
+                )
+                audio_segment.export(self.recorded_audio_path, format="mp3", bitrate="320k")
 
                 duration_seconds = len(final_data) / sample_rate
                 logger.info(f"Recording saved to: {self.recorded_audio_path}")
@@ -1142,7 +1150,7 @@ then upgrades to larger models if quality is insufficient.
         try:
             import sounddevice as sd
             import numpy as np
-            from scipy.io import wavfile
+            from pydub import AudioSegment
 
             sample_rate = 16000  # Whisper's preferred sample rate
             channels = 1  # Mono
@@ -1167,11 +1175,21 @@ then upgrades to larger models if quality is insufficient.
 
                 # Save to temporary file
                 import tempfile
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
                 self.recorded_audio_path = temp_file.name
                 temp_file.close()
 
-                wavfile.write(self.recorded_audio_path, sample_rate, recording_data)
+                # Convert to int16 and save as high-quality MP3 (320kbps)
+                recording_data_int16 = (recording_data * 32767).astype(np.int16)
+
+                # Convert numpy array to AudioSegment and export as MP3
+                audio_segment = AudioSegment(
+                    recording_data_int16.tobytes(),
+                    frame_rate=sample_rate,
+                    sample_width=2,  # 16-bit audio = 2 bytes
+                    channels=1  # mono
+                )
+                audio_segment.export(self.recorded_audio_path, format="mp3", bitrate="320k")
 
                 logger.info(f"Recording saved to: {self.recorded_audio_path}")
 
