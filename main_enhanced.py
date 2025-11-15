@@ -199,10 +199,15 @@ def main():
     # Import and start GUI
     try:
         import tkinter as tk
+        # Attempt to use TkinterDnD if available so drag/drop commands are registered
+        try:
+            from tkinterdnd2 import TkinterDnD  # type: ignore
+            root = TkinterDnD.Tk()
+            logger.info("Using TkinterDnD.Tk() for drag-and-drop support")
+        except ImportError:
+            root = tk.Tk()
+            logger.info("tkinterdnd2 not available; falling back to standard Tk() (drag-and-drop disabled)")
         from gui_enhanced import EnhancedTranscriptionApp
-
-        # Create main window
-        root = tk.Tk()
 
         # Set window properties
         root.title("Video/Audio to Text - Whisper Transcription")

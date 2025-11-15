@@ -175,17 +175,43 @@ Click the **☰** button (top-right) to access all settings:
 - Resets interface for next transcription
 - Prompts for confirmation to avoid accidental clearing
 
+### **🧪 Deep Scan (Toggle)**
+Menu item: **Enable Deep Scan** (checkbox)
+
+Default: OFF (fast heuristic-only segmentation)
+
+When OFF (Heuristic Mode):
+- Single full transcription pass (large model)
+- Transcript-only segmentation (stopword + diacritic scoring windows)
+- Limited fallback chunk re-analysis only if multi-mode collapses to one language
+
+When ON (Deep Scan Mode):
+- Performs secondary chunk re-transcription on mixed / uncertain windows
+- Refines short interwoven phrases and rapid switches
+- Slower (≈ +25–40% runtime impact)
+
+Use Deep Scan only if the heuristic timeline appears merged or misses very short alternations.
+
 ---
 
 ## 🌐 Multi-Language Transcription
 
-### **Two-Pass Detection (Always Enabled)**
+### **Updated Multi-Language Workflow (Nov 2025)**
 
-**Automatic optimization for code-switching:**
-1. **Pass 1 (Fast Detection):** Uses base model to quickly detect language boundaries
-2. **Pass 2 (Accurate Transcription):** Uses large model to transcribe each segment precisely
-3. Each segment detected in its correct language
-4. All segments combined into one complete transcription
+When you drop a file or finish recording a **Language Mode Dialog** appears:
+
+1. Choose Single vs Multi-language.  
+2. If Multi-language: tick allowed languages (EN, CS, DE, FR, ES, IT) and optionally expand with PL, RU, ZH, JA, KO, AR (more forthcoming).  
+3. App skips the old sampling phase (faster start).
+
+Processing steps (Multi-language):
+1. Full word-level transcription with selected large model.  
+2. Fast transcript heuristic segmentation (diacritics + stopword scoring windows).  
+3. If heuristic yields only one language despite multi-mode: automatic fallback chunk re-analysis (4s windows) to recover late-emerging languages.  
+4. Allowed-language list constrains classification (suppresses outliers).  
+5. Segments merged → timeline + combined text.
+
+Deep re-transcription of audio chunks (legacy “two-pass”) is now optional via the **Enable Deep Scan** toggle (default OFF for speed).
 
 **Example:**
 ```
@@ -209,9 +235,23 @@ Language Timeline:
 English, Spanish, French, German, Polish, Czech, Italian, Portuguese, Dutch, Russian, Chinese, Japanese, Korean, Arabic, Hebrew, Thai, Vietnamese, Turkish, Romanian, Swedish, Danish, Norwegian, Finnish, Greek, Hindi, Indonesian, Ukrainian, and more.
 
 **Performance:**
-- ⚠️ Slower than single-pass transcription
-- ✅ Much more accurate for mixed languages
-- ✅ Essential for code-switching conversations
+- Heuristic path: Fast, minimal extra passes.
+- Automatic fallback only when needed (single-language collapse).
+- Large model retains accuracy; skip of early sampling saves time.
+- Allowed-language filtering improves precision.
+
+**Cancellation:** Mid-process cancel keeps processed segments and any partial language timeline.
+
+**Overlay Metrics:** Status bar shows `% | Elapsed | ETA` continuously; final line includes Real-Time Factor (RTF).
+
+**Heuristic Logic:** English scored via expanded stopword list; Czech via diacritic + common word density; fallback inherits previous language to avoid excessive 'unknown'.
+
+**Upgrade Summary:**
+- Removed redundant sampling pass when user confirms multi-language.
+- Added transcript-only segmentation `_detect_language_from_transcript`.
+- Added automatic deep chunk fallback when heuristic collapses.
+- Added language allow‑list selection dialog.
+- Added cancellation and performance overlay.
 
 ---
 
@@ -221,7 +261,8 @@ English, Spanish, French, German, Polish, Czech, Italian, Portuguese, Dutch, Rus
 
 - **Detection:** Base model (~74 MB) - Fast language boundary detection
 - **Transcription:** Large model (~3 GB) - Best accuracy for multi-language
-- **Mode:** Two-pass deep scanning - Perfect for code-switching
+- **Mode:** Heuristic segmentation (default) + optional Deep Scan toggle for toughest code-switching
+- **Optional:** Deep Scan (secondary chunk pass) improves boundary precision; leave OFF for fastest results
 
 The system downloads models automatically on first use. Subsequent uses are instant.
 

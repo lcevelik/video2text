@@ -15,6 +15,9 @@ A desktop application that transcribes audio from video files or audio files dir
 - 🎨 **Modern Qt GUI**: Professional sidebar navigation with tabbed interface and dark/light themes
 - 🎙️ **Audio Recording**: Record from microphone and system audio simultaneously
 - 🌍 **Multi-Language Support**: Auto-detect languages with 99 language support
+- 🧠 **Improved Multi-Language Mode (2025-11)**: User chooses if audio is multi-language and selects allowed languages (e.g. EN + CS) for faster, more accurate code-switching detection (fast transcript heuristic + chunk fallback)
+- 🛑 **Live Cancellation**: Abort long transcriptions mid-process (partial results preserved)
+- ⏱️ **Performance Overlay**: Real-time elapsed, ETA, and RTF (real-time factor) metrics in status bar
 - 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ## GUI Versions
@@ -302,7 +305,15 @@ All settings organized in one place:
 **🔄 New Transcription** - Clear and start fresh
 
 #### Multi-Language Support:
-**Deep scanning enabled by default** for TRUE multi-language transcription:
+You now explicitly choose multi-language when a file is loaded or recording finishes. If you select multi-language:
+
+1. Pick the languages present (checkbox allow‑list, e.g. English, Czech).  
+2. Fast transcript-based heuristic segmentation runs first (no extra audio passes).  
+3. If only one language is heuristically found, a fallback chunk audio reanalysis (4s windows) triggers automatically (ensures late English doesn’t get missed).  
+4. Allowed language list constrains classification (suppresses spurious languages).  
+5. A language timeline and merged segments are produced.
+
+Deep re-chunk “scan” can be re-enabled later (currently default off for speed). This pipeline eliminates the former redundant sampling + multi-pass reprocessing.
 
 ✅ **What it does:**
 - Re-transcribes each segment individually
@@ -324,6 +335,24 @@ Dobrý den, jak se máte? Hello, how are you? Můžeme si koupit kuře?
 ```
 
 ⚠️ **Note:** Deep scanning is slower but accurately handles language mixing in conversations.
+
+#### Cancellation & Performance
+- During transcription a Cancel button lets you abort; partial segments and any completed timeline remain.  
+- Status overlay shows: `42% | Elapsed 18.4s | ETA 25.7s` then final `Finished in 44.2s (RTF 0.78)`.
+
+#### Allowed Language Selection
+- Selecting only languages you expect (e.g. EN + CS) reduces false language detections, speeds up segmentation, and improves clarity of the timeline.
+
+#### Heuristic vs Deep Scan
+- Heuristic (default): Fast text-only window analysis (diacritics + stopword scoring).  
+- Fallback Deep Chunk Pass: Automatically invoked if heuristic collapses to a single language while multi-language was declared.
+
+#### Upgrade Summary (Nov 2025)
+- Removed initial sampling pass when user declares multi-language.  
+- Added transcript heuristic segmentation function `_detect_language_from_transcript`.  
+- Added chunk-based fallback with allow‑list enforcement.  
+- Added performance overlay & cancellation integration in Qt GUI.  
+- Dialog redesigned: two-step multi-language selection (confirm languages).
 
 #### Quick Start:
 1. Open Qt GUI: `python gui_qt.py`

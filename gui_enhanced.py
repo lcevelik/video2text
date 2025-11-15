@@ -588,13 +588,15 @@ class EnhancedTranscriptionApp:
     def setup_drag_drop(self):
         """Setup drag and drop functionality (simplified for basic compatibility)."""
         # Basic click-to-browse functionality
-        # Full drag-drop requires tkinterdnd2 which may not be available on all systems
+        # Full drag-drop requires tkinterdnd2; if unavailable or initialization fails we degrade gracefully.
         try:
-            from tkinterdnd2 import DND_FILES, TkinterDnD
-            # If available, enable drag-drop
-            self.drop_frame.drop_target_register(DND_FILES)
-            self.drop_frame.dnd_bind('<<Drop>>', self.on_drop)
-            logger.info("Drag-and-drop enabled")
+            from tkinterdnd2 import DND_FILES  # type: ignore
+            try:
+                self.drop_frame.drop_target_register(DND_FILES)
+                self.drop_frame.dnd_bind('<<Drop>>', self.on_drop)
+                logger.info("Drag-and-drop enabled")
+            except Exception as e:
+                logger.warning(f"Drag-and-drop registration failed, disabling feature: {e}")
         except ImportError:
             logger.info("tkinterdnd2 not available, using click-to-browse only")
 

@@ -104,7 +104,7 @@ class Transcriber:
             logger.error(f"Failed to load model: {e}")
             raise RuntimeError(f"Failed to load Whisper model: {e}")
     
-    def transcribe(self, audio_path, language=None, initial_prompt=None, progress_callback=None):
+    def transcribe(self, audio_path, language=None, initial_prompt=None, progress_callback=None, word_timestamps=False):
         """
         Transcribe audio file to text.
         
@@ -114,6 +114,7 @@ class Transcriber:
             initial_prompt: Optional initial prompt/instructions to guide transcription.
                            Useful for speaker recognition, context, or specific terminology.
             progress_callback: Optional callback function for progress updates (can accept percent as second arg)
+            word_timestamps: If True, include word-level timestamps in segments
             
         Returns:
             dict: Transcription result with keys: 'text', 'segments', 'language'
@@ -143,6 +144,10 @@ class Transcriber:
                 'verbose': False,  # Set to False to reduce output
                 'fp16': (self.device == 'cuda')  # Use fp16 on GPU for speed
             }
+            
+            # Add word timestamps if requested
+            if word_timestamps:
+                transcribe_kwargs['word_timestamps'] = True
             
             # Add initial_prompt if provided (helps with speaker recognition and context)
             if initial_prompt:

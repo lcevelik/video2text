@@ -44,10 +44,11 @@ Record audio directly in the app:
 
 ### 🌍 Multi-Language Support
 
-- **Auto-Detection** - Automatically detects spoken language
-- **99 Languages** - Supports all Whisper languages
-- **Mixed Languages** - Handles files with multiple languages
-- **Language Timeline** - Shows when language changes occur
+- **User-Guided Multi-Language (Updated Nov 2025)** – In the Qt path a dialog allows explicit multi-language declaration + allowed-language selection (EN, CS, etc.). Enhanced transcriber now supports:  
+   - Fast transcript-based heuristic segmentation (no initial sampling pass)  
+   - Automatic fallback chunk-based reanalysis if heuristic collapses to single language  
+   - Allowed-language enforcement to suppress spurious detections  
+   - Cancellation and performance overlay (elapsed, ETA, RTF) integration.
 
 ### 📦 Standalone Distribution
 
@@ -346,7 +347,10 @@ transcriber.load_model()
 
 result = transcriber.transcribe_multilang(
     'mixed_language_audio.mp3',
-    detect_language_changes=True
+   detect_language_changes=True,
+   skip_sampling=True,                # Skip legacy sampling when user knows it's multi-language
+   fast_text_language=True,           # Enable fast transcript heuristic segmentation
+   allowed_languages=['en','cs']      # Restrict detection to expected languages
 )
 
 # View language timeline
@@ -369,6 +373,10 @@ Tested on: Intel i7-12700K, RTX 4080, 32GB RAM
 | sample.mp4 | 5 min    | medium | GPU    | 27s    | 11x RT   |
 | podcast.mp3| 32 min   | base   | GPU    | 29s    | 66x RT   |
 | podcast.mp3| 32 min   | small  | GPU    | 58s    | 33x RT   |
+| mixed_cs_en.wav | 12 min | large | GPU | 140s | 5.1x RT (heuristic+fallback) |
+| mixed_cs_en.wav | 12 min | large | GPU | 118s | 6.0x RT (heuristic only) |
+
+Note: Multi-language heuristic path removes initial sampling pass; fallback chunk analysis only triggers when heuristic yields a single language despite multi-language selection.
 
 ## 🤝 Contributing
 

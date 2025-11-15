@@ -121,6 +121,13 @@ py test_whisper.py
 python gui_qt.py
 ```
 
+On first run of a multi-language file you will see a dialog:
+1. Choose Single vs Multi-language.  
+2. (If Multi) Tick expected languages (e.g. English + Czech).  
+3. Transcription begins with fast heuristic segmentation; fallback chunk pass runs only if needed.
+
+Performance overlay displays progress, elapsed time, ETA, and final RTF (real-time factor). Use the Cancel button to abort long runs (partial result preserved).
+
 **Enhanced Tkinter GUI:**
 ```powershell
 run_enhanced.bat
@@ -181,4 +188,13 @@ python -m pip install -r requirements.txt
    ```powershell
    $env:Path -split ';' | Select-String -Pattern 'python|ffmpeg'
    ```
+
+### Multi-Language Troubleshooting (Qt)
+
+| Issue | Possible Cause | Fix |
+|-------|----------------|-----|
+| Only one language detected | Heuristic collapsed; fallback not triggered | Re-run ensuring Multi-language selected; verify allow-list includes both languages |
+| English segments missing | Allow-list excludes 'en' | Re-open file; choose Multi-language and tick English |
+| Slow transcription | Large model + fallback chunk pass | Accept trade-off or switch to Single mode if file is monolingual |
+| Cancel not working | Transcription near completion | Wait for finalization or force close (log still preserved) |
 

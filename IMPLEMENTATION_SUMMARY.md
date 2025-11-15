@@ -72,11 +72,18 @@ This document summarizes all the enhancements made to your Video2Text applicatio
 
 ### 4. **Multi-Language Support** 🌍
 
-**Capabilities:**
-- Auto-detects primary language
-- Detects language changes within same file
-- Creates language timeline showing when language switches
-- Character set analysis (CJK, Arabic, Cyrillic, Hebrew, Thai, etc.)
+**Recent Upgrades (Nov 2025):**
+| Improvement | Description |
+|-------------|-------------|
+| Explicit Mode Dialog | User chooses single vs multi-language before transcription starts (Qt) |
+| Allowed-Language Selection | Checkbox list (EN, CS, DE, FR, ES, IT) constrains detection scope |
+| Removed Redundant Sampling | Skips legacy classification pass when multi-language confirmed (faster start) |
+| Transcript Heuristic | `_detect_language_from_transcript` performs window scoring (stopwords + diacritics) without extra audio passes |
+| Automatic Fallback | If heuristic collapses to one language, chunk-based reanalysis (4s windows) runs to recover late languages |
+| Allow-List Enforcement | Unknown or out-of-scope languages remapped or marked 'unknown' to reduce noise |
+| Cancellation Support | Mid-process cancel preserves partial segments and timeline |
+| Performance Overlay | Displays `% | Elapsed | ETA` live; final `RTF` metric logged |
+| Dialog Refactor | Two-step confirmation prevents accidental starts and ensures language selection is captured |
 
 **Enhanced Transcriber Features:**
 - `transcribe_multilang()` method for multi-language detection
@@ -146,6 +153,26 @@ All Whisper languages supported, including:
 - Faster first-time use
 - Suitable for secure/isolated environments
 - Reduces user friction
+
+---
+
+## 🧠 Updated Multi-Language Processing Flow
+
+```
+User selects Multi-Language + Allowed Languages
+    ↓
+Full word-level transcription (large model by default)
+    ↓
+Transcript heuristic segmentation (text windows ~4s)
+    ↓ (single language only?)
+Fallback chunk audio reanalysis (4s FFmpeg extracts)
+    ↓
+Allow-list enforcement + segment merging
+    ↓
+Language timeline + combined text + performance metrics
+```
+
+This replaces the earlier sample→classify→retranscribe pipeline, cutting one full pass while retaining accuracy through targeted fallback.
 
 ---
 
@@ -309,7 +336,7 @@ Enhanced Application
 │
 ├── transcriber_enhanced.py (Processing)
 │   ├── EnhancedTranscriber
-│   │   ├── Multi-language detection
+│   │   ├── Multi-language detection (heuristic + fallback)
 │   │   ├── Quality scoring
 │   │   └── Format conversion
 │   └── Inherits from Transcriber
@@ -331,11 +358,17 @@ Audio Extraction (audio_extractor)
     ↓
 Model Selection (Auto/Manual)
     ↓
-Transcription (transcriber/transcriber_enhanced)
+User Multi-Language Choice + Allowed-Language List (Qt)
     ↓
-Quality Check (Auto mode only)
+Transcription (word-level if multi-language)
     ↓
-Model Upgrade? (If needed)
+Transcript Heuristic Segmentation (multi-language)
+    ↓ (heuristic collapse?)
+Fallback Chunk Reanalysis
+    ↓
+Allow-List Enforcement & Segment Merge
+    ↓
+Timeline + Quality / Performance Metrics
     ↓
 Result Display
     ↓
@@ -364,6 +397,29 @@ def _auto_transcribe(self, timing_data):
             return result  # Good enough!
 
     return result  # Use best available
+```
+
+### Transcript Heuristic Segmentation (New)
+
+```python
+def _detect_language_from_transcript(self, segments, chunk_size=4.0):
+    # Window assembly
+    windows = build_time_windows(segments, chunk_size)
+    for ws, we in windows:
+        text = collect_text_in_range(segments, ws, we)
+        en_score = english_stopword_hits(text)
+        cs_score = czech_diacritic_and_common_hits(text)
+        lang = decide(en_score, cs_score, previous_lang)
+        enforce_allow_list(lang)
+        merge_adjacent_same_language()
+    return merged_segments
+```
+
+### Fallback Chunk Reanalysis Trigger
+
+```python
+if multi_language and heuristic_languages_count <= 1:
+    run_chunk_audio_pass(chunk_size=4.0)
 ```
 
 ### Confidence Calculation
@@ -448,6 +504,14 @@ def _record_audio(self, source, recording_active, status_label):
 - **Small**: 33x real-time
 - **Medium**: 11x real-time
 - **Large**: 5.5x real-time
+
+### Multi-Language Pipeline Timings (Sample 12 min EN↔CS)
+| Mode | Time | RTF | Notes |
+|------|------|-----|-------|
+| Heuristic Only | 118s | 6.0x | No fallback needed (both languages detected) |
+| Heuristic + Fallback | 140s | 5.1x | Fallback chunk reanalysis invoked |
+
+RTF = Total Processing Time / Audio Duration. Lower RTF indicates slower relative speed.
 
 ---
 

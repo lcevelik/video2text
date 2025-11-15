@@ -1028,6 +1028,19 @@ class Video2TextQt(QMainWindow):
         dark_action.setChecked(self.theme_mode == "dark")
         dark_action.triggered.connect(lambda: self.set_theme_mode("dark"))
 
+        # Deep scan toggle (global multi-language chunk reanalysis)
+        settings_menu.addSeparator()
+        deep_scan_action = settings_menu.addAction("🔍 Enable Deep Scan (Slower)")
+        deep_scan_action.setCheckable(True)
+        if not hasattr(self, 'enable_deep_scan'):
+            self.enable_deep_scan = False
+        deep_scan_action.setChecked(self.enable_deep_scan)
+        def toggle_deep_scan():
+            self.enable_deep_scan = not self.enable_deep_scan
+            deep_scan_action.setChecked(self.enable_deep_scan)
+            logger.info(f"Deep scan toggled: {self.enable_deep_scan}")
+        deep_scan_action.triggered.connect(toggle_deep_scan)
+
         # Recording Settings under Settings
         settings_menu.addSeparator()
         rec_dir_action = settings_menu.addAction("📁 Change Recording Directory")
@@ -1593,8 +1606,8 @@ class Video2TextQt(QMainWindow):
             model_size = "large"  # Highest accuracy for mixed languages
             language = None  # Auto-detect
             detect_language_changes = True
-            # Default to fast transcript-based segmentation; deep scan can be enabled later
-            use_deep_scan = False
+            # Use global deep scan toggle; if False use heuristic + conditional fallback
+            use_deep_scan = bool(getattr(self, 'enable_deep_scan', False))
         else:
             model_size = "medium"  # Faster single-language transcription
             language = None  # Still auto-detect primary language
@@ -1860,8 +1873,10 @@ class MultiLanguageChoiceDialog(QDialog):
         lang_label = QLabel("Select languages present (check all that apply):")
         lang_label.setStyleSheet("font-weight:bold; margin-top:8px;")
         self.lang_select_layout.addWidget(lang_label)
+        # Expanded allow-list (can be extended further)
         self.available_languages = [
-            ('en','English'), ('cs','Czech'), ('de','German'), ('fr','French'), ('es','Spanish'), ('it','Italian')
+            ('en','English'), ('cs','Czech'), ('de','German'), ('fr','French'), ('es','Spanish'), ('it','Italian'),
+            ('pl','Polish'), ('ru','Russian'), ('zh','Chinese'), ('ja','Japanese'), ('ko','Korean'), ('ar','Arabic')
         ]
         grid = QGridLayout()
         self.lang_checkboxes: List[QCheckBox] = []
