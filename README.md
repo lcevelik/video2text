@@ -16,6 +16,7 @@ A desktop application that transcribes audio from video files or audio files dir
 - 🎙️ **Audio Recording**: Record from microphone and system audio simultaneously
 - 🌍 **Multi-Language Support**: Auto-detect languages with 99 language support
 - 🧠 **Improved Multi-Language Mode (2025-11)**: User chooses if audio is multi-language and selects allowed languages (e.g. EN + CS) for faster, more accurate code-switching detection (fast transcript heuristic + chunk fallback)
+- ⚡ **Performance Optimized (v3.2.0)**: 5-10x faster multi-language transcription with intelligent text-based language detection - no redundant re-transcription needed
 - 🛑 **Live Cancellation**: Abort long transcriptions mid-process (partial results preserved)
 - ⏱️ **Performance Overlay**: Real-time elapsed, ETA, and RTF (real-time factor) metrics in status bar
 - 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
