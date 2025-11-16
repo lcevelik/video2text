@@ -1,13 +1,13 @@
 """
 Transcription Module
 
-This module handles audio transcription using OpenAI Whisper or faster-whisper.
-Supports multiple model sizes and GPU acceleration.
+This module handles audio transcription using OpenAI Whisper with automatic
+acceleration backend selection:
+- MLX Whisper: Auto-used on Apple Silicon (M1/M2/M3 Macs) - 2-3x faster
+- insanely-fast-whisper: Auto-used on NVIDIA GPUs - 12-20x faster
+- OpenAI Whisper: Fallback for CPU or when accelerators unavailable
 
-PERFORMANCE OPTIMIZATION:
-- Automatically uses faster-whisper (CTranslate2) if available (4-5x faster!)
-- Falls back to OpenAI Whisper if faster-whisper not installed
-- Same API, transparent upgrade
+The backend is automatically selected based on your hardware. No configuration needed!
 """
 
 import os
@@ -15,18 +15,44 @@ import sys
 import re
 import logging
 import torch
+import platform
 from io import StringIO
 
-# Try to import faster-whisper first (much faster!)
-try:
-    from faster_whisper import WhisperModel
-    FASTER_WHISPER_AVAILABLE = True
-    logger = logging.getLogger(__name__)
-    logger.info("faster-whisper detected - will use optimized inference (4-5x faster!)")
-except ImportError:
-    FASTER_WHISPER_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.info("faster-whisper not available - using standard OpenAI Whisper")
+# Detect platform and available accelerators
+IS_APPLE_SILICON = (
+    platform.system() == "Darwin" and
+    platform.machine() == "arm64"  # M1/M2/M3 Macs
+)
+
+# Try to import acceleration libraries
+MLX_AVAILABLE = False
+INSANELY_FAST_AVAILABLE = False
+
+if IS_APPLE_SILICON:
+    # Try MLX first on Apple Silicon
+    try:
+        import mlx_whisper
+        MLX_AVAILABLE = True
+        logger = logging.getLogger(__name__)
+        logger.info("✓ MLX Whisper detected - Using Apple Silicon acceleration (2-3x faster!)")
+    except ImportError:
+        logger = logging.getLogger(__name__)
+        logger.info("MLX Whisper not installed. Install with: pip install mlx-whisper")
+else:
+    # Try insanely-fast-whisper on non-Mac systems (NVIDIA/CUDA)
+    try:
+        from transformers import pipeline
+        from transformers.utils import is_flash_attn_2_available
+        INSANELY_FAST_AVAILABLE = True
+        logger = logging.getLogger(__name__)
+        has_flash = is_flash_attn_2_available()
+        if has_flash:
+            logger.info("✓ insanely-fast-whisper with FlashAttention-2 detected - Using CUDA acceleration (12-20x faster!)")
+        else:
+            logger.info("✓ insanely-fast-whisper detected - Using CUDA acceleration (5-10x faster, install flash-attn for 12-20x)")
+    except ImportError:
+        logger = logging.getLogger(__name__)
+        logger.info("insanely-fast-whisper not installed. Install with: pip install insanely-fast-whisper")
 
 # Import standard whisper as fallback
 import whisper
@@ -95,7 +121,6 @@ class Transcriber:
     ]
     
     # Transcription speed factors (seconds of audio per second of processing)
-    # NOTE: These are for OpenAI Whisper. faster-whisper is 4-5x faster!
     # Updated based on actual performance data from RTX 4080 GPU
     # Real-time factors (multiplier - how many times faster than real-time)
     # e.g., 11.0 means transcription is 11x faster than real-time (1 minute video = ~5.5 seconds)
@@ -105,15 +130,6 @@ class Transcriber:
         'small': {'cpu': 3.3, 'cuda': 33.0},      # CPU: ~3.3x real-time, GPU: ~33x real-time
         'medium': {'cpu': 1.7, 'cuda': 11.0},     # CPU: ~1.7x real-time, GPU: ~11x real-time
         'large': {'cpu': 0.8, 'cuda': 5.5}        # CPU: ~0.8x real-time, GPU: ~5.5x real-time
-    }
-
-    # faster-whisper speed factors (4-5x faster than OpenAI Whisper!)
-    SPEED_FACTORS_FASTER = {
-        'tiny': {'cpu': 50.0, 'cuda': 500.0},      # 5x faster than standard
-        'base': {'cpu': 33.5, 'cuda': 335.0},     # 5x faster than standard
-        'small': {'cpu': 16.5, 'cuda': 165.0},    # 5x faster than standard
-        'medium': {'cpu': 8.5, 'cuda': 55.0},     # 5x faster than standard
-        'large': {'cpu': 4.0, 'cuda': 27.5}       # 5x faster than standard
     }
     
     # Model loading time estimates (seconds)
@@ -127,7 +143,7 @@ class Transcriber:
     
     def __init__(self, model_size='base'):
         """
-        Initialize the Transcriber.
+        Initialize the Transcriber with automatic backend selection.
 
         Args:
             model_size: Size of the Whisper model to use
@@ -135,11 +151,16 @@ class Transcriber:
         self.model_size = model_size
         self.model = None
         self.device = self._get_device()
-        self.use_faster_whisper = FASTER_WHISPER_AVAILABLE
 
-        if self.use_faster_whisper:
-            logger.info(f"Initialized Transcriber with model '{model_size}' using faster-whisper (CTranslate2) on device '{self.device}'")
+        # Automatically select best backend based on hardware
+        if IS_APPLE_SILICON and MLX_AVAILABLE:
+            self.backend = 'mlx'
+            logger.info(f"Initialized Transcriber with model '{model_size}' using MLX Whisper (Apple Silicon optimized)")
+        elif INSANELY_FAST_AVAILABLE and self.device == 'cuda':
+            self.backend = 'insanely-fast'
+            logger.info(f"Initialized Transcriber with model '{model_size}' using insanely-fast-whisper (CUDA optimized)")
         else:
+            self.backend = 'openai'
             logger.info(f"Initialized Transcriber with model '{model_size}' using OpenAI Whisper on device '{self.device}'")
     
     def _get_device(self):
@@ -159,39 +180,60 @@ class Transcriber:
     
     def load_model(self, progress_callback=None):
         """
-        Load the Whisper model (using faster-whisper if available).
+        Load the Whisper model using the selected backend.
 
         Args:
             progress_callback: Optional callback function for progress updates
 
         Returns:
-            Loaded Whisper model (WhisperModel or whisper.Whisper depending on backend)
+            Loaded model (type depends on backend)
         """
         if self.model is not None:
             return self.model
 
         if progress_callback:
-            progress_callback("Loading Whisper model...")
+            progress_callback(f"Loading {self.backend} Whisper model...")
 
-        logger.info(f"Loading Whisper model: {self.model_size}")
+        logger.info(f"Loading Whisper model: {self.model_size} (backend: {self.backend})")
 
         try:
-            if self.use_faster_whisper:
-                # Use faster-whisper (CTranslate2)
-                # Map device to faster-whisper format
-                device_type = "cuda" if self.device == "cuda" else "cpu"
-                compute_type = "float16" if device_type == "cuda" else "int8"
+            if self.backend == 'mlx':
+                # MLX Whisper models are loaded on-demand, store config
+                model_path = f"mlx-community/whisper-{self.model_size}"
+                if self.model_size == 'large':
+                    model_path = "mlx-community/whisper-large-v3-turbo"  # Use turbo variant
+                self.model = {'backend': 'mlx', 'model_path': model_path}
+                logger.info(f"MLX Whisper configured with model '{model_path}'")
 
-                logger.info(f"Loading faster-whisper model (device={device_type}, compute_type={compute_type})")
-                self.model = WhisperModel(
-                    self.model_size,
-                    device=device_type,
-                    compute_type=compute_type
+            elif self.backend == 'insanely-fast':
+                # Load insanely-fast-whisper pipeline
+                from transformers import pipeline
+                from transformers.utils import is_flash_attn_2_available
+
+                model_name = f"openai/whisper-{self.model_size}"
+                if self.model_size == 'large':
+                    model_name = "openai/whisper-large-v3"
+
+                # Configure attention mechanism
+                model_kwargs = {}
+                if is_flash_attn_2_available():
+                    model_kwargs["attn_implementation"] = "flash_attention_2"
+                    logger.info("Using FlashAttention-2 for maximum speed")
+                else:
+                    model_kwargs["attn_implementation"] = "sdpa"
+                    logger.info("Using SDPA attention (install flash-attn for 2x speedup)")
+
+                self.model = pipeline(
+                    "automatic-speech-recognition",
+                    model=model_name,
+                    torch_dtype=torch.float16 if self.device == 'cuda' else torch.float32,
+                    device=self.device,
+                    model_kwargs=model_kwargs
                 )
-                logger.info(f"faster-whisper model '{self.model_size}' loaded successfully (4-5x faster inference)")
+                logger.info(f"insanely-fast-whisper pipeline loaded with model '{model_name}'")
 
             else:
-                # Use standard OpenAI Whisper
+                # Standard OpenAI Whisper
                 self.model = whisper.load_model(
                     self.model_size,
                     device=self.device
@@ -205,6 +247,12 @@ class Transcriber:
 
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
+            # Fallback to OpenAI Whisper if accelerated backend fails
+            if self.backend != 'openai':
+                logger.warning(f"Falling back to OpenAI Whisper due to {self.backend} failure")
+                self.backend = 'openai'
+                self.model = None
+                return self.load_model(progress_callback)
             raise RuntimeError(f"Failed to load Whisper model: {e}")
     
     def transcribe(self, audio_path, language=None, initial_prompt=None, progress_callback=None, word_timestamps=False):
@@ -243,53 +291,63 @@ class Transcriber:
         # Set up progress interception if callback provided
         original_stderr = sys.stderr
         try:
-            if self.use_faster_whisper:
-                # Use faster-whisper (CTranslate2) - different API
-                transcribe_kwargs = {
-                    'language': language,
-                    'word_timestamps': word_timestamps,
-                    'vad_filter': True,  # Voice activity detection for better accuracy
-                }
+            if self.backend == 'mlx':
+                # Use MLX Whisper (Apple Silicon)
+                import mlx_whisper
 
+                result = mlx_whisper.transcribe(
+                    audio_path,
+                    path_or_hf_repo=self.model['model_path'],
+                    language=language,
+                    word_timestamps=word_timestamps
+                )
+
+                # MLX returns similar format to OpenAI Whisper
+                logger.info("MLX Whisper transcription completed")
+
+            elif self.backend == 'insanely-fast':
+                # Use insanely-fast-whisper (Hugging Face pipeline)
+                generate_kwargs = {}
+                if language:
+                    generate_kwargs["language"] = language
                 if initial_prompt:
-                    transcribe_kwargs['initial_prompt'] = initial_prompt
+                    generate_kwargs["prompt_ids"] = initial_prompt  # HF format
 
-                # faster-whisper returns (segments, info) tuple
-                segments_generator, info = self.model.transcribe(audio_path, **transcribe_kwargs)
+                result_hf = self.model(
+                    audio_path,
+                    chunk_length_s=30,  # Process in 30s chunks for long audio
+                    batch_size=24,  # Optimal for most GPUs
+                    return_timestamps=True if word_timestamps else False,
+                    generate_kwargs=generate_kwargs
+                )
 
-                # Convert generator to list and build result dict matching OpenAI Whisper format
-                segments_list = []
-                full_text = []
-
-                for segment in segments_generator:
-                    segment_dict = {
-                        'id': segment.id,
-                        'start': segment.start,
-                        'end': segment.end,
-                        'text': segment.text,
-                    }
-
-                    # Add word timestamps if requested
-                    if word_timestamps and hasattr(segment, 'words'):
-                        segment_dict['words'] = [
-                            {
-                                'word': word.word,
-                                'start': word.start,
-                                'end': word.end,
-                                'probability': word.probability
-                            }
-                            for word in segment.words
-                        ]
-
-                    segments_list.append(segment_dict)
-                    full_text.append(segment.text)
-
-                # Build result dict in OpenAI Whisper format
+                # Convert Hugging Face format to OpenAI Whisper format
                 result = {
-                    'text': ''.join(full_text),
-                    'segments': segments_list,
-                    'language': info.language if hasattr(info, 'language') else (language or 'unknown')
+                    'text': result_hf['text'],
+                    'language': language if language else 'unknown',
+                    'segments': []
                 }
+
+                # Convert chunks to segments if available
+                if 'chunks' in result_hf:
+                    for i, chunk in enumerate(result_hf['chunks']):
+                        segment = {
+                            'id': i,
+                            'start': chunk['timestamp'][0] if chunk['timestamp'][0] is not None else 0,
+                            'end': chunk['timestamp'][1] if chunk['timestamp'][1] is not None else 0,
+                            'text': chunk['text']
+                        }
+                        result['segments'].append(segment)
+                else:
+                    # No chunks, create single segment
+                    result['segments'] = [{
+                        'id': 0,
+                        'start': 0,
+                        'end': 0,
+                        'text': result['text']
+                    }]
+
+                logger.info("insanely-fast-whisper transcription completed")
 
             else:
                 # Use standard OpenAI Whisper
@@ -314,6 +372,8 @@ class Transcriber:
                 # Restore stderr
                 if progress_callback:
                     sys.stderr = original_stderr
+
+                logger.info("OpenAI Whisper transcription completed")
 
             if progress_callback:
                 try:

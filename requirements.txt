@@ -1,5 +1,4 @@
 openai-whisper>=20231117
-faster-whisper>=1.0.0
 torch>=2.0.0
 torchaudio>=2.0.0
 ffmpeg-python>=0.2.0
@@ -16,4 +15,9 @@ soundfile>=0.12.0
 
 # Python 3.13 removed stdlib 'audioop'. pyaudioop provides compatibility used by pydub.
 pyaudioop>=0.5.0
+
+# OPTIONAL ACCELERATION (install for 2-20x faster transcription):
+# For NVIDIA GPUs: pip install transformers accelerate
+# For Apple Silicon (M1/M2/M3): pip install mlx-whisper
+# For maximum speed on NVIDIA: pip install flash-attn --no-build-isolation
 
