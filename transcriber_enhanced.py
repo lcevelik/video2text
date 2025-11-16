@@ -301,7 +301,8 @@ class EnhancedTranscriber(Transcriber):
             'cs': frozenset("áéíóúůýčďěňřšťžÁÉÍÓÚŮÝČĎĚŇŘŠŤŽ"),
             # Add more languages as needed
         }
-        cs_common = frozenset({"že","který","jsem","jsme","není","může","proto","tak","ale","by","když","už","je","co","jak"})
+        # Removed cs_common special scoring to ensure all languages compete fairly
+        # cs_common = frozenset({"že","který","jsem","jsme","není","může","proto","tak","ale","by","když","už","je","co","jak"})
         allowed = getattr(self, 'allowed_languages', None)
         # If allowed list is present, restrict scoring dictionaries to those languages only
         if allowed:
@@ -333,10 +334,8 @@ class EnhancedTranscriber(Transcriber):
             for lang_code, stops in stopwords.items():
                 stop_hits = sum(1 for w in words if w in stops)
                 diacritic_hits = len(window_text_set & diacritics.get(lang_code, frozenset()))
-                extra_hits = 0
-                if lang_code == 'cs':
-                    extra_hits = sum(1 for w in words if w in cs_common)
-                score = stop_hits + diacritic_hits + extra_hits
+                # All languages now score equally: stopwords + diacritics only
+                score = stop_hits + diacritic_hits
                 lang_scores[lang_code] = score
             # Choose best language (single) with threshold
             best_lang = None
