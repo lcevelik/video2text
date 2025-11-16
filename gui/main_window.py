@@ -25,6 +25,8 @@ from gui.widgets import ModernButton, Card, DropZone
 from gui.workers import RecordingWorker, TranscriptionWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices
+from transcriber import Transcriber
+from transcription.enhanced import EnhancedTranscriber
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,7 @@ class Video2TextQt(QMainWindow):
 
         self.transcription_start_time = None
         self.performance_overlay = None
+
         self.setup_ui()
         self.apply_theme()
         self.center_window()
@@ -60,6 +63,10 @@ class Video2TextQt(QMainWindow):
             self.check_runtime_compat()
         except Exception as _compat_err:
             logger.debug(f"Compat check skipped: {_compat_err}")
+
+        # Schedule model preloading after window is shown (non-blocking)
+        # This loads both models into memory for instant transcription startup
+        QTimer.singleShot(500, self.preload_models)
 
     # Early stub to guarantee existence even if later method definition changes order
     def cancel_transcription(self):
@@ -152,6 +159,51 @@ class Video2TextQt(QMainWindow):
                     logger.warning("Python 3.13 detected without audioop compatibility. Recording may fail. Run: pip install pyaudioop or audioop-lts")
         except Exception as e:
             logger.debug(f"Runtime compat check failed: {e}")
+
+    def preload_models(self):
+        """
+        Preload Whisper models on app startup for instant transcription.
+
+        This loads both 'base' and 'large' models into GPU memory, eliminating
+        the ~20-40 second model loading delay when transcription starts.
+
+        Models are stored in EnhancedTranscriber class-level cache and reused
+        across all transcription workers for maximum performance.
+        """
+        try:
+            logger.info("🚀 Starting model preload on app startup...")
+            start_time = time.time()
+
+            # Populate the EnhancedTranscriber class-level cache with preloaded models
+            with EnhancedTranscriber._model_cache_lock:
+                # Preload base model (used for detection and single-language)
+                if 'base' not in EnhancedTranscriber._model_cache:
+                    logger.info("Preloading 'base' model (for detection and single-language)...")
+                    base_model = Transcriber(model_size='base')
+                    base_model.load_model()
+                    EnhancedTranscriber._model_cache['base'] = base_model
+                    logger.info(f"✓ 'base' model preloaded to class cache (device: {base_model.device})")
+                else:
+                    logger.info("✓ 'base' model already in cache")
+
+                # Preload large model (used for multi-language transcription)
+                if 'large' not in EnhancedTranscriber._model_cache:
+                    logger.info("Preloading 'large' model (for multi-language transcription)...")
+                    large_model = Transcriber(model_size='large')
+                    large_model.load_model()
+                    EnhancedTranscriber._model_cache['large'] = large_model
+                    logger.info(f"✓ 'large' model preloaded to class cache (device: {large_model.device})")
+                else:
+                    logger.info("✓ 'large' model already in cache")
+
+            elapsed = time.time() - start_time
+            logger.info(f"✅ Model preload complete! Both models ready in {elapsed:.1f}s")
+            logger.info(f"   → All transcription workers will reuse these preloaded models")
+            logger.info(f"   → Transcription will now start instantly without model loading delay")
+
+        except Exception as e:
+            logger.warning(f"Model preload failed (will load on-demand): {e}")
+            # Don't crash the app, just fall back to on-demand loading
 
     def detect_system_theme(self):
         """Detect if system is in dark mode."""
