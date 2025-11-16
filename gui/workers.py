@@ -31,6 +31,84 @@ class RecordingWorker(QThread):
         """Stop the recording."""
         self.is_recording = False
 
+    def _normalize_audio(self, audio_data, target_rms=0.15):
+        """
+        Normalize audio to target RMS level with intelligent AGC.
+
+        Args:
+            audio_data: numpy array of audio samples
+            target_rms: target RMS level (0.15 = good speech level, ~-16.5dB)
+
+        Returns:
+            Normalized audio data
+        """
+        import numpy as np
+
+        # Calculate current RMS
+        current_rms = np.sqrt(np.mean(audio_data**2))
+
+        # Avoid division by zero
+        if current_rms < 0.0001:
+            return audio_data
+
+        # Calculate gain needed to reach target RMS
+        gain = target_rms / current_rms
+
+        # Limit maximum gain to prevent amplifying noise excessively
+        # Max gain of 10x (~20dB boost) for very quiet audio
+        gain = min(gain, 10.0)
+
+        # Apply gain
+        normalized = audio_data * gain
+
+        # Soft clipping to prevent hard clipping artifacts
+        normalized = np.tanh(normalized * 1.2) * 0.9
+
+        return normalized
+
+    def _apply_compression(self, audio_data, threshold=0.6, ratio=3.0):
+        """
+        Apply dynamic range compression to control peaks while maintaining loudness.
+
+        Args:
+            audio_data: numpy array of audio samples
+            threshold: level above which compression kicks in (0.6 = -4.4dB)
+            ratio: compression ratio (3.0 means 3:1 compression)
+
+        Returns:
+            Compressed audio data
+        """
+        import numpy as np
+
+        # Work with absolute values for compression
+        abs_audio = np.abs(audio_data)
+
+        # Calculate compression for samples above threshold
+        # Samples below threshold pass through unchanged
+        mask = abs_audio > threshold
+
+        if np.any(mask):
+            # Amount above threshold
+            over = abs_audio[mask] - threshold
+
+            # Compress the overage
+            compressed_over = over / ratio
+
+            # Reconstruct: threshold + compressed overage
+            abs_audio[mask] = threshold + compressed_over
+
+        # Apply compressed envelope back to original signal (preserving sign)
+        sign = np.sign(audio_data)
+        compressed = sign * abs_audio
+
+        # Normalize to target level (~-6dB for good headroom)
+        target_level = 0.5
+        current_peak = np.max(np.abs(compressed))
+        if current_peak > 0:
+            compressed = compressed * (target_level / current_peak)
+
+        return compressed
+
     def run(self):
         """Execute recording in background thread."""
         try:
@@ -129,19 +207,34 @@ class RecordingWorker(QThread):
             if mic_chunks:
                 mic_data = np.concatenate(mic_chunks, axis=0)
 
+                # Normalize microphone audio with AGC
+                mic_data = self._normalize_audio(mic_data, target_rms=0.15)
+
                 if speaker_chunks:
                     speaker_data = np.concatenate(speaker_chunks, axis=0)
+
+                    # Normalize speaker audio with AGC
+                    speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
+
+                    # Align lengths
                     max_len = max(len(mic_data), len(speaker_data))
                     if len(mic_data) < max_len:
                         mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
                     if len(speaker_data) < max_len:
                         speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
+
+                    # Mix: 60% mic + 40% speaker
                     final_data = (mic_data * 0.6 + speaker_data * 0.4)
-                    max_val = np.max(np.abs(final_data))
-                    if max_val > 0:
-                        final_data = final_data / max_val * 0.9
                 else:
                     final_data = mic_data
+
+                # Final normalization with dynamic range compression
+                final_data = self._apply_compression(final_data)
+
+                # Final safety limiting to prevent clipping
+                max_val = np.max(np.abs(final_data))
+                if max_val > 0.95:
+                    final_data = final_data / max_val * 0.95
 
                 # Create output directory if it doesn't exist
                 self.output_dir.mkdir(parents=True, exist_ok=True)
