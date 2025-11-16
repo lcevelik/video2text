@@ -15,16 +15,17 @@ from typing import Optional, List
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
-    QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog
+    QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
+    QComboBox
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPalette
 
 from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone
-from gui.workers import RecordingWorker, TranscriptionWorker
+from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
-from gui.utils import check_audio_input_devices
+from gui.utils import check_audio_input_devices, get_audio_devices
 from gui.vu_meter import VUMeter
 from transcriber import Transcriber
 from transcription.enhanced import EnhancedTranscriber
@@ -516,8 +517,11 @@ class Video2TextQt(QMainWindow):
         self.is_recording = False
         self.recording_start_time = None
         self.recording_worker = None  # QThread worker for recording
+        self.preview_worker = None  # QThread worker for audio preview
         self.recording_timer = QTimer()
         self.recording_timer.timeout.connect(self.update_recording_duration)
+        self.selected_mic_device = None  # User-selected microphone device
+        self.selected_speaker_device = None  # User-selected speaker device
 
         # Main container
         container = QWidget()
@@ -607,6 +611,7 @@ class Video2TextQt(QMainWindow):
 
         self.basic_upload_progress_bar = QProgressBar()
         self.basic_upload_progress_bar.setMinimumHeight(25)
+        self.basic_upload_progress_bar.hide()  # Hide until processing starts
         layout.addWidget(self.basic_upload_progress_bar)
 
         # Info tip
@@ -625,7 +630,63 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Record toggle button (simplified - no frame, no icon)
+        # Audio Device Selection
+        device_section = QLabel("📡 Audio Sources")
+        device_section.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
+        layout.addWidget(device_section)
+
+        # Microphone selection
+        mic_layout = QHBoxLayout()
+        mic_label = QLabel("🎤 Microphone:")
+        mic_label.setMinimumWidth(120)
+        self.mic_combo = QComboBox()
+        self.mic_combo.setMinimumHeight(35)
+        self.mic_combo.currentIndexChanged.connect(self.on_mic_device_changed)
+        mic_layout.addWidget(mic_label)
+        mic_layout.addWidget(self.mic_combo, 1)
+        layout.addLayout(mic_layout)
+
+        # Speaker selection
+        speaker_layout = QHBoxLayout()
+        speaker_label = QLabel("🔊 Speaker/System:")
+        speaker_label.setMinimumWidth(120)
+        self.speaker_combo = QComboBox()
+        self.speaker_combo.setMinimumHeight(35)
+        self.speaker_combo.currentIndexChanged.connect(self.on_speaker_device_changed)
+        speaker_layout.addWidget(speaker_label)
+        speaker_layout.addWidget(self.speaker_combo, 1)
+        layout.addLayout(speaker_layout)
+
+        # Populate device lists
+        self.refresh_audio_devices()
+
+        # Test Audio button
+        test_layout = QHBoxLayout()
+        test_layout.setAlignment(Qt.AlignCenter)
+        self.test_audio_btn = ModernButton("🔍 Test Audio Levels")
+        self.test_audio_btn.setMinimumHeight(40)
+        self.test_audio_btn.setMinimumWidth(200)
+        self.test_audio_btn.clicked.connect(self.toggle_audio_preview)
+        test_layout.addWidget(self.test_audio_btn)
+        layout.addLayout(test_layout)
+
+        layout.addSpacing(10)
+
+        # VU Meters (always visible for testing)
+        self.vu_meters_widget = QWidget()
+        vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
+        vu_meters_layout.setSpacing(10)
+
+        self.mic_vu_meter = VUMeter("🎤 Microphone")
+        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
+
+        vu_meters_layout.addWidget(self.mic_vu_meter)
+        vu_meters_layout.addWidget(self.speaker_vu_meter)
+
+        layout.addWidget(self.vu_meters_widget)
+        layout.addSpacing(10)
+
+        # Record toggle button
         button_container = QWidget()
         button_layout = QHBoxLayout(button_container)
         button_layout.setAlignment(Qt.AlignCenter)
@@ -637,21 +698,6 @@ class Video2TextQt(QMainWindow):
         button_layout.addWidget(self.basic_record_btn)
 
         layout.addWidget(button_container)
-        layout.addSpacing(20)
-
-        # VU Meters (shown during recording, hidden otherwise)
-        self.vu_meters_widget = QWidget()
-        vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
-        vu_meters_layout.setSpacing(10)
-
-        self.mic_vu_meter = VUMeter("🎤 Microphone")
-        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
-
-        vu_meters_layout.addWidget(self.mic_vu_meter)
-        vu_meters_layout.addWidget(self.speaker_vu_meter)
-
-        self.vu_meters_widget.hide()
-        layout.addWidget(self.vu_meters_widget)
         layout.addSpacing(10)
 
         # Recording duration (shown during recording, hidden otherwise)
@@ -670,10 +716,11 @@ class Video2TextQt(QMainWindow):
 
         self.basic_record_progress_bar = QProgressBar()
         self.basic_record_progress_bar.setMinimumHeight(25)
+        self.basic_record_progress_bar.hide()  # Hide until processing starts
         layout.addWidget(self.basic_record_progress_bar)
 
         # Info tip
-        info = QLabel("💡 Recording automatically transcribes when stopped\n💡 Change recording directory in Menu (☰) → Settings")
+        info = QLabel("💡 Test your audio before recording to ensure proper levels\n💡 Recording automatically transcribes when stopped")
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -761,6 +808,71 @@ class Video2TextQt(QMainWindow):
         self.statusBar().showMessage(f"File selected: {filename}")
         logger.info(f"Selected file: {file_path}")
 
+    def refresh_audio_devices(self):
+        """Refresh the audio device combo boxes."""
+        mic_devices, speaker_devices = get_audio_devices()
+
+        # Populate microphone combo
+        self.mic_combo.clear()
+        if mic_devices:
+            for idx, name in mic_devices:
+                self.mic_combo.addItem(name, idx)
+            self.selected_mic_device = mic_devices[0][0]  # Select first by default
+        else:
+            self.mic_combo.addItem("No microphone found", None)
+            self.selected_mic_device = None
+
+        # Populate speaker combo
+        self.speaker_combo.clear()
+        if speaker_devices:
+            for idx, name in speaker_devices:
+                self.speaker_combo.addItem(name, idx)
+            self.selected_speaker_device = speaker_devices[0][0]  # Select first by default
+        else:
+            self.speaker_combo.addItem("No system audio device found (optional)", None)
+            self.selected_speaker_device = None
+
+    def on_mic_device_changed(self, index):
+        """Handle microphone device selection change."""
+        self.selected_mic_device = self.mic_combo.currentData()
+        logger.info(f"Selected microphone device: {self.mic_combo.currentText()} (index: {self.selected_mic_device})")
+
+    def on_speaker_device_changed(self, index):
+        """Handle speaker device selection change."""
+        self.selected_speaker_device = self.speaker_combo.currentData()
+        logger.info(f"Selected speaker device: {self.speaker_combo.currentText()} (index: {self.selected_speaker_device})")
+
+    def toggle_audio_preview(self):
+        """Toggle audio level preview without recording."""
+        if self.preview_worker and self.preview_worker.isRunning():
+            # Stop preview
+            self.preview_worker.stop()
+            self.preview_worker.wait()
+            self.preview_worker = None
+            self.test_audio_btn.setText("🔍 Test Audio Levels")
+            self.test_audio_btn.primary = False
+            self.test_audio_btn.apply_style()
+            self.mic_vu_meter.reset()
+            self.speaker_vu_meter.reset()
+            logger.info("Audio preview stopped")
+        else:
+            # Start preview
+            if self.selected_mic_device is None and self.selected_speaker_device is None:
+                QMessageBox.warning(self, "No Devices", "Please select at least one audio device to test.")
+                return
+
+            self.preview_worker = AudioPreviewWorker(
+                mic_device=self.selected_mic_device,
+                speaker_device=self.selected_speaker_device,
+                parent=self
+            )
+            self.preview_worker.audio_level.connect(self.update_audio_levels)
+            self.preview_worker.start()
+            self.test_audio_btn.setText("⏹️ Stop Testing")
+            self.test_audio_btn.primary = True
+            self.test_audio_btn.apply_style()
+            logger.info("Audio preview started")
+
     def toggle_basic_recording(self):
         """Toggle recording in Basic Mode (one-button flow)."""
         if not self.is_recording:
@@ -813,6 +925,15 @@ class Video2TextQt(QMainWindow):
 
     def start_basic_recording(self):
         """Start recording in Basic Mode."""
+        # Stop any running audio preview
+        if self.preview_worker and self.preview_worker.isRunning():
+            self.preview_worker.stop()
+            self.preview_worker.wait()
+            self.preview_worker = None
+            self.test_audio_btn.setText("🔍 Test Audio Levels")
+            self.test_audio_btn.primary = False
+            self.test_audio_btn.apply_style()
+
         self.is_recording = True
         self.recording_start_time = time.time()
 
@@ -833,8 +954,11 @@ class Video2TextQt(QMainWindow):
             }
         """)
 
-        # Disable drop zone during recording
+        # Disable drop zone and device selection during recording
         self.drop_zone.setEnabled(False)
+        self.mic_combo.setEnabled(False)
+        self.speaker_combo.setEnabled(False)
+        self.test_audio_btn.setEnabled(False)
 
         # Show duration label
         self.recording_duration_label.show()
@@ -845,17 +969,21 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_label.setText("Recording in progress...")
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)}; font-weight: bold;")
 
-        logger.info("Started basic mode recording")
+        logger.info(f"Started basic mode recording (mic:{self.selected_mic_device}, speaker:{self.selected_speaker_device})")
 
-        # Start actual recording in QThread worker
-        self.recording_worker = RecordingWorker(self.settings["recordings_dir"], self)
+        # Start actual recording in QThread worker with selected devices
+        self.recording_worker = RecordingWorker(
+            output_dir=self.settings["recordings_dir"],
+            mic_device=self.selected_mic_device,
+            speaker_device=self.selected_speaker_device,
+            parent=self
+        )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
         self.recording_worker.audio_level.connect(self.update_audio_levels)
         self.recording_worker.start()
 
-        # Show VU meters
-        self.vu_meters_widget.show()
+        # Reset VU meters
         self.mic_vu_meter.reset()
         self.speaker_vu_meter.reset()
 
@@ -873,9 +1001,17 @@ class Video2TextQt(QMainWindow):
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
 
-        # Hide duration label and VU meters
+        # Re-enable controls
+        self.mic_combo.setEnabled(True)
+        self.speaker_combo.setEnabled(True)
+        self.test_audio_btn.setEnabled(True)
+
+        # Hide duration label
         self.recording_duration_label.hide()
-        self.vu_meters_widget.hide()
+
+        # Show progress bar for processing
+        self.basic_record_progress_bar.show()
+        self.basic_record_progress_bar.setValue(0)
 
         # Update status
         self.statusBar().showMessage("Processing recording...")
@@ -999,7 +1135,9 @@ class Video2TextQt(QMainWindow):
         # Disable buttons and clear results
         self.basic_save_btn.setEnabled(False)
         self.basic_result_text.clear()
+        self.basic_upload_progress_bar.show()
         self.basic_upload_progress_bar.setValue(0)
+        self.basic_record_progress_bar.show()
         self.basic_record_progress_bar.setValue(0)
         self.cancel_transcription_btn.show()
         self.cancel_transcription_btn.setEnabled(True)
