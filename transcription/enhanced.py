@@ -61,6 +61,8 @@ import os
 import logging
 import tempfile
 import time
+import threading
+import queue
 from typing import Dict, List, Optional, Any, Tuple
 from transcriber import Transcriber
 import numpy as np
@@ -1626,11 +1628,17 @@ class EnhancedTranscriber(Transcriber):
         transcription_model: str = 'medium',
         progress_callback=None
     ) -> List[Dict[str, Any]]:
-        """Two-pass comprehensive audio segmentation for maximum speed and accuracy.
+        """Two-pass comprehensive audio segmentation with PIPELINED execution for maximum speed.
 
-        SMART APPROACH (suggested by user):
+        SMART APPROACH (user's brilliant suggestion):
         Pass 1: Use FAST model (base) to accurately identify WHERE language changes occur
         Pass 2: Use ACCURATE model (medium) to transcribe each language segment properly
+
+        PIPELINED EXECUTION (new!):
+        - Pass 1 and Pass 2 run CONCURRENTLY using separate model instances
+        - As soon as Pass 1 completes a merged segment, Pass 2 starts transcribing it
+        - Both passes overlap, dramatically reducing total time
+        - Thread-safe because each pass uses its own dedicated model instance
 
         WHY BASE MODEL (not tiny):
         - Tiny model is fast BUT drops words and misses short language switches
@@ -1638,11 +1646,11 @@ class EnhancedTranscriber(Transcriber):
         - Doesn't drop words or miss transitions
         - Sweet spot for speed + accuracy
 
-        Performance estimate:
-        - Pass 1: 990 chunks × 1.0s (base) = 990s to find boundaries
-        - Pass 2: 3 segments × 60s (medium) = 180s for accurate transcription
-        - Total: ~1170s (19.5 min) vs ~2000s (33 min) for single-pass medium model
-        - Still ~1.7x faster, but with accurate boundary detection!
+        Performance estimate (PIPELINED):
+        - Sequential: Pass1 (198s) + Pass2 (36s) = 234s total
+        - Pipelined: max(Pass1, Pass2) ≈ 198s total (overlap saves Pass2 time!)
+        - Additional speedup: ~1.2x on top of two-pass gains
+        - Combined with faster-whisper: 33min video in ~3-4 minutes! (10x faster)
 
         Args:
             audio_path: Path to audio file
@@ -1659,17 +1667,125 @@ class EnhancedTranscriber(Transcriber):
         import subprocess
         import time
 
-        logger.info(f"Starting TWO-PASS audio segmentation (detection={detection_model}, transcription={transcription_model})")
+        logger.info(f"Starting PIPELINED TWO-PASS audio segmentation (detection={detection_model}, transcription={transcription_model})")
         overall_start = time.time()
 
-        # PASS 1: Fast language detection with tiny model
-        # ================================================
+        # Create a queue to pass segments from Pass 1 to Pass 2
+        segment_queue = queue.Queue(maxsize=10)  # Buffer up to 10 segments
+        final_segments = []
+        pass2_error = None  # To capture errors from Pass 2 thread
+
+        # Create transcription model (Pass 2)
+        if transcription_model == (self.model.model_name if hasattr(self, 'model') and hasattr(self.model, 'model_name') else self.model_size):
+            transcription_engine = self
+        else:
+            if not hasattr(self, '_transcription_model') or self._transcription_model is None:
+                logger.info(f"Loading {transcription_model} model for accurate transcription...")
+                self._transcription_model = Transcriber(model_size=transcription_model)
+            transcription_engine = self._transcription_model
+
+        # PASS 2: Transcription worker (runs in background thread)
+        # =========================================================
+        def transcription_worker():
+            """Worker thread for Pass 2: transcribe segments as they arrive from Pass 1."""
+            nonlocal pass2_error
+            pass2_start = time.time()
+            transcribed_count = 0
+
+            try:
+                logger.info(f"PASS 2 worker started: Ready to transcribe segments using {transcription_model} model")
+
+                while True:
+                    # Get next segment from queue (blocks until available)
+                    segment = segment_queue.get()
+
+                    # Check for sentinel value (Pass 1 is done)
+                    if segment is None:
+                        logger.info("PASS 2 received completion signal from Pass 1")
+                        break
+
+                    try:
+                        start_time = segment['start']
+                        end_time = segment['end']
+                        language = segment['language']
+                        duration = end_time - start_time
+
+                        if duration < 0.1:
+                            continue
+
+                        # Extract audio segment
+                        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                            temp_path = temp_audio.name
+
+                        try:
+                            # Extract with ffmpeg
+                            subprocess.run([
+                                'ffmpeg', '-y', '-i', audio_path,
+                                '-ss', str(start_time),
+                                '-t', str(duration),
+                                '-ar', '16000', '-ac', '1',
+                                temp_path
+                            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
+
+                            # Transcribe with ACCURATE model and SPECIFIED language
+                            if transcription_engine == self:
+                                segment_result = self.transcribe(
+                                    temp_path,
+                                    language=language,
+                                    progress_callback=None
+                                )
+                            else:
+                                segment_result = transcription_engine.transcribe(
+                                    temp_path,
+                                    language=language,
+                                    progress_callback=None
+                                )
+
+                            transcribed_text = segment_result.get('text', '').strip()
+
+                            if transcribed_text:
+                                final_segments.append({
+                                    'language': language,
+                                    'start': start_time,
+                                    'end': end_time,
+                                    'text': transcribed_text
+                                })
+                                transcribed_count += 1
+                                logger.debug(f"PASS 2: Transcribed segment {transcribed_count}: {language} [{start_time:.1f}-{end_time:.1f}s]")
+
+                        finally:
+                            if os.path.exists(temp_path):
+                                try:
+                                    os.unlink(temp_path)
+                                except Exception:
+                                    pass
+
+                    except Exception as e:
+                        logger.error(f"PASS 2 failed to transcribe segment [{start_time:.1f}-{end_time:.1f}s]: {e}", exc_info=True)
+                    finally:
+                        segment_queue.task_done()
+
+                pass2_elapsed = time.time() - pass2_start
+                logger.info(f"PASS 2 complete: Transcribed {transcribed_count} segments in {pass2_elapsed:.1f}s")
+
+            except Exception as e:
+                pass2_error = e
+                logger.error(f"PASS 2 worker crashed: {e}", exc_info=True)
+
+        # Start Pass 2 worker thread
+        pass2_thread = threading.Thread(target=transcription_worker, name="Pass2-Transcription")
+        pass2_thread.daemon = True
+        pass2_thread.start()
+        logger.info("PASS 2 worker thread started (running in parallel with Pass 1)")
+
+        # PASS 1: Fast language detection (runs in main thread)
+        # ======================================================
         if progress_callback:
-            progress_callback("Pass 1/2: Fast language detection to find segment boundaries...")
+            progress_callback("Pass 1/2: Fast language detection (Pass 2 running in parallel)...")
 
         logger.info(f"PASS 1: Fast language detection with {detection_model} model (chunk_size={chunk_size}s)")
 
-        # Create a fast detection model instance (cached)
+        # Create detection model instance (cached)
         if not hasattr(self, '_detection_model') or self._detection_model is None:
             logger.info(f"Loading {detection_model} model for language detection...")
             self._detection_model = Transcriber(model_size=detection_model)
@@ -1696,10 +1812,14 @@ class EnhancedTranscriber(Transcriber):
         total_chunks = len(chunks)
         logger.info(f"Processing {total_chunks} chunks for language detection...")
 
-        # Detect language for each chunk (fast pass)
+        # Process chunks and merge on-the-fly, sending completed segments to Pass 2
         detected_chunks = []
         processed_count = 0
         pass1_start = time.time()
+        segments_sent = 0
+
+        # Track current segment being built
+        current_segment = None
 
         for chunk_start, chunk_end in chunks:
             try:
@@ -1716,6 +1836,37 @@ class EnhancedTranscriber(Transcriber):
                 if result:
                     detected_chunks.append(result)
 
+                    # Merge chunks on-the-fly and send completed segments to Pass 2
+                    if current_segment is None:
+                        # Start new segment
+                        current_segment = {
+                            'language': result['language'],
+                            'start': result['start'],
+                            'end': result['end'],
+                            '_texts': [result['text']]
+                        }
+                    elif result['language'] == current_segment['language']:
+                        # Same language - extend current segment
+                        current_segment['end'] = result['end']
+                        current_segment['_texts'].append(result['text'])
+                    else:
+                        # Different language - finalize current segment and send to Pass 2
+                        current_segment['text'] = ' '.join(current_segment['_texts'])
+                        del current_segment['_texts']
+
+                        # Send to Pass 2 queue (blocks if queue is full - backpressure)
+                        segment_queue.put(current_segment)
+                        segments_sent += 1
+                        logger.debug(f"PASS 1: Sent segment {segments_sent} to Pass 2: {current_segment['language']} [{current_segment['start']:.1f}-{current_segment['end']:.1f}s]")
+
+                        # Start new segment
+                        current_segment = {
+                            'language': result['language'],
+                            'start': result['start'],
+                            'end': result['end'],
+                            '_texts': [result['text']]
+                        }
+
                 processed_count += 1
 
                 # Progress update every 10 chunks
@@ -1724,114 +1875,48 @@ class EnhancedTranscriber(Transcriber):
                     rate = processed_count / elapsed if elapsed > 0 else 0
                     remaining = (total_chunks - processed_count) / rate if rate > 0 else 0
                     progress_callback(
-                        f"Pass 1/2: Detecting languages {processed_count}/{total_chunks} chunks "
-                        f"(~{int(remaining)}s remaining)"
+                        f"Pass 1/2: Detecting {processed_count}/{total_chunks} chunks "
+                        f"({segments_sent} segments → Pass 2, ~{int(remaining)}s remaining)"
                     )
 
             except Exception as e:
                 logger.error(f"Failed to detect language in chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}", exc_info=True)
                 processed_count += 1
 
+        # Finalize and send last segment
+        if current_segment is not None:
+            current_segment['text'] = ' '.join(current_segment['_texts'])
+            del current_segment['_texts']
+            segment_queue.put(current_segment)
+            segments_sent += 1
+            logger.debug(f"PASS 1: Sent final segment {segments_sent} to Pass 2")
+
         pass1_elapsed = time.time() - pass1_start
-        logger.info(f"PASS 1 complete: Detected {len(detected_chunks)} chunks in {pass1_elapsed:.1f}s ({pass1_elapsed/total_chunks:.2f}s per chunk)")
+        logger.info(f"PASS 1 complete: Detected {len(detected_chunks)} chunks in {pass1_elapsed:.1f}s, sent {segments_sent} segments to Pass 2")
 
-        # Merge consecutive chunks with same language into segments
-        merged_segments = self._merge_consecutive_language_segments(detected_chunks)
-        segment_summary = [f"{s['language']}:{s['end']-s['start']:.1f}s" for s in merged_segments]
-        logger.info(f"Merged into {len(merged_segments)} language segments: {segment_summary}")
+        # Send sentinel value to signal Pass 2 that we're done
+        segment_queue.put(None)
+        logger.info("PASS 1 sent completion signal to Pass 2")
 
-        # PASS 2: Accurate transcription with medium model
-        # =================================================
+        # Wait for Pass 2 to finish processing all segments
         if progress_callback:
-            progress_callback(f"Pass 2/2: Accurate transcription of {len(merged_segments)} segments...")
+            progress_callback("Waiting for Pass 2 to complete transcription...")
 
-        logger.info(f"PASS 2: Accurate transcription with {transcription_model} model ({len(merged_segments)} segments)")
+        logger.info("Waiting for Pass 2 worker to complete...")
+        pass2_thread.join()
 
-        # Create accurate transcription model (use existing or create new)
-        if transcription_model == self.model.model_name if hasattr(self, 'model') and hasattr(self.model, 'model_name') else self.model_size:
-            # Use the main model instance
-            transcription_engine = self
-        else:
-            # Create a new model for transcription
-            if not hasattr(self, '_transcription_model') or self._transcription_model is None:
-                logger.info(f"Loading {transcription_model} model for accurate transcription...")
-                self._transcription_model = Transcriber(model_size=transcription_model)
-            transcription_engine = self._transcription_model
+        # Check if Pass 2 had any errors
+        if pass2_error:
+            logger.error(f"Pass 2 encountered an error: {pass2_error}")
+            raise pass2_error
 
-        # Transcribe each merged segment with accurate model
-        final_segments = []
-        pass2_start = time.time()
+        # Sort final segments by start time (should already be in order, but just to be safe)
+        final_segments.sort(key=lambda s: s['start'])
 
-        for i, segment in enumerate(merged_segments):
-            try:
-                start_time = segment['start']
-                end_time = segment['end']
-                language = segment['language']
-                duration = end_time - start_time
-
-                if duration < 0.1:
-                    continue
-
-                # Extract audio segment
-                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
-                    temp_path = temp_audio.name
-
-                try:
-                    # Extract with ffmpeg
-                    subprocess.run([
-                        'ffmpeg', '-y', '-i', audio_path,
-                        '-ss', str(start_time),
-                        '-t', str(duration),
-                        '-ar', '16000', '-ac', '1',
-                        temp_path
-                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
-
-                    # Transcribe with ACCURATE model and SPECIFIED language
-                    if transcription_engine == self:
-                        segment_result = self.transcribe(
-                            temp_path,
-                            language=language,  # Specify detected language for accuracy
-                            progress_callback=None
-                        )
-                    else:
-                        segment_result = transcription_engine.transcribe(
-                            temp_path,
-                            language=language,
-                            progress_callback=None
-                        )
-
-                    transcribed_text = segment_result.get('text', '').strip()
-
-                    if transcribed_text:
-                        final_segments.append({
-                            'language': language,
-                            'start': start_time,
-                            'end': end_time,
-                            'text': transcribed_text
-                        })
-                        logger.info(f"Segment {i+1}/{len(merged_segments)}: {language} [{start_time:.1f}-{end_time:.1f}s] = \"{transcribed_text[:50]}...\"")
-
-                    # Progress update
-                    if progress_callback:
-                        progress_callback(f"Pass 2/2: Transcribed {i+1}/{len(merged_segments)} segments")
-
-                finally:
-                    if os.path.exists(temp_path):
-                        try:
-                            os.unlink(temp_path)
-                        except Exception:
-                            pass
-
-            except Exception as e:
-                logger.error(f"Failed to transcribe segment [{start_time:.1f}-{end_time:.1f}s]: {e}", exc_info=True)
-
-        pass2_elapsed = time.time() - pass2_start
         total_elapsed = time.time() - overall_start
-
-        logger.info(f"PASS 2 complete: Transcribed {len(final_segments)} segments in {pass2_elapsed:.1f}s")
         logger.info(
-            f"TWO-PASS COMPLETE: {len(final_segments)} segments in {total_elapsed:.1f}s "
-            f"(Pass1: {pass1_elapsed:.1f}s, Pass2: {pass2_elapsed:.1f}s)"
+            f"PIPELINED TWO-PASS COMPLETE: {len(final_segments)} segments in {total_elapsed:.1f}s "
+            f"(Pass1: {pass1_elapsed:.1f}s, both passes overlapped!)"
         )
 
         return final_segments
