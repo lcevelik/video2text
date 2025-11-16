@@ -359,7 +359,8 @@ result = transcriber.transcribe_multilang(
    detect_language_changes=True,
    skip_sampling=True,                # Skip legacy sampling when user knows it's multi-language
    fast_text_language=True,           # Enable fast transcript heuristic segmentation
-   allowed_languages=['en','cs']      # Restrict detection to expected languages
+   allowed_languages=['en','cs'],     # Restrict detection to expected languages
+   force_allowed_only=True            # NEW (v3.3+): limit scoring strictly to allowed list
 )
 
 # View language timeline
@@ -369,6 +370,8 @@ print(result['language_timeline'])
 report = transcriber.format_multilang_report(result)
 print(report)
 ```
+
+Tip (v3.3+): When `force_allowed_only=True` and `allowed_languages` is provided, the segmentation heuristic only scores those languages and emits ONE best language per 2s window, reducing false positives from similar stopwords (e.g. ES/PT/IT). Adjust window size by editing `chunk_size` in `_detect_language_from_transcript` if you need finer code-switch granularity.
 
 ## 📊 Performance Benchmarks
 

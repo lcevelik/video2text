@@ -105,7 +105,8 @@ class EnhancedTranscriber(Transcriber):
         skip_fast_single: bool = False,
         skip_sampling: bool = False,
         fast_text_language: bool = True,
-        allowed_languages: Optional[List[str]] = None
+        allowed_languages: Optional[List[str]] = None,
+        force_allowed_only: bool = True
     ) -> Dict[str, Any]:
         """
         Transcribe audio with multi-language detection using word-level analysis.
@@ -145,6 +146,9 @@ class EnhancedTranscriber(Transcriber):
                 # text-based heuristic, so we just call it once
                 if progress_callback:
                     progress_callback("Analyzing language segments...")
+                if allowed_languages and force_allowed_only:
+                    # Store allowed list for downstream heuristics
+                    self.allowed_languages = allowed_languages
                 self.language_segments = self._detect_language_from_words(
                     audio_path, result.get('segments', []), progress_callback
                 )
@@ -210,6 +214,8 @@ class EnhancedTranscriber(Transcriber):
             if progress_callback:
                 progress_callback("Analyzing language changes...")
 
+            if allowed_languages and force_allowed_only:
+                self.allowed_languages = allowed_languages
             self.language_segments = self._detect_language_from_words(
                 audio_path,
                 result.get('segments', []),
@@ -254,16 +260,10 @@ class EnhancedTranscriber(Transcriber):
 
         return result
 
-    def _detect_language_from_transcript(self, segments: List[Dict[str, Any]], chunk_size: float = 4.0) -> List[Dict[str, Any]]:
+    def _detect_language_from_transcript(self, segments: List[Dict[str, Any]], chunk_size: float = 2.0, audio_path: Optional[str] = None) -> List[Dict[str, Any]]:
         """Heuristic segmentation using existing segment text (no extra audio passes).
 
-        OPTIMIZED Improvements:
-        - Larger English stopword list for better low-diacritic detection
-        - Czech detection via diacritic density and common words
-        - Optimized string processing using frozensets and efficient character checking
-        - Allowed-language enforcement & remapping
-        - Merge adjacent identical languages
-        - Fallback propagation: short unknown windows inherit previous language
+        Restricted to allowed languages if provided. Chooses a single best language per window.
         """
         if not segments:
             return []
@@ -273,13 +273,43 @@ class EnhancedTranscriber(Transcriber):
         while t < end_time:
             windows.append((t, min(t + chunk_size, end_time)))
             t += chunk_size
-        # Expanded English stopwords (common function/content words) - use frozenset for faster lookup
-        en_stops = frozenset({
-            "the","and","is","are","to","of","in","that","for","you","it","on","with","this","be","have","at","or","as","i","we","they","was","were","will","would","can","could","a","an","from","by","about","what","which","who","how","do","does","did","not","if","there","their","them","our","your"
-        })
-        cs_diacritics = frozenset("áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ")
+
+        # Define stopwords and diacritics for many languages (fast heuristic path)
+        stopwords = {
+            'en': frozenset(["the","and","is","are","to","of","in","that","for","you","it","on","with","this","be","have","at","or","as","i","we","they","was","were","will","would","can","could","a","an","from","by","about","what","which","who","how","do","does","did","not","if","there","their","them","our","your"]),
+            'es': frozenset(["el","la","los","las","un","una","unos","unas","de","y","en","a","que","por","con","para","como","es","su","al","lo","se","del","más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me","hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso","ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra"]),
+            'fr': frozenset(["le","la","les","un","une","des","du","de","et","en","à","que","il","elle","nous","vous","ils","elles","au","aux","avec","par","sur","pas","plus","mais","ou","comme","son","sa","ses","leur","leurs","est","sont","été","être","a","ont","avait","avais","avais","fut","fûmes","fûtes","furent"]),
+            'de': frozenset(["der","die","das","ein","eine","eines","einer","einem","den","dem","des","und","zu","mit","auf","für","von","im","ist","war","wurde","werden","wie","als","auch","an","bei","nach","vor","aus","durch","über","unter","zwischen","gegen","ohne","um","am","aber","nur","noch","schon","man","sein","ihre","ihr","seine","uns","euch","sie","wir","du","er","es"]),
+            'it': frozenset(["il","lo","la","i","gli","le","un","una","uno","di","a","da","in","con","su","per","tra","fra","che","non","più","ma","come","se","quando","dove","chi","quale","quelli","questo","questa","questi","queste","sono","era","erano","essere","avere","ha","hanno","abbiamo","avete","avevano"]),
+            'pt': frozenset(["o","a","os","as","um","uma","uns","umas","de","da","do","das","dos","em","por","para","com","sem","sobre","entre","mas","ou","se","que","quando","como","onde","quem","qual","quais","este","esta","estes","estas","aquele","aquela","aqueles","aquelas","foi","eram","ser","ter","tem","têm","tinha","tínhamos","tinham"]),
+            'pl': frozenset(["i","w","z","na","do","od","za","po","przez","dla","o","u","pod","nad","przed","bez","czy","nie","tak","ale","lub","albo","to","ten","ta","te","ci","co","który","która","które","którzy","być","jest","są","był","była","było","byli","były"]),
+            'nl': frozenset(["de","het","een","en","van","op","in","naar","met","voor","door","over","onder","tussen","tegen","zonder","om","maar","of","als","ook","bij","tot","uit","aan","te","er","je","jij","hij","zij","wij","jullie","zij","ik","ben","is","zijn","was","waren"]),
+            'ru': frozenset(["и","в","во","не","что","он","на","я","с","со","как","а","то","все","она","так","его","но","да","ты","к","у","же","вы","за","бы","по","ее","мне","было","вот","от","меня","еще","нет","о","из","ему","теперь","когда","даже","ну","вдруг","ли","если","уже","или","ни","быть","был","него","до","вас","нибудь","опять","уж","вам","ведь","там","потом","себя","ничего","ей","может","они","тут","где","есть","надо","ней","для","мы","тебя","их","чем","была","сам","чтоб","без","будто","чего","раз","тоже","себе","под","будет","ж","тогда","кто","этот"]),
+            'cs': frozenset(["a","i","že","co","jak","když","ale","už","proto","tak","by","byl","byla","bylo","byli","aby","jsem","jsme","jste","jsi","být","mít","ten","to","ta","tento","tato","toto","se","si","na","v","ve","z","ze","do","s","o","u","k","pro","který","která","které","kteří","protože","je","není","může","tady","tam","taky","ještě"]),
+            # Add more languages as needed
+        }
+        diacritics = {
+            'en': frozenset(),
+            'es': frozenset("áéíóúüñÁÉÍÓÚÜÑ"),
+            'fr': frozenset("àâäéèêëîïôöùûüÿçÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
+            'de': frozenset("äöüßÄÖÜ"),
+            'it': frozenset("àèéìîòóùÀÈÉÌÎÒÓÙ"),
+            'pt': frozenset("áâãàçéêíóôõúÁÂÃÀÇÉÊÍÓÔÕÚ"),
+            'pl': frozenset("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ"),
+            'nl': frozenset("éèëïöüÉÈËÏÖÜ"),
+            'ru': frozenset(),
+            'cs': frozenset("áéíóúůýčďěňřšťžÁÉÍÓÚŮÝČĎĚŇŘŠŤŽ"),
+            # Add more languages as needed
+        }
         cs_common = frozenset({"že","který","jsem","jsme","není","může","proto","tak","ale","by","když","už","je","co","jak"})
         allowed = getattr(self, 'allowed_languages', None)
+        # If allowed list is present, restrict scoring dictionaries to those languages only
+        if allowed:
+            stopwords = {k: v for k, v in stopwords.items() if k in allowed}
+            diacritics = {k: v for k, v in diacritics.items() if k in allowed}
+        heuristic_langs = set(stopwords.keys())
+        # If user selected languages include ones we don't have heuristics for, enable audio fallback
+        needs_audio_fallback = bool(allowed) and any(lang not in heuristic_langs for lang in allowed)
         classified = []
         seg_index = 0
         prev_lang = None
@@ -298,46 +328,64 @@ class EnhancedTranscriber(Transcriber):
             words = [w.strip(".,!?;:") for w in lower.split() if w.strip()]
             if not words:
                 continue
-            # OPTIMIZED: Use set intersection for faster counting
             window_text_set = set(window_text)
-            cs_diacritic_count = len(window_text_set & cs_diacritics)
-            en_stop_hits = sum(1 for w in words if w in en_stops)
-            cs_common_hits = sum(1 for w in words if w in cs_common)
-            total_words = len(words)
-            en_ratio = en_stop_hits / max(total_words,1)
-            cs_ratio = (cs_common_hits + cs_diacritic_count*0.5) / max(total_words,1)
-            # Language decision heuristics
-            if cs_diacritic_count >= 2 or cs_ratio > en_ratio * 1.1:
-                lang = 'cs'
-            elif en_stop_hits >= 2 and en_ratio >= 0.05:
-                lang = 'en'
-            else:
-                # Fallback: if high ascii and previous language exists, inherit
-                lang = prev_lang if prev_lang else ('en' if en_ratio >= cs_ratio else 'cs')
-            prev_lang = lang
-            # Enforce allow-list
-            if allowed and lang not in allowed:
-                if len(allowed) == 1:
-                    lang = allowed[0]
-                elif len(allowed) == 2 and set(allowed) == {'en','cs'}:
-                    # Re-evaluate quickly for en vs cs forced mapping
-                    lang = 'cs' if cs_diacritic_count >= 1 or cs_common_hits >= 1 else 'en'
-                else:
-                    lang = 'unknown'
-            classified.append({'language': lang, 'start': ws, 'end': we, 'text': window_text})
+            lang_scores = {}
+            for lang_code, stops in stopwords.items():
+                stop_hits = sum(1 for w in words if w in stops)
+                diacritic_hits = len(window_text_set & diacritics.get(lang_code, frozenset()))
+                extra_hits = 0
+                if lang_code == 'cs':
+                    extra_hits = sum(1 for w in words if w in cs_common)
+                score = stop_hits + diacritic_hits + extra_hits
+                lang_scores[lang_code] = score
+            # Choose best language (single) with threshold
+            best_lang = None
+            best_score = 0
+            for lc, sc in lang_scores.items():
+                if sc > best_score:
+                    best_lang = lc
+                    best_score = sc
+            
+            # Log scoring for debugging
+            if lang_scores:
+                logger.debug(f"Window [{ws:.1f}-{we:.1f}s] heuristic scores: {lang_scores} | best: {best_lang}({best_score}) | text: {window_text[:50]}...")
+            
+            # If heuristic is uncertain (low score) OR we're mixing languages that need audio verification, use audio fallback
+            # Use a threshold: if best score is too low (< 3), try audio verification
+            use_audio_fallback = False
+            if audio_path and needs_audio_fallback:
+                # Always verify with audio when we have languages without strong heuristics
+                use_audio_fallback = (best_score < 3)
+            elif audio_path and (best_lang is None or best_score == 0):
+                # Also use audio if heuristic completely failed
+                use_audio_fallback = True
+            
+            if use_audio_fallback:
+                try:
+                    detected = self._classify_language_window_audio(audio_path, ws, we, allowed if allowed else list(self.LANGUAGE_NAMES.keys()))
+                    if detected:
+                        logger.debug(f"Window [{ws:.1f}-{we:.1f}s] audio fallback detected: {detected} (heuristic was: {best_lang})")
+                        best_lang = detected
+                        best_score = 100  # Mark as high confidence from audio
+                except Exception as _af_err:
+                    logger.debug(f"Audio fallback classification failed: {_af_err}")
+            
+            if best_lang is None or best_score == 0:
+                # Fallback inherit previous or use first allowed language
+                best_lang = prev_lang if prev_lang else ('unknown' if not allowed else allowed[0])
+            prev_lang = best_lang
+            classified.append({'language': best_lang, 'start': ws, 'end': we, 'text': window_text})
         # Merge adjacent same-language windows (optimized - use list accumulation)
         merged = []
         for seg in classified:
             if merged and merged[-1]['language'] == seg['language']:
                 merged[-1]['end'] = seg['end']
-                # Accumulate texts in a list for efficient joining
                 if '_texts' not in merged[-1]:
                     merged[-1]['_texts'] = [merged[-1]['text']]
                 merged[-1]['_texts'].append(seg['text'])
             else:
                 merged.append(seg.copy())
 
-        # Join accumulated texts
         for m in merged:
             if '_texts' in m:
                 m['text'] = ' '.join(m['_texts'])
@@ -345,6 +393,44 @@ class EnhancedTranscriber(Transcriber):
 
         logger.info(f"Fast transcript-based segmentation produced {len(merged)} segments (languages: {sorted({m['language'] for m in merged})})")
         return merged
+
+    def _classify_language_window_audio(self, audio_path: str, start: float, end: float, allowed_languages: Optional[List[str]] = None, model_name: str = 'tiny') -> Optional[str]:
+        """Classify a window's language via a quick audio-based check, constrained to allowed languages.
+
+        Extracts the audio slice [start, end] and runs a fast transcription to infer language.
+        Returns a language code or None if detection fails.
+        """
+        import subprocess, tempfile, os
+
+        duration = max(0.1, end - start)
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+            temp_path = temp_audio.name
+        try:
+            ffmpeg_cmd = [
+                'ffmpeg','-y','-i',audio_path,
+                '-ss',str(start),
+                '-t',str(duration),
+                '-ar','16000','-ac','1', temp_path
+            ]
+            subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+            transcriber = Transcriber(model_size=model_name)
+            r = transcriber.transcribe(temp_path, language=None, word_timestamps=False)
+            lang = r.get('language', 'unknown')
+            if allowed_languages:
+                # If result not in allowed, keep unknown to avoid leaking other langs
+                if lang not in allowed_languages:
+                    return None
+            return lang
+        except Exception as e:
+            logger.debug(f"Window audio classification failed: {e}")
+            return None
+        finally:
+            try:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            except Exception:
+                pass
 
     def _retranscribe_segments(
         self,
@@ -1206,8 +1292,8 @@ class EnhancedTranscriber(Transcriber):
 
         # Use the fast text-based heuristic which is already quite accurate
         # This analyzes character patterns, diacritics, and common words
-        chunk_size = 4.0  # 4-second windows for analysis
-        language_segments = self._detect_language_from_transcript(segments, chunk_size=chunk_size)
+        chunk_size = 2.0  # 2-second windows for balanced clarity
+        language_segments = self._detect_language_from_transcript(segments, chunk_size=chunk_size, audio_path=audio_path)
 
         if progress_callback and not self.cancel_requested:
             progress_callback("PROGRESS:100:Language detection complete")

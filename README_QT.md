@@ -63,6 +63,12 @@ python gui_qt.py
 pip install -r requirements.txt
 ```
 
+Note (Python 3.13): Python 3.13 removed the stdlib module `audioop` used by some audio libraries. We include `pyaudioop` in `requirements.txt` to restore compatibility for recording/export. If you upgraded Python and recording fails, run:
+
+```bash
+pip install pyaudioop
+```
+
 ### **Option 2: Qt Only**
 ```bash
 pip install PySide6>=6.6.0
@@ -204,7 +210,7 @@ Use Deep Scan only if the heuristic timeline appears merged or misses very short
 When you drop a file or finish recording a **Language Mode Dialog** appears:
 
 1. Choose Single vs Multi-language.
-2. If Multi-language: tick allowed languages (EN, CS, DE, FR, ES, IT) and optionally expand with PL, RU, ZH, JA, KO, AR (more forthcoming).
+2. If Multi-language: tick allowed languages. By default, English and Spanish are preselected for clarity (you can change this to match your content).
 3. App uses minimal sampling (3 strategic points) for classification.
 
 Processing steps (Multi-language) - **OPTIMIZED**:

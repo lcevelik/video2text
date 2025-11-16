@@ -808,6 +808,12 @@ class Video2TextQt(QMainWindow):
         self.apply_theme()
         self.center_window()
 
+        # Runtime compatibility checks (Python 3.13 audio stack)
+        try:
+            self.check_runtime_compat()
+        except Exception as _compat_err:
+            logger.debug(f"Compat check skipped: {_compat_err}")
+
     # Early stub to guarantee existence even if later method definition changes order
     def cancel_transcription(self):
         """Cancel active transcription if running (early stub)."""
@@ -866,6 +872,39 @@ class Video2TextQt(QMainWindow):
             logger.info(f"Settings saved to {self.config_file}")
         except Exception as e:
             logger.error(f"Could not save settings: {e}")
+
+    def check_runtime_compat(self):
+        """Warn users on Python 3.13 if pyaudioop is missing (needed for recording)."""
+        try:
+            import sys as _sys
+            if _sys.version_info >= (3, 13):
+                try:
+                    # Either pyaudioop or audioop-lts (backport) is acceptable
+                    try:
+                        import pyaudioop  # noqa: F401
+                    except Exception:
+                        import audioop  # noqa: F401
+                except Exception:
+                    msg = QMessageBox(self)
+                    msg.setIcon(QMessageBox.Information)
+                    msg.setWindowTitle("Audio Compatibility")
+                    msg.setText("Python 3.13 detected: add 'pyaudioop' or 'audioop-lts' for recording support.")
+                    msg.setInformativeText(
+                        "Recording/export uses audio processing that moved out of Python 3.13.\n"
+                        "Quick fix (run once in your venv):\n\n"
+                        "pip install pyaudioop\n"
+                        "or\n"
+                        "pip install audioop-lts\n\n"
+                        "We'll still work for file uploads; this only affects recording."
+                    )
+                    msg.addButton("OK", QMessageBox.AcceptRole)
+                    try:
+                        msg.exec()
+                    except Exception:
+                        pass
+                    logger.warning("Python 3.13 detected without audioop compatibility. Recording may fail. Run: pip install pyaudioop or audioop-lts")
+        except Exception as e:
+            logger.debug(f"Runtime compat check failed: {e}")
 
     def detect_system_theme(self):
         """Detect if system is in dark mode."""
@@ -1577,7 +1616,11 @@ class Video2TextQt(QMainWindow):
 
         if new_dir:
             self.settings["recordings_dir"] = new_dir
-            self.recordings_dir_display.setText(new_dir)
+            if hasattr(self, 'recordings_dir_display') and self.recordings_dir_display is not None:
+                try:
+                    self.recordings_dir_display.setText(new_dir)
+                except Exception:
+                    pass
             self.save_settings()
             logger.info(f"Recordings directory changed to: {new_dir}")
             QMessageBox.information(
@@ -1966,7 +2009,7 @@ class MultiLanguageChoiceDialog(QDialog):
         title.setStyleSheet("font-size:16px; font-weight:bold;")
         layout.addWidget(title)
 
-        desc = QLabel("Choose 'Yes' if speakers switch languages (e.g., English ↔ Czech). Choose 'No' for a single language to use the faster mode.")
+        desc = QLabel("Choose 'Yes' if speakers switch languages (e.g., English ↔ Spanish). Choose 'No' for a single language to use the faster mode.")
         desc.setWordWrap(True)
         desc.setStyleSheet("font-size:13px; color:#555;")
         layout.addWidget(desc)
@@ -1988,7 +2031,7 @@ class MultiLanguageChoiceDialog(QDialog):
         for idx,(code,name) in enumerate(self.available_languages):
             cb = QCheckBox(name)
             cb.lang_code = code
-            if code in ('en','cs'):  # common pair default
+            if code in ('en','es'):  # common pair default
                 cb.setChecked(True)
             self.lang_checkboxes.append(cb)
             grid.addWidget(cb, idx//3, idx%3)
