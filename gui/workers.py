@@ -11,6 +11,82 @@ from PySide6.QtCore import QThread, Signal
 logger = logging.getLogger(__name__)
 
 
+class AudioPreviewWorker(QThread):
+    """Qt worker thread for audio level preview without recording."""
+
+    audio_level = Signal(float, float)  # (mic_level, speaker_level)
+
+    def __init__(self, mic_device=None, speaker_device=None, parent=None):
+        super().__init__(parent)
+        self.is_running = True
+        self.mic_device = mic_device
+        self.speaker_device = speaker_device
+        self.mic_level = 0.0
+        self.speaker_level = 0.0
+
+    def stop(self):
+        """Stop the preview."""
+        self.is_running = False
+
+    def run(self):
+        """Monitor audio levels without recording."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            import time
+
+            sample_rate = 16000
+
+            # Callbacks
+            def mic_callback(indata, frames, time_info, status):
+                if self.is_running:
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.mic_level = float(min(1.0, rms * 10))
+
+            def speaker_callback(indata, frames, time_info, status):
+                if self.is_running:
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.speaker_level = float(min(1.0, rms * 10))
+
+            # Start streams
+            mic_stream = None
+            speaker_stream = None
+
+            if self.mic_device is not None:
+                try:
+                    mic_stream = sd.InputStream(device=self.mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
+                    mic_stream.start()
+                except Exception as e:
+                    logger.warning(f"Could not start mic preview: {e}")
+
+            if self.speaker_device is not None:
+                try:
+                    speaker_stream = sd.InputStream(device=self.speaker_device, samplerate=sample_rate, channels=1, callback=speaker_callback)
+                    speaker_stream.start()
+                except Exception as e:
+                    logger.warning(f"Could not start speaker preview: {e}")
+
+            # Monitor while active
+            last_level_update = time.time()
+            while self.is_running:
+                sd.sleep(100)
+                current_time = time.time()
+                if current_time - last_level_update >= 0.1:
+                    self.audio_level.emit(self.mic_level, self.speaker_level)
+                    last_level_update = current_time
+
+            # Stop streams
+            if mic_stream:
+                mic_stream.stop()
+                mic_stream.close()
+            if speaker_stream:
+                speaker_stream.stop()
+                speaker_stream.close()
+
+        except Exception as e:
+            logger.error(f"Audio preview error: {e}", exc_info=True)
+
+
 class RecordingWorker(QThread):
     """Qt worker thread for audio recording with proper signal handling."""
 
@@ -20,10 +96,12 @@ class RecordingWorker(QThread):
     status_update = Signal(str)  # status_message
     audio_level = Signal(float, float)  # (mic_level, speaker_level) in range 0.0-1.0
 
-    def __init__(self, output_dir, parent=None):
+    def __init__(self, output_dir, mic_device=None, speaker_device=None, parent=None):
         super().__init__(parent)
         self.is_recording = True
         self.output_dir = Path(output_dir)
+        self.mic_device = mic_device  # Device index or None for auto-detect
+        self.speaker_device = speaker_device  # Device index or None for auto-detect
         self.mic_level = 0.0
         self.speaker_level = 0.0
 
@@ -121,42 +199,46 @@ class RecordingWorker(QThread):
             mic_chunks = []
             speaker_chunks = []
 
-            # Device detection
+            # Device detection - use specified devices or auto-detect
             devices = sd.query_devices()
 
-            # Find microphone
-            mic_device = None
-            try:
-                default_input = sd.default.device[0]
-                if default_input is not None and default_input >= 0:
-                    if devices[default_input]['max_input_channels'] > 0:
-                        mic_device = default_input
-            except:
-                pass
-
+            # Find microphone - use specified or auto-detect
+            mic_device = self.mic_device  # Use user selection if provided
             if mic_device is None:
-                for idx, device in enumerate(devices):
-                    if device['max_input_channels'] > 0:
-                        device_name_lower = device['name'].lower()
-                        if not any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor']):
-                            mic_device = idx
-                            break
+                # Auto-detect microphone
+                try:
+                    default_input = sd.default.device[0]
+                    if default_input is not None and default_input >= 0:
+                        if devices[default_input]['max_input_channels'] > 0:
+                            mic_device = default_input
+                except:
+                    pass
+
+                if mic_device is None:
+                    for idx, device in enumerate(devices):
+                        if device['max_input_channels'] > 0:
+                            device_name_lower = device['name'].lower()
+                            if not any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor']):
+                                mic_device = idx
+                                break
 
             if mic_device is None:
                 logger.error("No microphone found in worker")
                 self.recording_error.emit("❌ No microphone found!")
                 return
 
-            # Find loopback device
-            loopback_device = None
-            for idx, device in enumerate(devices):
-                if idx == mic_device:
-                    continue
-                device_name_lower = device['name'].lower()
-                if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
-                    if device['max_input_channels'] > 0:
-                        loopback_device = idx
-                        break
+            # Find loopback device - use specified or auto-detect
+            loopback_device = self.speaker_device  # Use user selection if provided
+            if loopback_device is None:
+                # Auto-detect loopback device
+                for idx, device in enumerate(devices):
+                    if idx == mic_device:
+                        continue
+                    device_name_lower = device['name'].lower()
+                    if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
+                        if device['max_input_channels'] > 0:
+                            loopback_device = idx
+                            break
 
             # Callbacks
             def mic_callback(indata, frames, time_info, status):
