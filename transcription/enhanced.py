@@ -61,10 +61,8 @@ import os
 import logging
 import tempfile
 import time
-import threading
 from typing import Dict, List, Optional, Any, Tuple
 from transcriber import Transcriber
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed, TimeoutError
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -122,7 +120,6 @@ class EnhancedTranscriber(Transcriber):
         self._audio_cache = None  # Cached audio data for in-memory processing
         self._audio_cache_path = None  # Path of cached audio
         self._audio_sample_rate = 16000  # Whisper expects 16kHz
-        self._transcription_lock = threading.Lock()  # Thread safety for Whisper model (not thread-safe)
 
     def transcribe_multilang(
         self,
@@ -200,14 +197,13 @@ class EnhancedTranscriber(Transcriber):
                     else:
                         initial_segments = []
                     
-                    # OPTIMIZED: Use parallel comprehensive segmentation
+                    # Use sequential comprehensive segmentation (Whisper not thread-safe)
                     chunk_size = 2.0
-                    audio_segments = self._comprehensive_audio_segmentation_parallel(
+                    audio_segments = self._comprehensive_audio_segmentation_sequential(
                         audio_path=audio_path,
                         total_duration=total_duration,
                         allowed_languages=allowed_languages,
                         chunk_size=chunk_size,
-                        max_workers=3,  # Reduced from 4 due to threading lock
                         progress_callback=progress_callback
                     )
                     chunk_count = len(audio_segments)
@@ -291,18 +287,17 @@ class EnhancedTranscriber(Transcriber):
                         logger.warning(f"Could not get audio duration: {e}, using segments end time")
                         total_duration = initial_segments[-1].get('end', 0) if initial_segments else 0
                     
-                    # OPTIMIZED: Use parallel comprehensive segmentation
+                    # Use sequential comprehensive segmentation (Whisper not thread-safe)
                     chunk_size = 2.0
 
                     if progress_callback:
                         progress_callback("Segmenting audio file for comprehensive language detection...")
 
-                    audio_segments = self._comprehensive_audio_segmentation_parallel(
+                    audio_segments = self._comprehensive_audio_segmentation_sequential(
                         audio_path=audio_path,
                         total_duration=total_duration,
                         allowed_languages=allowed_languages,
                         chunk_size=chunk_size,
-                        max_workers=3,  # Reduced from 4 due to threading lock
                         progress_callback=progress_callback
                     )
                     chunk_count = len(audio_segments)
@@ -1547,20 +1542,26 @@ class EnhancedTranscriber(Transcriber):
 
         return temp_path, duration
 
-    def _process_chunk_parallel(self, args: Tuple[str, float, float, Optional[List[str]]]) -> Optional[Dict[str, Any]]:
-        """Process a single audio chunk for parallel execution.
-
-        THREAD SAFETY: Uses lock to serialize Whisper model access (not thread-safe).
+    def _process_chunk_sequential(
+        self,
+        audio_path: str,
+        chunk_start: float,
+        chunk_end: float,
+        allowed_languages: Optional[List[str]]
+    ) -> Optional[Dict[str, Any]]:
+        """Process a single audio chunk sequentially (no threading).
 
         Args:
-            args: Tuple of (audio_path, chunk_start, chunk_end, allowed_languages)
+            audio_path: Path to audio file
+            chunk_start: Start time in seconds
+            chunk_end: End time in seconds
+            allowed_languages: List of allowed language codes
 
         Returns:
             Segment dict or None if failed
         """
         import subprocess
 
-        audio_path, chunk_start, chunk_end, allowed_languages = args
         chunk_duration = chunk_end - chunk_start
 
         if chunk_duration < 0.1:
@@ -1577,16 +1578,14 @@ class EnhancedTranscriber(Transcriber):
                 '-t', str(chunk_duration),
                 '-ar', '16000', '-ac', '1',
                 temp_path
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=10)
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
 
-            # Transcribe this chunk with thread safety
-            # Whisper model is NOT thread-safe, so serialize access
-            with self._transcription_lock:
-                chunk_result = self.transcribe(
-                    temp_path,
-                    language=None,
-                    progress_callback=None
-                )
+            # Transcribe this chunk (no lock needed - sequential processing)
+            chunk_result = self.transcribe(
+                temp_path,
+                language=None,
+                progress_callback=None
+            )
 
             detected_lang = chunk_result.get('language', 'unknown')
             transcribed_text = chunk_result.get('text', '').strip()
@@ -1600,7 +1599,7 @@ class EnhancedTranscriber(Transcriber):
                     'text': transcribed_text
                 }
         except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg timeout extracting chunk [{chunk_start:.1f}-{chunk_end:.1f}s]", exc_info=True)
+            logger.warning(f"FFmpeg timeout (30s) extracting chunk [{chunk_start:.1f}-{chunk_end:.1f}s]", exc_info=True)
         except Exception as e:
             logger.warning(f"Failed to process chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}", exc_info=True)
         finally:
@@ -1612,40 +1611,45 @@ class EnhancedTranscriber(Transcriber):
 
         return None
 
-    def _comprehensive_audio_segmentation_parallel(
+    def _comprehensive_audio_segmentation_sequential(
         self,
         audio_path: str,
         total_duration: float,
         allowed_languages: Optional[List[str]],
         chunk_size: float = 2.0,
-        max_workers: int = 3,
         progress_callback=None
     ) -> List[Dict[str, Any]]:
-        """Perform comprehensive audio segmentation with parallel chunk processing.
+        """Perform comprehensive audio segmentation with sequential chunk processing.
 
-        OPTIMIZATION: Processes multiple chunks in parallel for significant speedup.
-        THREAD SAFETY: Uses threading lock to serialize Whisper access (not thread-safe).
-        Note: max_workers=3 (not 4) since transcription is serialized by lock.
+        IMPORTANT: This is sequential (not parallel) because Whisper model is NOT thread-safe.
+        Previous parallel implementation with lock was actually slower due to threading overhead.
+
+        OPTIMIZATIONS:
+        - In-memory audio loading for fast chunk extraction (if librosa available)
+        - Model reuse (loads once, reuses for all chunks)
+        - Proper progress tracking with realistic time estimates
 
         Args:
             audio_path: Path to audio file
             total_duration: Total duration in seconds
             allowed_languages: List of allowed language codes
             chunk_size: Size of each chunk in seconds
-            max_workers: Maximum number of parallel workers (default: 3)
             progress_callback: Optional progress callback
 
         Returns:
             List of language segments
         """
-        logger.info(f"Starting parallel comprehensive segmentation (chunk_size={chunk_size}s, workers={max_workers})")
+        import subprocess
+        import time
 
-        # Try to load audio into memory for faster processing
+        logger.info(f"Starting comprehensive audio segmentation (chunk_size={chunk_size}s)")
+
+        # Try to load audio into memory for faster chunk extraction
         audio_data, _ = self._load_audio_to_memory(audio_path)
         use_memory = audio_data is not None
 
         if use_memory:
-            logger.info("Using in-memory audio processing for maximum performance")
+            logger.info("Using in-memory audio processing for fast chunk extraction")
         else:
             logger.info("Using ffmpeg-based chunk extraction")
 
@@ -1655,73 +1659,68 @@ class EnhancedTranscriber(Transcriber):
         while current_time < total_duration:
             chunk_start = current_time
             chunk_end = min(current_time + chunk_size, total_duration)
-            chunks.append((chunk_start, chunk_end))
+            if chunk_end - chunk_start >= 0.1:  # Skip very short chunks
+                chunks.append((chunk_start, chunk_end))
             current_time += chunk_size
 
         total_chunks = len(chunks)
-        logger.info(f"Processing {total_chunks} chunks in parallel...")
+        logger.info(f"Processing {total_chunks} chunks sequentially...")
 
         audio_segments = []
         processed_count = 0
+        start_time = time.time()
 
-        # Process chunks in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all chunk processing tasks
-            if use_memory:
-                # Use in-memory processing
-                future_to_chunk = {}
-                for chunk_start, chunk_end in chunks:
-                    future = executor.submit(
-                        self._process_chunk_from_memory,
-                        audio_data,
-                        chunk_start,
-                        chunk_end,
-                        allowed_languages
+        # Process chunks sequentially (Whisper is not thread-safe)
+        for chunk_start, chunk_end in chunks:
+            try:
+                # Process this chunk
+                if use_memory:
+                    result = self._process_chunk_from_memory(
+                        audio_data, chunk_start, chunk_end, allowed_languages
                     )
-                    future_to_chunk[future] = (chunk_start, chunk_end)
-            else:
-                # Use ffmpeg-based processing
-                chunk_args = [
-                    (audio_path, chunk_start, chunk_end, allowed_languages)
-                    for chunk_start, chunk_end in chunks
-                ]
-                future_to_chunk = {
-                    executor.submit(self._process_chunk_parallel, args): chunks[i]
-                    for i, args in enumerate(chunk_args)
-                }
+                else:
+                    result = self._process_chunk_sequential(
+                        audio_path, chunk_start, chunk_end, allowed_languages
+                    )
 
-            # Collect results as they complete
-            for future in as_completed(future_to_chunk, timeout=120):
-                try:
-                    result = future.result(timeout=120)
-                    if result:
-                        audio_segments.append(result)
-                    # CRITICAL: Increment for ALL completed futures, not just successful ones
-                    # Otherwise infinite loop if chunks return None (filtered languages, etc.)
-                    processed_count += 1
+                if result:
+                    audio_segments.append(result)
 
-                    # Progress update every 5 chunks for better visibility
-                    if progress_callback and processed_count % 5 == 0:
-                        progress_callback(f"Processed {processed_count}/{total_chunks} chunks ({len(audio_segments)} valid)...")
+                processed_count += 1
 
-                    # Log every 10 chunks for monitoring
-                    if processed_count % 10 == 0:
-                        logger.info(f"Progress: {processed_count}/{total_chunks} chunks processed, {len(audio_segments)} valid segments")
+                # Progress update every 5 chunks
+                if progress_callback and processed_count % 5 == 0:
+                    elapsed = time.time() - start_time
+                    rate = processed_count / elapsed if elapsed > 0 else 0
+                    remaining = (total_chunks - processed_count) / rate if rate > 0 else 0
+                    progress_callback(
+                        f"Processed {processed_count}/{total_chunks} chunks "
+                        f"({len(audio_segments)} valid) - "
+                        f"~{int(remaining/60)}m {int(remaining%60)}s remaining"
+                    )
 
-                except TimeoutError:
-                    chunk_info = future_to_chunk.get(future, ('unknown', 'unknown'))
-                    logger.error(f"Timeout processing chunk {chunk_info}, skipping", exc_info=True)
-                    processed_count += 1  # Still count it to avoid infinite loop
-                except Exception as e:
-                    chunk_info = future_to_chunk.get(future, ('unknown', 'unknown'))
-                    logger.error(f"Error processing chunk {chunk_info}: {e}", exc_info=True)
-                    processed_count += 1  # Still count it to avoid infinite loop
+                # Log every 10 chunks for monitoring
+                if processed_count % 10 == 0:
+                    elapsed = time.time() - start_time
+                    rate = processed_count / elapsed if elapsed > 0 else 0
+                    logger.info(
+                        f"Progress: {processed_count}/{total_chunks} chunks, "
+                        f"{len(audio_segments)} valid segments, "
+                        f"{rate:.2f} chunks/sec"
+                    )
 
-        logger.info(f"Parallel processing complete: {len(audio_segments)} valid segments from {total_chunks} chunks ({processed_count} processed)")
+            except Exception as e:
+                logger.error(f"Failed to process chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}", exc_info=True)
+                processed_count += 1  # Count it to avoid getting stuck
 
-        # Sort by start time (parallel processing may complete out of order)
-        audio_segments.sort(key=lambda x: x['start'])
+        elapsed_total = time.time() - start_time
+        logger.info(
+            f"Sequential processing complete: {len(audio_segments)} valid segments "
+            f"from {total_chunks} chunks in {elapsed_total:.1f}s "
+            f"({elapsed_total/total_chunks:.2f}s per chunk avg)"
+        )
 
+        # Already in order (sequential processing)
         return audio_segments
 
     def _process_chunk_from_memory(
@@ -1732,8 +1731,6 @@ class EnhancedTranscriber(Transcriber):
         allowed_languages: Optional[List[str]]
     ) -> Optional[Dict[str, Any]]:
         """Process a single audio chunk from in-memory data.
-
-        THREAD SAFETY: Uses lock to serialize Whisper model access (not thread-safe).
 
         Args:
             audio_data: Audio data as numpy array
@@ -1760,14 +1757,12 @@ class EnhancedTranscriber(Transcriber):
                 return None
 
             try:
-                # Transcribe this chunk with thread safety
-                # Whisper model is NOT thread-safe, so serialize access
-                with self._transcription_lock:
-                    chunk_result = self.transcribe(
-                        temp_path,
-                        language=None,
-                        progress_callback=None
-                    )
+                # Transcribe this chunk (no lock needed - sequential processing)
+                chunk_result = self.transcribe(
+                    temp_path,
+                    language=None,
+                    progress_callback=None
+                )
 
                 detected_lang = chunk_result.get('language', 'unknown')
                 transcribed_text = chunk_result.get('text', '').strip()
