@@ -269,14 +269,29 @@ class RecordingWorker(QThread):
             loopback_device = self.speaker_device  # Use user selection if provided
             if loopback_device is None:
                 # Auto-detect loopback device
+                # OBS approach: Look for output devices (for WASAPI loopback) OR input devices matching keywords
                 for idx, device in enumerate(devices):
                     if idx == mic_device:
                         continue
                     device_name_lower = device['name'].lower()
-                    if any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'blackhole']):
-                        if device['max_input_channels'] > 0:
-                            loopback_device = idx
-                            break
+
+                    # Check if it's a known loopback/monitor device name
+                    matches_loopback = any(kw in device_name_lower for kw in
+                                         ['stereo mix', 'loopback', 'monitor', 'blackhole', 'soundflower'])
+
+                    # OPTION 1: Input device with loopback keywords (virtual cables, monitors)
+                    if device['max_input_channels'] > 0 and matches_loopback:
+                        loopback_device = idx
+                        logger.info(f"Auto-detected loopback device (monitor): {device['name']}")
+                        break
+
+                    # OPTION 2: Pure output device (for WASAPI loopback on Windows)
+                    # On Windows, we can capture from output devices via loopback
+                    elif device['max_output_channels'] > 0 and device['max_input_channels'] == 0:
+                        # This is a speaker/headphone - we can try loopback capture
+                        loopback_device = idx
+                        logger.info(f"Auto-detected output device for loopback: {device['name']}")
+                        break
 
             # Callbacks
             def mic_callback(indata, frames, time_info, status):
@@ -293,17 +308,54 @@ class RecordingWorker(QThread):
                     rms = np.sqrt(np.mean(indata**2))
                     self.speaker_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
-            # Start streams
+            # Start mic stream
             mic_stream = sd.InputStream(device=mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
             mic_stream.start()
 
+            # Start speaker/loopback stream
             speaker_stream = None
             if loopback_device is not None:
                 try:
-                    speaker_stream = sd.InputStream(device=loopback_device, samplerate=sample_rate, channels=1, callback=speaker_callback)
+                    # Get device info to determine channel count
+                    loopback_info = devices[loopback_device]
+
+                    # For output devices, use their output channel count
+                    # For input monitors, use input channel count
+                    if loopback_info['max_output_channels'] > 0 and loopback_info['max_input_channels'] == 0:
+                        # Pure output device - use output channels for loopback
+                        # Note: Some backends (WASAPI) support recording from output devices
+                        loopback_channels = min(loopback_info['max_output_channels'], 2)  # Use stereo max
+                        logger.info(f"Opening loopback stream on output device with {loopback_channels} channel(s)")
+                    else:
+                        # Input monitor device - use input channels
+                        loopback_channels = min(loopback_info['max_input_channels'], 2)
+                        logger.info(f"Opening loopback stream on input device with {loopback_channels} channel(s)")
+
+                    # Create callback that handles multi-channel and downmixes to mono
+                    original_speaker_callback = speaker_callback
+                    def multi_channel_speaker_callback(indata, frames, time_info, status):
+                        if self.is_recording:
+                            # Downmix to mono if stereo
+                            if indata.shape[1] > 1:
+                                mono_data = np.mean(indata, axis=1, keepdims=True)
+                            else:
+                                mono_data = indata
+                            speaker_chunks.append(mono_data.copy())
+                            # Calculate RMS level
+                            rms = np.sqrt(np.mean(mono_data**2))
+                            self.speaker_level = float(min(1.0, rms * 10))
+
+                    speaker_stream = sd.InputStream(
+                        device=loopback_device,
+                        samplerate=sample_rate,
+                        channels=loopback_channels,
+                        callback=multi_channel_speaker_callback
+                    )
                     speaker_stream.start()
-                except:
-                    pass
+                    logger.info(f"Successfully opened loopback stream on device {loopback_device}")
+                except Exception as e:
+                    logger.warning(f"Could not open loopback stream on device {loopback_device}: {e}")
+                    logger.info("Recording will continue with microphone only")
 
             # Record while active
             import time
