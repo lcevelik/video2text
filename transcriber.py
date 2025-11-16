@@ -112,17 +112,20 @@ class Transcriber:
     
     def _get_device(self):
         """
-        Determine the best available device (CUDA GPU or CPU).
-        
+        Determine the best available device (CUDA GPU, Apple Silicon MPS, or CPU).
+
         Returns:
-            str: Device name ('cuda' or 'cpu')
+            str: Device name ('cuda', 'mps', or 'cpu')
         """
         if torch.cuda.is_available():
             device = 'cuda'
-            logger.info(f"Using GPU: {torch.cuda.get_device_name(0)}")
+            logger.info(f"✓ Using NVIDIA GPU: {torch.cuda.get_device_name(0)}")
+        elif torch.backends.mps.is_available():
+            device = 'mps'
+            logger.info("✓ Using Apple Silicon GPU (Metal Performance Shaders) - Optimized for M1/M2/M3/M4!")
         else:
             device = 'cpu'
-            logger.info("Using CPU (GPU not available)")
+            logger.info("Using CPU (no GPU acceleration available)")
         return device
     
     def load_model(self, progress_callback=None):
@@ -199,7 +202,7 @@ class Transcriber:
             transcribe_kwargs = {
                 'language': language,
                 'verbose': True if progress_callback else False,
-                'fp16': (self.device == 'cuda')
+                'fp16': (self.device in ['cuda', 'mps'])  # Enable half-precision for GPU acceleration
             }
 
             if word_timestamps:
