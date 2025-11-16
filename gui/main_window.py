@@ -630,10 +630,18 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Audio Device Selection
+        # Audio Device Selection Header with Refresh Button
+        device_header_layout = QHBoxLayout()
         device_section = QLabel("📡 Audio Sources")
         device_section.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(device_section)
+        device_header_layout.addWidget(device_section)
+        device_header_layout.addStretch()
+
+        self.refresh_devices_btn = ModernButton("🔄 Refresh Devices")
+        self.refresh_devices_btn.setMinimumHeight(30)
+        self.refresh_devices_btn.clicked.connect(self.refresh_audio_devices)
+        device_header_layout.addWidget(self.refresh_devices_btn)
+        layout.addLayout(device_header_layout)
 
         # Microphone selection
         mic_layout = QHBoxLayout()
@@ -656,6 +664,12 @@ class Video2TextQt(QMainWindow):
         speaker_layout.addWidget(speaker_label)
         speaker_layout.addWidget(self.speaker_combo, 1)
         layout.addLayout(speaker_layout)
+
+        # Device info label (shows debug info)
+        self.device_info_label = QLabel("")
+        self.device_info_label.setStyleSheet(f"font-size: 11px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-family: monospace;")
+        self.device_info_label.setWordWrap(True)
+        layout.addWidget(self.device_info_label)
 
         # Populate device lists
         self.refresh_audio_devices()
@@ -810,27 +824,46 @@ class Video2TextQt(QMainWindow):
 
     def refresh_audio_devices(self):
         """Refresh the audio device combo boxes."""
+        logger.info("Refreshing audio devices...")
         mic_devices, speaker_devices = get_audio_devices()
+
+        # Build debug info
+        info_lines = []
+        info_lines.append(f"✓ Found {len(mic_devices)} microphone(s)")
+        info_lines.append(f"✓ Found {len(speaker_devices)} system audio device(s)")
 
         # Populate microphone combo
         self.mic_combo.clear()
         if mic_devices:
             for idx, name in mic_devices:
-                self.mic_combo.addItem(name, idx)
+                self.mic_combo.addItem(f"{name} (#{idx})", idx)
+                info_lines.append(f"  🎤 {name} (device #{idx})")
             self.selected_mic_device = mic_devices[0][0]  # Select first by default
         else:
-            self.mic_combo.addItem("No microphone found", None)
+            self.mic_combo.addItem("❌ No microphone found", None)
             self.selected_mic_device = None
+            info_lines.append("⚠️  No microphone detected!")
+            info_lines.append("   → Check System Preferences > Security & Privacy > Microphone")
 
         # Populate speaker combo
         self.speaker_combo.clear()
         if speaker_devices:
             for idx, name in speaker_devices:
-                self.speaker_combo.addItem(name, idx)
+                self.speaker_combo.addItem(f"{name} (#{idx})", idx)
+                info_lines.append(f"  🔊 {name} (device #{idx})")
             self.selected_speaker_device = speaker_devices[0][0]  # Select first by default
         else:
-            self.speaker_combo.addItem("No system audio device found (optional)", None)
+            self.speaker_combo.addItem("❌ No system audio device (optional)", None)
             self.selected_speaker_device = None
+            info_lines.append("ℹ️  No system audio device detected")
+            info_lines.append("   → macOS: Install BlackHole or Soundflower for system audio")
+            info_lines.append("   → Windows: Enable 'Stereo Mix' in Sound Settings")
+
+        # Update debug info label
+        self.device_info_label.setText("\n".join(info_lines))
+
+        # Show status message
+        self.statusBar().showMessage(f"Devices refreshed: {len(mic_devices)} mic(s), {len(speaker_devices)} speaker(s)", 3000)
 
     def on_mic_device_changed(self, index):
         """Handle microphone device selection change."""
