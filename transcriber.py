@@ -119,10 +119,11 @@ class Transcriber:
         """
         if torch.cuda.is_available():
             device = 'cuda'
-            logger.info(f"✓ Using NVIDIA GPU: {torch.cuda.get_device_name(0)}")
+            logger.info(f"✓ Using NVIDIA GPU: {torch.cuda.get_device_name(0)} (with FP16 acceleration)")
         elif torch.backends.mps.is_available():
             device = 'mps'
             logger.info("✓ Using Apple Silicon GPU (Metal Performance Shaders) - Optimized for M1/M2/M3/M4!")
+            logger.info("Note: Using full precision (FP32) on MPS for numerical stability with large models")
         else:
             device = 'cpu'
             logger.info("Using CPU (no GPU acceleration available)")
@@ -202,7 +203,8 @@ class Transcriber:
             transcribe_kwargs = {
                 'language': language,
                 'verbose': True if progress_callback else False,
-                'fp16': (self.device in ['cuda', 'mps'])  # Enable half-precision for GPU acceleration
+                # Only enable FP16 for CUDA (MPS has numerical stability issues with FP16)
+                'fp16': (self.device == 'cuda')
             }
 
             if word_timestamps:
