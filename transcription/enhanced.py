@@ -1681,17 +1681,14 @@ class EnhancedTranscriber(Transcriber):
         pass2_error = None  # To capture errors from Pass 2 thread
 
         # Create transcription model (Pass 2) using class-level cache for reuse across all instances
-        if transcription_model == (self.model.model_name if hasattr(self, 'model') and hasattr(self.model, 'model_name') else self.model_size):
-            transcription_engine = self
-        else:
-            # Check class-level cache first (thread-safe)
-            with self._model_cache_lock:
-                if transcription_model not in self._model_cache:
-                    logger.info(f"Creating {transcription_model} model instance (will be cached for reuse)...")
-                    self._model_cache[transcription_model] = Transcriber(model_size=transcription_model)
-                else:
-                    logger.info(f"Reusing cached {transcription_model} model instance from class cache")
-                transcription_engine = self._model_cache[transcription_model]
+        # ALWAYS use class cache to prevent duplicate loading
+        with self._model_cache_lock:
+            if transcription_model not in self._model_cache:
+                logger.info(f"Creating {transcription_model} model instance (will be cached for reuse)...")
+                self._model_cache[transcription_model] = Transcriber(model_size=transcription_model)
+            else:
+                logger.info(f"Reusing cached {transcription_model} model instance from class cache")
+            transcription_engine = self._model_cache[transcription_model]
 
         # CRITICAL: Preload the transcription model BEFORE starting Pass 2 thread
         # This prevents ~20 second delay when Pass 2 receives its first segment
