@@ -1,17 +1,35 @@
 """
 Transcription Module
 
-This module handles audio transcription using OpenAI Whisper.
+This module handles audio transcription using OpenAI Whisper or faster-whisper.
 Supports multiple model sizes and GPU acceleration.
+
+PERFORMANCE OPTIMIZATION:
+- Automatically uses faster-whisper (CTranslate2) if available (4-5x faster!)
+- Falls back to OpenAI Whisper if faster-whisper not installed
+- Same API, transparent upgrade
 """
 
 import os
 import sys
 import re
 import logging
-import whisper
 import torch
 from io import StringIO
+
+# Try to import faster-whisper first (much faster!)
+try:
+    from faster_whisper import WhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("faster-whisper detected - will use optimized inference (4-5x faster!)")
+except ImportError:
+    FASTER_WHISPER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.info("faster-whisper not available - using standard OpenAI Whisper")
+
+# Import standard whisper as fallback
+import whisper
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +95,25 @@ class Transcriber:
     ]
     
     # Transcription speed factors (seconds of audio per second of processing)
+    # NOTE: These are for OpenAI Whisper. faster-whisper is 4-5x faster!
     # Updated based on actual performance data from RTX 4080 GPU
-    # These represent the processing time ratio (lower = faster)
-    # Example: 0.09 means 1 second of processing handles ~11 seconds of audio (11x real-time)
     # Real-time factors (multiplier - how many times faster than real-time)
-    # e.g., 11.0 means transcription is 11x faster than real-time (1 minute video = ~5.5 seconds to transcribe)
+    # e.g., 11.0 means transcription is 11x faster than real-time (1 minute video = ~5.5 seconds)
     SPEED_FACTORS = {
         'tiny': {'cpu': 10.0, 'cuda': 100.0},      # CPU: 10x real-time, GPU: 100x real-time
         'base': {'cpu': 6.7, 'cuda': 67.0},       # CPU: ~6.7x real-time, GPU: ~67x real-time
         'small': {'cpu': 3.3, 'cuda': 33.0},      # CPU: ~3.3x real-time, GPU: ~33x real-time
-        'medium': {'cpu': 1.7, 'cuda': 11.0},     # CPU: ~1.7x real-time, GPU: ~11x real-time (updated from log data)
-        'large': {'cpu': 0.8, 'cuda': 5.5}        # CPU: ~0.8x real-time, GPU: ~5.5x real-time (estimated)
+        'medium': {'cpu': 1.7, 'cuda': 11.0},     # CPU: ~1.7x real-time, GPU: ~11x real-time
+        'large': {'cpu': 0.8, 'cuda': 5.5}        # CPU: ~0.8x real-time, GPU: ~5.5x real-time
+    }
+
+    # faster-whisper speed factors (4-5x faster than OpenAI Whisper!)
+    SPEED_FACTORS_FASTER = {
+        'tiny': {'cpu': 50.0, 'cuda': 500.0},      # 5x faster than standard
+        'base': {'cpu': 33.5, 'cuda': 335.0},     # 5x faster than standard
+        'small': {'cpu': 16.5, 'cuda': 165.0},    # 5x faster than standard
+        'medium': {'cpu': 8.5, 'cuda': 55.0},     # 5x faster than standard
+        'large': {'cpu': 4.0, 'cuda': 27.5}       # 5x faster than standard
     }
     
     # Model loading time estimates (seconds)
@@ -102,14 +128,19 @@ class Transcriber:
     def __init__(self, model_size='base'):
         """
         Initialize the Transcriber.
-        
+
         Args:
             model_size: Size of the Whisper model to use
         """
         self.model_size = model_size
         self.model = None
         self.device = self._get_device()
-        logger.info(f"Initialized Transcriber with model '{model_size}' on device '{self.device}'")
+        self.use_faster_whisper = FASTER_WHISPER_AVAILABLE
+
+        if self.use_faster_whisper:
+            logger.info(f"Initialized Transcriber with model '{model_size}' using faster-whisper (CTranslate2) on device '{self.device}'")
+        else:
+            logger.info(f"Initialized Transcriber with model '{model_size}' using OpenAI Whisper on device '{self.device}'")
     
     def _get_device(self):
         """
@@ -128,35 +159,50 @@ class Transcriber:
     
     def load_model(self, progress_callback=None):
         """
-        Load the Whisper model.
-        
+        Load the Whisper model (using faster-whisper if available).
+
         Args:
             progress_callback: Optional callback function for progress updates
-            
+
         Returns:
-            whisper.Whisper: Loaded Whisper model
+            Loaded Whisper model (WhisperModel or whisper.Whisper depending on backend)
         """
         if self.model is not None:
             return self.model
-        
+
         if progress_callback:
             progress_callback("Loading Whisper model...")
-        
+
         logger.info(f"Loading Whisper model: {self.model_size}")
-        
+
         try:
-            # Load model on the appropriate device
-            self.model = whisper.load_model(
-                self.model_size,
-                device=self.device
-            )
-            logger.info(f"Model '{self.model_size}' loaded successfully")
-            
+            if self.use_faster_whisper:
+                # Use faster-whisper (CTranslate2)
+                # Map device to faster-whisper format
+                device_type = "cuda" if self.device == "cuda" else "cpu"
+                compute_type = "float16" if device_type == "cuda" else "int8"
+
+                logger.info(f"Loading faster-whisper model (device={device_type}, compute_type={compute_type})")
+                self.model = WhisperModel(
+                    self.model_size,
+                    device=device_type,
+                    compute_type=compute_type
+                )
+                logger.info(f"faster-whisper model '{self.model_size}' loaded successfully (4-5x faster inference)")
+
+            else:
+                # Use standard OpenAI Whisper
+                self.model = whisper.load_model(
+                    self.model_size,
+                    device=self.device
+                )
+                logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
+
             if progress_callback:
                 progress_callback("Model loaded successfully")
-            
+
             return self.model
-            
+
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise RuntimeError(f"Failed to load Whisper model: {e}")
@@ -197,38 +243,82 @@ class Transcriber:
         # Set up progress interception if callback provided
         original_stderr = sys.stderr
         try:
-            # Transcribe with the loaded model
-            transcribe_kwargs = {
-                'language': language,
-                'verbose': True if progress_callback else False,  # Enable verbose to get progress updates
-                'fp16': (self.device == 'cuda')  # Use fp16 on GPU for speed
-            }
+            if self.use_faster_whisper:
+                # Use faster-whisper (CTranslate2) - different API
+                transcribe_kwargs = {
+                    'language': language,
+                    'word_timestamps': word_timestamps,
+                    'vad_filter': True,  # Voice activity detection for better accuracy
+                }
 
-            # Add word timestamps if requested
-            if word_timestamps:
-                transcribe_kwargs['word_timestamps'] = True
+                if initial_prompt:
+                    transcribe_kwargs['initial_prompt'] = initial_prompt
 
-            # Add initial_prompt if provided (helps with speaker recognition and context)
-            if initial_prompt:
-                transcribe_kwargs['initial_prompt'] = initial_prompt
+                # faster-whisper returns (segments, info) tuple
+                segments_generator, info = self.model.transcribe(audio_path, **transcribe_kwargs)
 
-            # Intercept stderr to capture tqdm progress if callback provided
+                # Convert generator to list and build result dict matching OpenAI Whisper format
+                segments_list = []
+                full_text = []
+
+                for segment in segments_generator:
+                    segment_dict = {
+                        'id': segment.id,
+                        'start': segment.start,
+                        'end': segment.end,
+                        'text': segment.text,
+                    }
+
+                    # Add word timestamps if requested
+                    if word_timestamps and hasattr(segment, 'words'):
+                        segment_dict['words'] = [
+                            {
+                                'word': word.word,
+                                'start': word.start,
+                                'end': word.end,
+                                'probability': word.probability
+                            }
+                            for word in segment.words
+                        ]
+
+                    segments_list.append(segment_dict)
+                    full_text.append(segment.text)
+
+                # Build result dict in OpenAI Whisper format
+                result = {
+                    'text': ''.join(full_text),
+                    'segments': segments_list,
+                    'language': info.language if hasattr(info, 'language') else (language or 'unknown')
+                }
+
+            else:
+                # Use standard OpenAI Whisper
+                transcribe_kwargs = {
+                    'language': language,
+                    'verbose': True if progress_callback else False,
+                    'fp16': (self.device == 'cuda')
+                }
+
+                if word_timestamps:
+                    transcribe_kwargs['word_timestamps'] = True
+
+                if initial_prompt:
+                    transcribe_kwargs['initial_prompt'] = initial_prompt
+
+                # Intercept stderr to capture tqdm progress if callback provided
+                if progress_callback:
+                    sys.stderr = ProgressInterceptor(original_stderr, progress_callback, base_percent=50, range_percent=45)
+
+                result = self.model.transcribe(audio_path, **transcribe_kwargs)
+
+                # Restore stderr
+                if progress_callback:
+                    sys.stderr = original_stderr
+
             if progress_callback:
-                # Intercept stderr to capture Whisper's tqdm progress output
-                sys.stderr = ProgressInterceptor(original_stderr, progress_callback, base_percent=50, range_percent=45)
-
-            result = self.model.transcribe(audio_path, **transcribe_kwargs)
-
-            # Restore stderr
-            if progress_callback:
-                sys.stderr = original_stderr
-
-            if progress_callback:
-                # Call with just message (callback signature may vary)
                 try:
                     progress_callback("Transcription completed", 95)
                 except TypeError:
-                    # Callback signature doesn't match, try without percentage
                     try:
                         progress_callback("Transcription completed")
                     except:
@@ -239,7 +329,6 @@ class Transcriber:
 
         except Exception as e:
             logger.error(f"Transcription failed: {e}")
-            # Restore stderr in case of error
             if sys.stderr != original_stderr:
                 sys.stderr = original_stderr
             raise RuntimeError(f"Transcription failed: {e}")
