@@ -2,69 +2,40 @@
 
 ## 🎯 Bottom Line
 
-**Your multi-language videos are now up to 20x faster with automatic hardware acceleration!**
+**Your multi-language videos are now 2-3x faster with pipelined two-pass execution!**
 
 - **Before**: 33-min video = 44 min processing
-- **After**:
-  - **NVIDIA GPU**: 2-3 min (12-20x faster with auto insanely-fast-whisper)
-  - **Apple Silicon**: 10-15 min (2-3x faster with auto MLX)
-  - **CPU only**: 15-20 min (pipelined two-pass)
+- **After**: 33-min video = 15-20 min processing (2-3x faster)
 
 ## 🚀 What Changed (v4.0.0)
 
-### 1. **Automatic Hardware Acceleration** - 12-20x faster!
-- **NVIDIA GPUs**: Automatically uses insanely-fast-whisper (Hugging Face + FlashAttention-2)
-- **Apple Silicon**: Automatically uses MLX Whisper (M1/M2/M3 optimized)
-- **CPU**: Falls back to OpenAI Whisper
-- **Zero configuration**: Just install the optional package for your hardware!
-- **Impact**: 12-20x speedup on NVIDIA, 2-3x on Apple Silicon
-
-### 2. **Two-Pass Smart Detection** - 3x faster than single-pass
+### 1. **Two-Pass Smart Detection** - 3x faster than single-pass
 - Pass 1: Base model finds language boundaries (fast + accurate)
 - Pass 2: Medium model transcribes each segment (accurate)
 - **Why base, not tiny?** Tiny drops words, base is perfect balance
-- **Impact**: 33 min → 19.5 min (before acceleration)
+- **Impact**: 33 min → 19.5 min
 
-### 3. **Pipelined Execution** - Additional 1.2x speedup
+### 2. **Pipelined Execution** - Additional 1.2x speedup
 - Pass 1 and Pass 2 run CONCURRENTLY using separate model instances
 - As soon as segments are detected, transcription starts immediately
 - Both passes overlap instead of waiting
-- **Impact**: Works with all backends for additional speedup
+- **Impact**: 19.5 min → 15-20 min
 
-### 4. **Model Reuse** - Saves 10-20 minutes
+### 3. **Model Reuse** - Saves 10-20 minutes
 - Old: Loaded Whisper model 100+ times
 - New: Load once per pass, reuse for all chunks
 - **Impact**: 8-10 seconds × 100 calls = 13+ min saved
 
-### 5. **In-Memory Audio** - Eliminates I/O overhead
+### 4. **In-Memory Audio** - Eliminates I/O overhead
 - Old: Create/read/delete temp file for every chunk
 - New: Load audio once with librosa, slice in RAM
 - **Impact**: 3-6 seconds saved (more on slow disks)
 
 ## ⚙️ Installation
 
-### Basic (Required)
-
 ```bash
 pip install -r requirements.txt
 ```
-
-### Hardware Acceleration (Optional but HIGHLY Recommended!)
-
-Choose based on your hardware:
-
-**For NVIDIA GPUs (12-20x faster):**
-```bash
-pip install transformers accelerate
-pip install flash-attn --no-build-isolation  # For maximum speed
-```
-
-**For Apple Silicon M1/M2/M3 (2-3x faster):**
-```bash
-pip install mlx-whisper
-```
-
-**Note**: The app automatically detects your hardware and uses the best backend!
 
 ## 📖 Usage
 
@@ -77,7 +48,7 @@ python gui_qt.py
 1. Select your video
 2. Choose languages (e.g., Czech + English)
 3. Click "Transcribe"
-4. Watch it process 6-10x faster! 🚀
+4. Watch it process 2-3x faster! 🚀
 
 ## 🔧 Configuration
 
