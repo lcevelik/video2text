@@ -3,6 +3,19 @@ Modern Qt-based GUI for Video2Text
 
 A beautiful, user-friendly interface built with PySide6/Qt.
 Features modern design, smooth animations, and excellent cross-platform support.
+
+=============================================================================
+OPTIMIZATION SUMMARY (v3.3.0 - Code Review 2025-11-16)
+=============================================================================
+
+GUI code optimizations:
+
+1. **Code Deduplication** (~30 lines removed):
+   - Extracted check_audio_input_devices() as shared utility function
+   - RecordingDialog and Video2TextQt now use common implementation
+   - Easier maintenance and consistency
+
+=============================================================================
 """
 
 import sys
@@ -34,6 +47,36 @@ logging.basicConfig(
     force=True
 )
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def check_audio_input_devices() -> bool:
+    """
+    Check if audio input devices are available (utility function).
+
+    Returns:
+        bool: True if input devices are available, False otherwise
+    """
+    try:
+        import sounddevice as sd
+        devices = sd.query_devices()
+
+        # Check for any input device
+        has_input = any(d['max_input_channels'] > 0 for d in devices)
+
+        if has_input:
+            logger.info(f"Audio devices available: {sum(1 for d in devices if d['max_input_channels'] > 0)} input device(s)")
+            return True
+        else:
+            logger.warning("No audio input devices found")
+            return False
+
+    except Exception as e:
+        logger.error(f"Error checking audio devices: {e}")
+        return False
 
 
 class Theme:
@@ -685,23 +728,7 @@ class RecordingDialog(QDialog):
 
     def check_audio_devices(self):
         """Check if audio input devices are available."""
-        try:
-            import sounddevice as sd
-            devices = sd.query_devices()
-
-            # Check for any input device
-            has_input = any(d['max_input_channels'] > 0 for d in devices)
-
-            if has_input:
-                logger.info(f"Audio devices available: {sum(1 for d in devices if d['max_input_channels'] > 0)} input device(s)")
-                return True
-            else:
-                logger.warning("No audio input devices found")
-                return False
-
-        except Exception as e:
-            logger.error(f"Error checking audio devices: {e}")
-            return False
+        return check_audio_input_devices()  # Use shared utility function
 
     def show_no_device_dialog(self):
         """Show dialog when no audio device is found."""
@@ -1395,23 +1422,7 @@ class Video2TextQt(QMainWindow):
 
     def check_audio_devices(self):
         """Check if audio input devices are available."""
-        try:
-            import sounddevice as sd
-            devices = sd.query_devices()
-
-            # Check for any input device
-            has_input = any(d['max_input_channels'] > 0 for d in devices)
-
-            if has_input:
-                logger.info(f"Audio devices available: {sum(1 for d in devices if d['max_input_channels'] > 0)} input device(s)")
-                return True
-            else:
-                logger.warning("No audio input devices found")
-                return False
-
-        except Exception as e:
-            logger.error(f"Error checking audio devices: {e}")
-            return False
+        return check_audio_input_devices()  # Use shared utility function
 
     def show_no_device_dialog(self):
         """Show dialog when no audio device is found."""
