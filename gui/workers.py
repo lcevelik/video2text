@@ -96,7 +96,8 @@ class RecordingWorker(QThread):
     status_update = Signal(str)  # status_message
     audio_level = Signal(float, float)  # (mic_level, speaker_level) in range 0.0-1.0
 
-    def __init__(self, output_dir, mic_device=None, speaker_device=None, parent=None):
+    def __init__(self, output_dir, mic_device=None, speaker_device=None,
+                 filter_settings=None, parent=None):
         super().__init__(parent)
         self.is_recording = True
         self.output_dir = Path(output_dir)
@@ -104,6 +105,7 @@ class RecordingWorker(QThread):
         self.speaker_device = speaker_device  # Device index or None for auto-detect
         self.mic_level = 0.0
         self.speaker_level = 0.0
+        self.filter_settings = filter_settings or {}
 
     def stop(self):
         """Stop the recording."""
@@ -186,6 +188,42 @@ class RecordingWorker(QThread):
             compressed = compressed * (target_level / current_peak)
 
         return compressed
+
+    def _apply_filters(self, audio_data, sample_rate):
+        """
+        Apply audio filters (RNNoise, Noise Gate) based on settings.
+
+        Args:
+            audio_data: numpy array of audio samples
+            sample_rate: audio sample rate
+
+        Returns:
+            Filtered audio data
+        """
+        from gui.audio_filters import AudioFilterChain
+
+        # Create filter chain
+        filter_chain = AudioFilterChain(sample_rate=sample_rate)
+
+        # Add noise gate if enabled
+        if self.filter_settings.get('noise_gate_enabled', False):
+            filter_chain.add_noise_gate(
+                enabled=True,
+                threshold_db=self.filter_settings.get('noise_gate_threshold', -32.0),
+                attack_ms=self.filter_settings.get('noise_gate_attack', 25.0),
+                release_ms=self.filter_settings.get('noise_gate_release', 150.0),
+                hold_ms=self.filter_settings.get('noise_gate_hold', 200.0)
+            )
+
+        # Add RNNoise if enabled
+        if self.filter_settings.get('rnnoise_enabled', False):
+            filter_chain.add_rnnoise(enabled=True)
+
+        # Process audio through filter chain
+        if filter_chain.filters:
+            return filter_chain.process(audio_data)
+        else:
+            return audio_data
 
     def run(self):
         """Execute recording in background thread."""
@@ -289,11 +327,17 @@ class RecordingWorker(QThread):
             if mic_chunks:
                 mic_data = np.concatenate(mic_chunks, axis=0)
 
+                # Apply audio filters to microphone
+                mic_data = self._apply_filters(mic_data, sample_rate)
+
                 # Normalize microphone audio with AGC
                 mic_data = self._normalize_audio(mic_data, target_rms=0.15)
 
                 if speaker_chunks:
                     speaker_data = np.concatenate(speaker_chunks, axis=0)
+
+                    # Apply audio filters to speaker
+                    speaker_data = self._apply_filters(speaker_data, sample_rate)
 
                     # Normalize speaker audio with AGC
                     speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
@@ -310,8 +354,21 @@ class RecordingWorker(QThread):
                 else:
                     final_data = mic_data
 
-                # Final normalization with dynamic range compression
-                final_data = self._apply_compression(final_data)
+                # Final normalization with enhanced compressor (if enabled)
+                if self.filter_settings.get('use_enhanced_compressor', False):
+                    from gui.audio_filters import EnhancedCompressor
+                    compressor = EnhancedCompressor(
+                        threshold_db=self.filter_settings.get('compressor_threshold', -18.0),
+                        ratio=self.filter_settings.get('compressor_ratio', 3.0),
+                        attack_ms=self.filter_settings.get('compressor_attack', 6.0),
+                        release_ms=self.filter_settings.get('compressor_release', 60.0),
+                        output_gain_db=self.filter_settings.get('compressor_gain', 0.0),
+                        sample_rate=sample_rate
+                    )
+                    final_data = compressor.process(final_data)
+                else:
+                    # Use original simple compression
+                    final_data = self._apply_compression(final_data)
 
                 # Final safety limiting to prevent clipping
                 max_val = np.max(np.abs(final_data))

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
-    QComboBox
+    QComboBox, QCheckBox, QGroupBox
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPalette
@@ -705,6 +705,50 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(self.vu_meters_widget)
         layout.addSpacing(10)
 
+        # Audio Filters Section
+        filters_group = QGroupBox("🎛️ Audio Filters (OBS-Style)")
+        filters_group.setStyleSheet(f"""
+            QGroupBox {{
+                font-weight: bold;
+                border: 2px solid {Theme.get('border', self.is_dark_mode)};
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }}
+        """)
+        filters_layout = QVBoxLayout()
+
+        # Noise Gate
+        self.noise_gate_checkbox = QCheckBox("🚪 Noise Gate - Remove background noise when not speaking")
+        self.noise_gate_checkbox.setChecked(True)  # Enabled by default
+        filters_layout.addWidget(self.noise_gate_checkbox)
+
+        # RNNoise
+        rnnoise_layout = QHBoxLayout()
+        self.rnnoise_checkbox = QCheckBox("🔇 RNNoise - AI-powered noise suppression (recommended)")
+        self.rnnoise_checkbox.setChecked(True)  # Enabled by default
+        rnnoise_layout.addWidget(self.rnnoise_checkbox)
+
+        rnnoise_info = QLabel("(Requires: pip install rnnoise)")
+        rnnoise_info.setStyleSheet(f"font-size: 10px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-style: italic;")
+        rnnoise_layout.addWidget(rnnoise_info)
+        rnnoise_layout.addStretch()
+        filters_layout.addLayout(rnnoise_layout)
+
+        # Enhanced Compressor
+        self.compressor_checkbox = QCheckBox("⚡ Enhanced Compressor - OBS-style dynamics (better than basic)")
+        self.compressor_checkbox.setChecked(True)  # Enabled by default
+        filters_layout.addWidget(self.compressor_checkbox)
+
+        filters_group.setLayout(filters_layout)
+        layout.addWidget(filters_group)
+        layout.addSpacing(10)
+
         # Record toggle button
         button_container = QWidget()
         button_layout = QHBoxLayout(button_container)
@@ -1080,11 +1124,28 @@ class Video2TextQt(QMainWindow):
 
         logger.info(f"Started basic mode recording (mic:{self.selected_mic_device}, speaker:{self.selected_speaker_device})")
 
-        # Start actual recording in QThread worker with selected devices
+        # Collect filter settings from UI
+        filter_settings = {
+            'noise_gate_enabled': self.noise_gate_checkbox.isChecked(),
+            'noise_gate_threshold': -32.0,  # Default value
+            'noise_gate_attack': 25.0,
+            'noise_gate_release': 150.0,
+            'noise_gate_hold': 200.0,
+            'rnnoise_enabled': self.rnnoise_checkbox.isChecked(),
+            'use_enhanced_compressor': self.compressor_checkbox.isChecked(),
+            'compressor_threshold': -18.0,  # Default value
+            'compressor_ratio': 3.0,
+            'compressor_attack': 6.0,
+            'compressor_release': 60.0,
+            'compressor_gain': 0.0
+        }
+
+        # Start actual recording in QThread worker with selected devices and filters
         self.recording_worker = RecordingWorker(
             output_dir=self.settings["recordings_dir"],
             mic_device=self.selected_mic_device,
             speaker_device=self.selected_speaker_device,
+            filter_settings=filter_settings,
             parent=self
         )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
