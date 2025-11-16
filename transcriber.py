@@ -6,11 +6,62 @@ Supports multiple model sizes and GPU acceleration.
 """
 
 import os
+import sys
+import re
 import logging
 import whisper
 import torch
+from io import StringIO
 
 logger = logging.getLogger(__name__)
+
+
+class ProgressInterceptor:
+    """Intercepts stderr to capture Whisper's tqdm progress and forward to callback."""
+
+    def __init__(self, original_stderr, progress_callback=None, base_percent=50, range_percent=45):
+        """
+        Args:
+            original_stderr: Original stderr stream to forward output to
+            progress_callback: Callback function to call with progress updates
+            base_percent: Base percentage to start from (default 50)
+            range_percent: Range of percentages to cover (default 45, so 50-95)
+        """
+        self.original_stderr = original_stderr
+        self.progress_callback = progress_callback
+        self.base_percent = base_percent
+        self.range_percent = range_percent
+        self.buffer = ""
+
+    def write(self, text):
+        """Intercept write calls to stderr."""
+        # Forward to original stderr for terminal display
+        self.original_stderr.write(text)
+
+        # Parse progress if we have a callback
+        if self.progress_callback and text:
+            self.buffer += text
+            # Look for tqdm progress patterns like "25%", " 50%|", etc.
+            # tqdm outputs format: "  5%|▌         | 1/20 [00:01<00:19,  1.03s/it]"
+            match = re.search(r'(\d+)%', text)
+            if match:
+                whisper_percent = int(match.group(1))
+                # Map Whisper's 0-100% to our range (e.g., 50-95%)
+                overall_percent = self.base_percent + int((whisper_percent / 100.0) * self.range_percent)
+                overall_percent = max(0, min(100, overall_percent))
+                try:
+                    # Try calling with message and percent
+                    self.progress_callback(f"Transcribing: {whisper_percent}%", overall_percent)
+                except TypeError:
+                    # Callback only accepts message
+                    try:
+                        self.progress_callback(f"Transcribing: {whisper_percent}%")
+                    except:
+                        pass
+
+    def flush(self):
+        """Forward flush calls to original stderr."""
+        self.original_stderr.flush()
 
 
 class Transcriber:
@@ -143,39 +194,53 @@ class Transcriber:
         if initial_prompt:
             logger.info(f"Using initial prompt: {initial_prompt[:100]}...")
         
+        # Set up progress interception if callback provided
+        original_stderr = sys.stderr
         try:
             # Transcribe with the loaded model
             transcribe_kwargs = {
                 'language': language,
-                'verbose': False,  # Set to False to reduce output
+                'verbose': True if progress_callback else False,  # Enable verbose to get progress updates
                 'fp16': (self.device == 'cuda')  # Use fp16 on GPU for speed
             }
-            
+
             # Add word timestamps if requested
             if word_timestamps:
                 transcribe_kwargs['word_timestamps'] = True
-            
+
             # Add initial_prompt if provided (helps with speaker recognition and context)
             if initial_prompt:
                 transcribe_kwargs['initial_prompt'] = initial_prompt
-            
+
+            # Intercept stderr to capture tqdm progress if callback provided
+            if progress_callback:
+                # Intercept stderr to capture Whisper's tqdm progress output
+                sys.stderr = ProgressInterceptor(original_stderr, progress_callback, base_percent=50, range_percent=45)
+
             result = self.model.transcribe(audio_path, **transcribe_kwargs)
-            
+
+            # Restore stderr
+            if progress_callback:
+                sys.stderr = original_stderr
+
             if progress_callback:
                 # Call with just message (callback signature may vary)
                 try:
-                    progress_callback("Transcription completed")
-                except (TypeError, Exception):
-                    # Callback signature doesn't match, skip
-                    pass
-            
+                    progress_callback("Transcription completed", 95)
+                except TypeError:
+                    # Callback signature doesn't match, try without percentage
+                    try:
+                        progress_callback("Transcription completed")
+                    except:
+                        pass
+
             logger.info("Transcription completed successfully")
             return result
-            
+
         except Exception as e:
             logger.error(f"Transcription failed: {e}")
             # Restore stderr in case of error
-            if 'original_stderr' in locals() and sys.stderr != original_stderr:
+            if sys.stderr != original_stderr:
                 sys.stderr = original_stderr
             raise RuntimeError(f"Transcription failed: {e}")
     
