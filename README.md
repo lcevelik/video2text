@@ -33,7 +33,7 @@ The latest and most advanced interface with ultra-minimal design:
 - ☰ **Hamburger Menu**: All settings in one organized menu
 - 🎙️ **Integrated Recording**: Record mic + speaker with one click
 - 🌐 **Deep Multi-Language**: TRUE code-switching support (Czech ↔ English ↔ Czech)
-- 🚀 **Default: Large Model**: Best accuracy for multi-language out-of-the-box
+- 🚀 **Model Defaults**: Single-language → `base` (or `base.en` if English-only); Multi-language → `large` for maximum cross-language accuracy
 
 **How to run:**
 ```bash
@@ -413,10 +413,14 @@ VideoToText/
 | Model | Size | Speed | Accuracy | Use Case |
 |-------|------|-------|----------|----------|
 | tiny | ~39 MB | Very Fast | Basic | Quick tests, low accuracy needs |
-| base | ~74 MB | Fast | Good | Simple transcription |
-| small | ~244 MB | Medium | Better | Better accuracy needed |
-| medium | ~769 MB | Slow | High | High accuracy needed |
-| large | ~3 GB | Very Slow | Best | **Qt GUI default - Best for multi-language**, requires 10GB+ RAM |
+| tiny.en | ~39 MB | Very Fast | Basic (EN) | English-only quick tests |
+| base | ~74 MB | Fast | Good | Balanced single-language (mixed or unknown) |
+| base.en | ~74 MB | Fast | Good (EN) | English-only balanced default |
+| small | ~244 MB | Medium | Better | Better accuracy multi/single |
+| small.en | ~244 MB | Medium | Better (EN) | English-only improved accuracy |
+| medium | ~769 MB | Slow | High | High accuracy (multi/single) |
+| medium.en | ~769 MB | Slow | High (EN) | English-only high accuracy |
+| large | ~3 GB | Very Slow | Best | Multi-language maximum accuracy (no .en variant) |
 
 ## Troubleshooting
 

@@ -16,8 +16,14 @@ logger = logging.getLogger(__name__)
 class Transcriber:
     """Handles audio transcription using OpenAI Whisper."""
     
-    # Available Whisper model sizes
-    MODEL_SIZES = ['tiny', 'base', 'small', 'medium', 'large']
+    # Available Whisper model sizes (including English-only variants where available)
+    MODEL_SIZES = [
+        'tiny', 'tiny.en',
+        'base', 'base.en',
+        'small', 'small.en',
+        'medium', 'medium.en',
+        'large'
+    ]
     
     # Transcription speed factors (seconds of audio per second of processing)
     # Updated based on actual performance data from RTX 4080 GPU
@@ -251,7 +257,8 @@ class Transcriber:
             }
         
         # Get real-time factor for the model and device (how many times faster than real-time)
-        realtime_factor = Transcriber.SPEED_FACTORS.get(model_size, {}).get(device, 10.0)
+        base_name = model_size.replace('.en', '') if isinstance(model_size, str) else model_size
+        realtime_factor = Transcriber.SPEED_FACTORS.get(base_name, {}).get(device, 10.0)
         
         # Estimate transcription time (video duration / real-time factor)
         # e.g., 1963 seconds video with 11x factor = 1963/11 = 178 seconds
@@ -260,7 +267,7 @@ class Transcriber:
         # Model loading time (only if not already loaded)
         loading_seconds = 0
         if not model_already_loaded:
-            loading_seconds = Transcriber.MODEL_LOAD_TIMES.get(model_size, {}).get(device, 5)
+            loading_seconds = Transcriber.MODEL_LOAD_TIMES.get(base_name, {}).get(device, 5)
         
         # Audio extraction time (rough estimate: ~5-15 seconds depending on video length)
         extraction_seconds = min(15, max(5, video_duration_seconds * 0.01))
@@ -357,5 +364,13 @@ class Transcriber:
             }
         }
         
+        # If an English-only variant is requested, map to the base model's description
+        # and annotate that it is English-only optimized.
+        if isinstance(model_size, str) and model_size.endswith('.en'):
+            base = model_size[:-3]
+            base_desc = descriptions.get(base, descriptions['base']).copy()
+            base_desc['description'] = base_desc['description'] + ' (English-only optimized)'
+            return base_desc
+
         return descriptions.get(model_size, descriptions['base'])
 

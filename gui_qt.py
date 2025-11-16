@@ -27,6 +27,12 @@ from audio_extractor import AudioExtractor
 from transcriber import Transcriber
 from transcriber_enhanced import EnhancedTranscriber
 
+# Configure logging to ensure output is visible
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
+)
 logger = logging.getLogger(__name__)
 
 
@@ -327,6 +333,7 @@ class TranscriptionWorker(QThread):
                 # Always enable multi-language path; decide depth via fast_text_language vs deep scan
                 mode_desc = "deep scanning (audio chunks)" if self.use_deep_scan else "fast transcript segmentation"
                 self.progress_update.emit(f"Transcribing with multi-language {mode_desc}...", 60)
+                logger.info(f"Starting transcribe_multilang with allowed_languages={self.allowed_languages}")
                 # Ensure fallback to audio chunk analysis if transcript heuristic yields single language
                 result = transcriber.transcribe_multilang(
                     audio_path,
@@ -340,21 +347,33 @@ class TranscriptionWorker(QThread):
                     fast_text_language=not self.use_deep_scan,
                     allowed_languages=self.allowed_languages if self.allowed_languages else None
                 )
+                logger.info(f"transcribe_multilang returned. Result type: {type(result)}, has 'text': {'text' in result if result else 'None'}")
             else:
                 self.progress_update.emit("Transcribing audio...", 60)
+                logger.info("Starting regular transcribe")
                 result = transcriber.transcribe(
                     audio_path,
                     language=self.language if self.language and self.language != "Auto-detect" else None,
                     progress_callback=progress_callback
                 )
+                logger.info(f"transcribe returned. Result type: {type(result)}")
 
+            logger.info(f"About to emit progress 100%")
             self.progress_update.emit("Transcription complete!", 100)
-
-            # Emit result
-            self.transcription_complete.emit(result)
+            
+            logger.info(f"About to emit transcription_complete signal. Result keys: {result.keys() if result else 'None'}")
+            try:
+                # Emit result
+                self.transcription_complete.emit(result)
+                logger.info(f"transcription_complete signal emitted successfully")
+            except Exception as emit_error:
+                logger.error(f"ERROR emitting signal: {emit_error}", exc_info=True)
+                raise
 
         except Exception as e:
+            import traceback
             logger.error(f"Transcription error: {e}", exc_info=True)
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             self.transcription_error.emit(f"Transcription failed: {str(e)}")
 
     def cancel(self):
@@ -1624,7 +1643,7 @@ class Video2TextQt(QMainWindow):
             # Use global deep scan toggle; if False use heuristic + conditional fallback
             use_deep_scan = bool(getattr(self, 'enable_deep_scan', False))
         else:
-            model_size = "medium"  # Faster single-language transcription
+            model_size = "base"  # Default to base for single-language (more robust on this audio)
             language = None  # Still auto-detect primary language
             detect_language_changes = False
             use_deep_scan = False
@@ -1757,6 +1776,23 @@ class Video2TextQt(QMainWindow):
         lang_name = EnhancedTranscriber.LANGUAGE_NAMES.get(language, language.upper())
         language_timeline = result.get('language_timeline', '')
         language_segments = result.get('language_segments', [])
+        
+        # DEBUG: Log result details
+        logger.info(f"=== TRANSCRIPTION RESULT DEBUG ===")
+        logger.info(f"Text length: {len(text)} characters")
+        logger.info(f"Segments: {segment_count}")
+        logger.info(f"Language segments: {len(language_segments)}")
+        logger.info(f"Has timeline: {bool(language_timeline)}")
+        if language_segments:
+            logger.info(f"First 3 language segments: {language_segments[:3]}")
+        if not text:
+            logger.warning(f"WARNING: text is empty! Checking language_segments...")
+            if language_segments:
+                # Try to reconstruct text from language_segments
+                text = ' '.join(seg.get('text', '') for seg in language_segments)
+                logger.info(f"Reconstructed text from language_segments: {len(text)} characters")
+        logger.info(f"=== END DEBUG ===")
+
         has_multilang = bool(language_timeline or language_segments)
         display_text = text
         if has_multilang and language_timeline:
@@ -1769,7 +1805,34 @@ class Video2TextQt(QMainWindow):
             lang_info = f"Language: {lang_name}"
         # Update UI widgets
         if hasattr(self, 'basic_result_text'):
+            logger.info(f"Setting text in UI. Display text length: {len(display_text)}, First 100 chars: {display_text[:100] if display_text else 'EMPTY'}")
+            self.basic_result_text.clear()  # Clear first
             self.basic_result_text.setPlainText(display_text)
+            logger.info(f"Text set in UI successfully")
+            # Persist debug transcript for inspection (handles dot-only cases)
+            try:
+                debug_path = Path.cwd() / 'transcription_debug.txt'
+                # Collect sample of first 20 segment texts (if available)
+                sample_segments = []
+                for s in segments[:20]:
+                    sample_segments.append(repr(s.get('text','')))
+                with open(debug_path, 'w', encoding='utf-8') as dbg:
+                    dbg.write('=== Transcript Debug Dump ===\n')
+                    dbg.write(f'Total characters: {len(display_text)}\n')
+                    dbg.write(f'Total segments: {segment_count}\n')
+                    dbg.write(f'Language: {lang_name}\n')
+                    dbg.write('--- First 300 characters ---\n')
+                    dbg.write(display_text[:300] + '\n')
+                    dbg.write('--- Segment samples (first 20) ---\n')
+                    for i, seg_txt in enumerate(sample_segments, 1):
+                        dbg.write(f'{i}: {seg_txt}\n')
+                logger.info(f"Wrote transcript debug file to {debug_path}")
+                # Detect if transcript is only punctuation (dot heavy)
+                meaningful_chars = sum(c.isalnum() for c in display_text)
+                if meaningful_chars < max(10, len(display_text) * 0.02):
+                    logger.warning("Transcript appears to be mostly non-meaningful punctuation (dot-only). Possibly silent or low-quality audio.")
+            except Exception as dbg_err:
+                logger.warning(f"Could not write transcript debug file: {dbg_err}")
         if hasattr(self, 'basic_save_btn'):
             self.basic_save_btn.setEnabled(True)
         if hasattr(self, 'cancel_transcription_btn') and self.cancel_transcription_btn:

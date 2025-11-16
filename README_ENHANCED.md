@@ -198,15 +198,19 @@ TkinterDnD2>=0.3.0    # For drag-and-drop (optional)
    - Click "💾 Save Transcription"
    - Choose format and location
 
-## 🎨 Model Selection Guide
+## 🎨 Model Selection Guide & English-only Variants
 
-| Model  | Size   | Speed (GPU) | Speed (CPU) | Best For                          |
-|--------|--------|-------------|-------------|-----------------------------------|
-| tiny   | ~75MB  | 100x RT     | 10x RT      | Quick tests, simple speech        |
-| base   | ~142MB | 67x RT      | 6.7x RT     | Most common use cases             |
-| small  | ~466MB | 33x RT      | 3.3x RT     | Better accuracy, accents          |
-| medium | ~1.5GB | 11x RT      | 1.7x RT     | High accuracy, complex audio      |
-| large  | ~2.9GB | 5.5x RT     | 0.8x RT     | Maximum accuracy, professional    |
+| Model      | Size   | Speed (GPU) | Speed (CPU) | Best For                                         |
+|------------|--------|-------------|-------------|--------------------------------------------------|
+| tiny       | ~75MB  | 100x RT     | 10x RT      | Quick tests, simple speech                       |
+| tiny.en    | ~75MB  | 100x RT     | 10x RT      | English-only quick tests                        |
+| base       | ~142MB | 67x RT      | 6.7x RT     | Most common mixed/unknown language use cases    |
+| base.en    | ~142MB | 67x RT      | 6.7x RT     | English-only balanced default                   |
+| small      | ~466MB | 33x RT      | 3.3x RT     | Better accuracy, accents/multi-language         |
+| small.en   | ~466MB | 33x RT      | 3.3x RT     | English-only improved accuracy                  |
+| medium     | ~1.5GB | 11x RT      | 1.7x RT     | High accuracy, complex audio / multi-language   |
+| medium.en  | ~1.5GB | 11x RT      | 1.7x RT     | English-only high accuracy                      |
+| large      | ~2.9GB | 5.5x RT     | 0.8x RT     | Maximum cross-language accuracy (no .en variant) |
 
 *RT = Real-time (e.g., 10x RT means 1 minute of audio takes ~6 seconds to transcribe)*
 
@@ -215,9 +219,11 @@ TkinterDnD2>=0.3.0    # For drag-and-drop (optional)
 The auto-selection feature:
 1. Starts with **tiny** (fastest)
 2. Checks confidence score
-3. If score < 70%, tries **base**
-4. If score < 80%, tries **small**
-5. Uses best quality result
+3. If score < 70%, tries **base** (or `base.en` if English-only was chosen)
+4. If score < 80%, tries **small** (or `small.en` for English-only)
+5. Uses best quality result; upgrade to **medium** only if needed (select manually for .en variants)
+
+> English-only variants (`*.en`) remove multilingual vocabulary and can slightly improve speed/stability for strictly English recordings. For mixed language content, always choose the non-`.en` model.
 
 ## 🛠️ Troubleshooting
 

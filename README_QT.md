@@ -269,14 +269,17 @@ English, Spanish, French, German, Polish, Czech, Italian, Portuguese, Dutch, Rus
 
 ---
 
-## 🤖 Automatic Optimization
+## 🤖 Automatic Optimization & Model Defaults
 
-**No configuration needed!** The app automatically uses:
+**No configuration needed!** The app chooses sensible defaults based on the mode you select in the Language Mode dialog:
 
-- **Detection:** Base model (~74 MB) - Fast language boundary detection
-- **Transcription:** Large model (~3 GB) - Best accuracy for multi-language
-- **Mode:** Heuristic segmentation (default) + optional Deep Scan toggle for toughest code-switching
-- **Optional:** Deep Scan (secondary chunk pass) improves boundary precision; leave OFF for fastest results
+- **Single-language:** Uses the `base` model by default (balanced speed & accuracy). If you explicitly select English-only content you can choose `base.en`, `small.en`, or `medium.en` for an English‑optimized variant (slightly smaller download / memory footprint and focused language vocabulary).
+- **Multi-language:** Uses the `large` model for maximum cross‑language accuracy and cleaner boundaries between languages.
+- **Detection / Segmentation:** Text heuristic pass (single transcription) + automatic fallback deep chunk pass only if declared multi-language collapses to one language.
+- **Deep Scan Toggle:** When enabled, forces full chunk re-analysis for highly interwoven code-switching; leave OFF for fastest processing.
+
+### English‑Only Variants (.en)
+Available models now include: `tiny.en`, `base.en`, `small.en`, `medium.en` (Whisper does not provide `large.en`). These are trained for English only and can reduce minor false positives and slightly improve speed on English content. For mixed languages, always use the non-`.en` variant.
 
 The system downloads models automatically on first use. Subsequent uses are instant.
 
