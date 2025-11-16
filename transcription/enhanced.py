@@ -105,6 +105,11 @@ class EnhancedTranscriber(Transcriber):
         'unknown': 'Unknown'
     }
 
+    # CLASS-LEVEL model cache (shared across all instances for maximum performance)
+    # This allows models loaded at app startup to be reused by all transcription workers
+    _model_cache = {}  # Dict[str, Transcriber] - keyed by model size
+    _model_cache_lock = threading.Lock()  # Thread-safe access to cache
+
     def __init__(self, model_size='base', enable_diagnostics=True):
         """
         Initialize the Enhanced Transcriber.
@@ -1675,14 +1680,24 @@ class EnhancedTranscriber(Transcriber):
         final_segments = []
         pass2_error = None  # To capture errors from Pass 2 thread
 
-        # Create transcription model (Pass 2)
+        # Create transcription model (Pass 2) using class-level cache for reuse across all instances
         if transcription_model == (self.model.model_name if hasattr(self, 'model') and hasattr(self.model, 'model_name') else self.model_size):
             transcription_engine = self
         else:
-            if not hasattr(self, '_transcription_model') or self._transcription_model is None:
-                logger.info(f"Loading {transcription_model} model for accurate transcription...")
-                self._transcription_model = Transcriber(model_size=transcription_model)
-            transcription_engine = self._transcription_model
+            # Check class-level cache first (thread-safe)
+            with self._model_cache_lock:
+                if transcription_model not in self._model_cache:
+                    logger.info(f"Creating {transcription_model} model instance (will be cached for reuse)...")
+                    self._model_cache[transcription_model] = Transcriber(model_size=transcription_model)
+                else:
+                    logger.info(f"Reusing cached {transcription_model} model instance from class cache")
+                transcription_engine = self._model_cache[transcription_model]
+
+        # CRITICAL: Preload the transcription model BEFORE starting Pass 2 thread
+        # This prevents ~20 second delay when Pass 2 receives its first segment
+        logger.info(f"Preloading {transcription_model} model before starting Pass 2 thread...")
+        transcription_engine.load_model()
+        logger.info(f"✓ {transcription_model} model preloaded and ready for Pass 2 (using device: {transcription_engine.device})")
 
         # PASS 2: Transcription worker (runs in background thread)
         # =========================================================
@@ -1785,10 +1800,19 @@ class EnhancedTranscriber(Transcriber):
 
         logger.info(f"PASS 1: Fast language detection with {detection_model} model (chunk_size={chunk_size}s)")
 
-        # Create detection model instance (cached)
-        if not hasattr(self, '_detection_model') or self._detection_model is None:
-            logger.info(f"Loading {detection_model} model for language detection...")
-            self._detection_model = Transcriber(model_size=detection_model)
+        # Create detection model instance using class-level cache for reuse across all instances
+        with self._model_cache_lock:
+            if detection_model not in self._model_cache:
+                logger.info(f"Creating {detection_model} model instance (will be cached for reuse)...")
+                self._model_cache[detection_model] = Transcriber(model_size=detection_model)
+            else:
+                logger.info(f"Reusing cached {detection_model} model instance from class cache")
+            detection_engine = self._model_cache[detection_model]
+
+        # Preload the detection model before starting Pass 1
+        logger.info(f"Preloading {detection_model} model for Pass 1...")
+        detection_engine.load_model()
+        logger.info(f"✓ {detection_model} model preloaded and ready for Pass 1 (using device: {detection_engine.device})")
 
         # Try to load audio into memory for faster chunk extraction
         audio_data, _ = self._load_audio_to_memory(audio_path)
@@ -1826,11 +1850,11 @@ class EnhancedTranscriber(Transcriber):
                 # Process this chunk with FAST model
                 if use_memory:
                     result = self._process_chunk_from_memory_with_model(
-                        audio_data, chunk_start, chunk_end, allowed_languages, self._detection_model
+                        audio_data, chunk_start, chunk_end, allowed_languages, detection_engine
                     )
                 else:
                     result = self._process_chunk_sequential_with_model(
-                        audio_path, chunk_start, chunk_end, allowed_languages, self._detection_model
+                        audio_path, chunk_start, chunk_end, allowed_languages, detection_engine
                     )
 
                 if result:
