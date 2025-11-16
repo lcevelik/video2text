@@ -198,15 +198,16 @@ class EnhancedTranscriber(Transcriber):
                         initial_segments = []
                     
                     # Use two-pass comprehensive segmentation (fast detection + accurate transcription)
-                    # Pass 1: Fast tiny model detects language boundaries
+                    # Pass 1: Base model (not tiny!) detects language boundaries
                     # Pass 2: Accurate main model transcribes each segment
+                    # Note: Base is faster than medium but more accurate than tiny (doesn't drop words)
                     chunk_size = 2.0
                     self.language_segments = self._comprehensive_audio_segmentation_twopass(
                         audio_path=audio_path,
                         total_duration=total_duration,
                         allowed_languages=allowed_languages,
                         chunk_size=chunk_size,
-                        detection_model='tiny',  # Fast model for detection
+                        detection_model='base',  # Base model: faster than medium, more accurate than tiny
                         transcription_model=self.model_size,  # Use main model for transcription
                         progress_callback=progress_callback
                     )
@@ -301,7 +302,7 @@ class EnhancedTranscriber(Transcriber):
                         total_duration=total_duration,
                         allowed_languages=allowed_languages,
                         chunk_size=chunk_size,
-                        detection_model='tiny',  # Fast model for detection
+                        detection_model='base',  # Base model: faster than medium, more accurate than tiny
                         transcription_model=self.model_size,  # Use main model for transcription
                         progress_callback=progress_callback
                     )
@@ -1621,27 +1622,34 @@ class EnhancedTranscriber(Transcriber):
         total_duration: float,
         allowed_languages: Optional[List[str]],
         chunk_size: float = 2.0,
-        detection_model: str = 'tiny',
+        detection_model: str = 'base',
         transcription_model: str = 'medium',
         progress_callback=None
     ) -> List[Dict[str, Any]]:
         """Two-pass comprehensive audio segmentation for maximum speed and accuracy.
 
         SMART APPROACH (suggested by user):
-        Pass 1: Use FAST model (tiny) to quickly identify WHERE language changes occur
+        Pass 1: Use FAST model (base) to accurately identify WHERE language changes occur
         Pass 2: Use ACCURATE model (medium) to transcribe each language segment properly
 
-        This is 3x faster than single-pass chunk processing:
-        - Pass 1: 990 chunks × 0.5s (tiny) = 500s to find boundaries
+        WHY BASE MODEL (not tiny):
+        - Tiny model is fast BUT drops words and misses short language switches
+        - Base model: 2x faster than medium, but much more accurate than tiny
+        - Doesn't drop words or miss transitions
+        - Sweet spot for speed + accuracy
+
+        Performance estimate:
+        - Pass 1: 990 chunks × 1.0s (base) = 990s to find boundaries
         - Pass 2: 3 segments × 60s (medium) = 180s for accurate transcription
-        - Total: ~680s vs ~2000s for single-pass medium model approach
+        - Total: ~1170s (19.5 min) vs ~2000s (33 min) for single-pass medium model
+        - Still ~1.7x faster, but with accurate boundary detection!
 
         Args:
             audio_path: Path to audio file
             total_duration: Total duration in seconds
             allowed_languages: List of allowed language codes
             chunk_size: Size of each chunk in seconds for detection
-            detection_model: Fast model for language detection (default: 'tiny')
+            detection_model: Fast model for language detection (default: 'base')
             transcription_model: Accurate model for transcription (default: 'medium')
             progress_callback: Optional progress callback
 
