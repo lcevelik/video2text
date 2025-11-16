@@ -25,7 +25,7 @@ from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone
 from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
-from gui.utils import check_audio_input_devices, get_audio_devices
+from gui.utils import check_audio_input_devices, get_audio_devices, get_platform, get_platform_audio_setup_help
 from gui.vu_meter import VUMeter
 from transcriber import Transcriber
 from transcription.enhanced import EnhancedTranscriber
@@ -630,10 +630,23 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Audio Device Selection
+        # Audio Device Selection Header with Refresh and Help Buttons
+        device_header_layout = QHBoxLayout()
         device_section = QLabel("📡 Audio Sources")
         device_section.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        layout.addWidget(device_section)
+        device_header_layout.addWidget(device_section)
+        device_header_layout.addStretch()
+
+        self.setup_help_btn = ModernButton("❓ Setup Guide")
+        self.setup_help_btn.setMinimumHeight(30)
+        self.setup_help_btn.clicked.connect(self.show_audio_setup_guide)
+        device_header_layout.addWidget(self.setup_help_btn)
+
+        self.refresh_devices_btn = ModernButton("🔄 Refresh")
+        self.refresh_devices_btn.setMinimumHeight(30)
+        self.refresh_devices_btn.clicked.connect(self.refresh_audio_devices)
+        device_header_layout.addWidget(self.refresh_devices_btn)
+        layout.addLayout(device_header_layout)
 
         # Microphone selection
         mic_layout = QHBoxLayout()
@@ -656,6 +669,12 @@ class Video2TextQt(QMainWindow):
         speaker_layout.addWidget(speaker_label)
         speaker_layout.addWidget(self.speaker_combo, 1)
         layout.addLayout(speaker_layout)
+
+        # Device info label (shows debug info)
+        self.device_info_label = QLabel("")
+        self.device_info_label.setStyleSheet(f"font-size: 11px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-family: monospace;")
+        self.device_info_label.setWordWrap(True)
+        layout.addWidget(self.device_info_label)
 
         # Populate device lists
         self.refresh_audio_devices()
@@ -809,28 +828,56 @@ class Video2TextQt(QMainWindow):
         logger.info(f"Selected file: {file_path}")
 
     def refresh_audio_devices(self):
-        """Refresh the audio device combo boxes."""
+        """Refresh the audio device combo boxes with platform-specific help."""
+        logger.info("Refreshing audio devices...")
+        current_platform = get_platform()
+        platform_help = get_platform_audio_setup_help()
         mic_devices, speaker_devices = get_audio_devices()
+
+        # Build debug info
+        info_lines = []
+        info_lines.append(f"Platform: {current_platform.upper()}")
+        info_lines.append(f"✓ Found {len(mic_devices)} microphone(s)")
+        info_lines.append(f"✓ Found {len(speaker_devices)} system audio device(s)")
 
         # Populate microphone combo
         self.mic_combo.clear()
         if mic_devices:
             for idx, name in mic_devices:
-                self.mic_combo.addItem(name, idx)
+                self.mic_combo.addItem(f"{name} (#{idx})", idx)
+                info_lines.append(f"  🎤 {name} (device #{idx})")
             self.selected_mic_device = mic_devices[0][0]  # Select first by default
         else:
-            self.mic_combo.addItem("No microphone found", None)
+            self.mic_combo.addItem("❌ No microphone found", None)
             self.selected_mic_device = None
+            info_lines.append("")
+            info_lines.append("⚠️  No microphone detected!")
+            # Add platform-specific permission help
+            for line in platform_help.get('permissions', [])[:3]:  # Show first 3 lines
+                info_lines.append(line)
 
         # Populate speaker combo
         self.speaker_combo.clear()
         if speaker_devices:
             for idx, name in speaker_devices:
-                self.speaker_combo.addItem(name, idx)
+                self.speaker_combo.addItem(f"{name} (#{idx})", idx)
+                info_lines.append(f"  🔊 {name} (device #{idx})")
             self.selected_speaker_device = speaker_devices[0][0]  # Select first by default
         else:
-            self.speaker_combo.addItem("No system audio device found (optional)", None)
+            self.speaker_combo.addItem("❌ No system audio device (optional)", None)
             self.selected_speaker_device = None
+            info_lines.append("")
+            info_lines.append("ℹ️  No system audio device detected")
+            # Add platform-specific loopback setup help (first 5 lines)
+            for line in platform_help.get('loopback_install', [])[:5]:
+                info_lines.append(line)
+            info_lines.append("   (Click '?' button for full setup guide)")
+
+        # Update debug info label
+        self.device_info_label.setText("\n".join(info_lines))
+
+        # Show status message
+        self.statusBar().showMessage(f"Devices refreshed: {len(mic_devices)} mic(s), {len(speaker_devices)} speaker(s)", 3000)
 
     def on_mic_device_changed(self, index):
         """Handle microphone device selection change."""
@@ -841,6 +888,68 @@ class Video2TextQt(QMainWindow):
         """Handle speaker device selection change."""
         self.selected_speaker_device = self.speaker_combo.currentData()
         logger.info(f"Selected speaker device: {self.speaker_combo.currentText()} (index: {self.selected_speaker_device})")
+
+    def show_audio_setup_guide(self):
+        """Show platform-specific audio setup guide."""
+        current_platform = get_platform()
+        platform_help = get_platform_audio_setup_help()
+
+        platform_names = {
+            'macos': 'macOS',
+            'windows': 'Windows',
+            'linux': 'Linux'
+        }
+
+        platform_display = platform_names.get(current_platform, current_platform.upper())
+
+        # Build help message
+        help_text = f"# Audio Setup Guide for {platform_display}\n\n"
+
+        # Microphone permissions
+        help_text += "## Microphone Setup\n\n"
+        help_text += "\n".join(platform_help.get('permissions', []))
+        help_text += "\n\n"
+
+        # System audio setup
+        help_text += "## System Audio / YouTube Capture Setup\n\n"
+        help_text += "\n".join(platform_help.get('loopback_install', []))
+
+        # Create dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Audio Setup Guide - {platform_display}")
+        dialog.setMinimumSize(650, 500)
+
+        layout = QVBoxLayout()
+
+        # Title
+        title = QLabel(f"🎙️ Audio Setup Guide for {platform_display}")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
+        layout.addWidget(title)
+
+        # Help text
+        help_display = QTextEdit()
+        help_display.setPlainText(help_text)
+        help_display.setReadOnly(True)
+        help_display.setStyleSheet("""
+            QTextEdit {
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 12px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                padding: 10px;
+                line-height: 1.5;
+            }
+        """)
+        layout.addWidget(help_display)
+
+        # Close button
+        close_btn = ModernButton("Close", primary=True)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec()
 
     def toggle_audio_preview(self):
         """Toggle audio level preview without recording."""
