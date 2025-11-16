@@ -25,6 +25,7 @@ from gui.widgets import ModernButton, Card, DropZone
 from gui.workers import RecordingWorker, TranscriptionWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices
+from gui.vu_meter import VUMeter
 from transcriber import Transcriber
 from transcription.enhanced import EnhancedTranscriber
 
@@ -638,6 +639,21 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(button_container)
         layout.addSpacing(20)
 
+        # VU Meters (shown during recording, hidden otherwise)
+        self.vu_meters_widget = QWidget()
+        vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
+        vu_meters_layout.setSpacing(10)
+
+        self.mic_vu_meter = VUMeter("🎤 Microphone")
+        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
+
+        vu_meters_layout.addWidget(self.mic_vu_meter)
+        vu_meters_layout.addWidget(self.speaker_vu_meter)
+
+        self.vu_meters_widget.hide()
+        layout.addWidget(self.vu_meters_widget)
+        layout.addSpacing(10)
+
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
         self.recording_duration_label.setStyleSheet(
@@ -835,7 +851,13 @@ class Video2TextQt(QMainWindow):
         self.recording_worker = RecordingWorker(self.settings["recordings_dir"], self)
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
+        self.recording_worker.audio_level.connect(self.update_audio_levels)
         self.recording_worker.start()
+
+        # Show VU meters
+        self.vu_meters_widget.show()
+        self.mic_vu_meter.reset()
+        self.speaker_vu_meter.reset()
 
     def stop_basic_recording(self):
         """Stop recording in Basic Mode."""
@@ -851,8 +873,9 @@ class Video2TextQt(QMainWindow):
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
 
-        # Hide duration label
+        # Hide duration label and VU meters
         self.recording_duration_label.hide()
+        self.vu_meters_widget.hide()
 
         # Update status
         self.statusBar().showMessage("Processing recording...")
@@ -868,6 +891,11 @@ class Video2TextQt(QMainWindow):
             mins = elapsed // 60
             secs = elapsed % 60
             self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
+
+    def update_audio_levels(self, mic_level, speaker_level):
+        """Update VU meters with current audio levels (thread-safe slot)."""
+        self.mic_vu_meter.set_level(mic_level)
+        self.speaker_vu_meter.set_level(speaker_level)
 
     def on_recording_complete(self, recorded_path, duration):
         """Slot called when recording completes successfully (thread-safe)."""

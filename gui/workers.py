@@ -18,11 +18,14 @@ class RecordingWorker(QThread):
     recording_complete = Signal(str, float)  # (file_path, duration)
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
+    audio_level = Signal(float, float)  # (mic_level, speaker_level) in range 0.0-1.0
 
     def __init__(self, output_dir, parent=None):
         super().__init__(parent)
         self.is_recording = True
         self.output_dir = Path(output_dir)
+        self.mic_level = 0.0
+        self.speaker_level = 0.0
 
     def stop(self):
         """Stop the recording."""
@@ -81,10 +84,16 @@ class RecordingWorker(QThread):
             def mic_callback(indata, frames, time_info, status):
                 if self.is_recording:
                     mic_chunks.append(indata.copy())
+                    # Calculate RMS (root mean square) level for visualization
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.mic_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
             def speaker_callback(indata, frames, time_info, status):
                 if self.is_recording:
                     speaker_chunks.append(indata.copy())
+                    # Calculate RMS level
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.speaker_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
             # Start streams
             mic_stream = sd.InputStream(device=mic_device, samplerate=sample_rate, channels=1, callback=mic_callback)
@@ -99,8 +108,15 @@ class RecordingWorker(QThread):
                     pass
 
             # Record while active
+            import time
+            last_level_update = time.time()
             while self.is_recording:
                 sd.sleep(100)
+                # Emit audio levels every 100ms
+                current_time = time.time()
+                if current_time - last_level_update >= 0.1:
+                    self.audio_level.emit(self.mic_level, self.speaker_level)
+                    last_level_update = current_time
 
             # Stop streams
             mic_stream.stop()
