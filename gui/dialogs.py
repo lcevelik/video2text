@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt, QTimer
 from gui.widgets import ModernButton, Card
 from gui.workers import RecordingWorker
 from gui.utils import check_audio_input_devices
+from gui.vu_meter import VUMeter
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,20 @@ class RecordingDialog(QDialog):
         self.status_label.setStyleSheet("font-size: 14px; color: #666;")
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
+
+        # VU Meters (shown during recording)
+        self.vu_meters_widget = QWidget()
+        vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
+        vu_meters_layout.setSpacing(10)
+
+        self.mic_vu_meter = VUMeter("🎤 Microphone")
+        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
+
+        vu_meters_layout.addWidget(self.mic_vu_meter)
+        vu_meters_layout.addWidget(self.speaker_vu_meter)
+
+        self.vu_meters_widget.hide()
+        layout.addWidget(self.vu_meters_widget)
 
         # User-selected language mode (None until chosen via dialog)
         self.multi_language_mode = None
@@ -116,7 +131,13 @@ class RecordingDialog(QDialog):
         self.worker = RecordingWorker(recordings_dir, self)
         self.worker.recording_complete.connect(self.on_recording_complete)
         self.worker.recording_error.connect(self.on_recording_error)
+        self.worker.audio_level.connect(self.update_audio_levels)
         self.worker.start()
+
+        # Show VU meters
+        self.vu_meters_widget.show()
+        self.mic_vu_meter.reset()
+        self.speaker_vu_meter.reset()
 
     def stop_recording(self):
         self.recording = False
@@ -131,12 +152,20 @@ class RecordingDialog(QDialog):
         self.stop_btn.setEnabled(False)
         self.timer.stop()
 
+        # Hide VU meters
+        self.vu_meters_widget.hide()
+
     def update_duration(self):
         if self.start_time:
             elapsed = int(time.time() - self.start_time)
             mins = elapsed // 60
             secs = elapsed % 60
             self.duration_label.setText(f"Duration: {mins}:{secs:02d}")
+
+    def update_audio_levels(self, mic_level, speaker_level):
+        """Update VU meters with current audio levels (thread-safe slot)."""
+        self.mic_vu_meter.set_level(mic_level)
+        self.speaker_vu_meter.set_level(speaker_level)
 
     def check_audio_devices(self):
         """Check if audio input devices are available."""
