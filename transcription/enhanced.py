@@ -1600,9 +1600,9 @@ class EnhancedTranscriber(Transcriber):
                     'text': transcribed_text
                 }
         except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg timeout extracting chunk [{chunk_start:.1f}-{chunk_end:.1f}s]")
+            logger.warning(f"FFmpeg timeout extracting chunk [{chunk_start:.1f}-{chunk_end:.1f}s]", exc_info=True)
         except Exception as e:
-            logger.warning(f"Failed to process chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}")
+            logger.warning(f"Failed to process chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}", exc_info=True)
         finally:
             if os.path.exists(temp_path):
                 try:
@@ -1691,17 +1691,33 @@ class EnhancedTranscriber(Transcriber):
                 }
 
             # Collect results as they complete
-            for future in as_completed(future_to_chunk):
-                result = future.result()
-                if result:
-                    audio_segments.append(result)
+            for future in as_completed(future_to_chunk, timeout=120):
+                try:
+                    result = future.result(timeout=120)
+                    if result:
+                        audio_segments.append(result)
+                    # CRITICAL: Increment for ALL completed futures, not just successful ones
+                    # Otherwise infinite loop if chunks return None (filtered languages, etc.)
                     processed_count += 1
 
-                # Progress update
-                if progress_callback and processed_count % 10 == 0:
-                    progress_callback(f"Processed {processed_count}/{total_chunks} chunks...")
+                    # Progress update every 5 chunks for better visibility
+                    if progress_callback and processed_count % 5 == 0:
+                        progress_callback(f"Processed {processed_count}/{total_chunks} chunks ({len(audio_segments)} valid)...")
 
-        logger.info(f"Parallel processing complete: {processed_count} valid segments from {total_chunks} chunks")
+                    # Log every 10 chunks for monitoring
+                    if processed_count % 10 == 0:
+                        logger.info(f"Progress: {processed_count}/{total_chunks} chunks processed, {len(audio_segments)} valid segments")
+
+                except TimeoutError:
+                    chunk_info = future_to_chunk.get(future, ('unknown', 'unknown'))
+                    logger.error(f"Timeout processing chunk {chunk_info}, skipping", exc_info=True)
+                    processed_count += 1  # Still count it to avoid infinite loop
+                except Exception as e:
+                    chunk_info = future_to_chunk.get(future, ('unknown', 'unknown'))
+                    logger.error(f"Error processing chunk {chunk_info}: {e}", exc_info=True)
+                    processed_count += 1  # Still count it to avoid infinite loop
+
+        logger.info(f"Parallel processing complete: {len(audio_segments)} valid segments from {total_chunks} chunks ({processed_count} processed)")
 
         # Sort by start time (parallel processing may complete out of order)
         audio_segments.sort(key=lambda x: x['start'])
@@ -1771,7 +1787,7 @@ class EnhancedTranscriber(Transcriber):
                     except Exception:
                         pass
         except Exception as e:
-            logger.warning(f"Failed to process chunk from memory [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}")
+            logger.warning(f"Failed to process chunk from memory [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}", exc_info=True)
 
         return None
 
