@@ -132,6 +132,127 @@ class EnhancedTranscriber(Transcriber):
             # Fast path: user forced multi-language, skip sampling classification entirely
             if skip_sampling:
                 logger.info("Skipping sampling classification (forced multi-language mode).")
+                
+                # CRITICAL: If user explicitly selected multiple languages, we should trust that
+                # and use comprehensive audio segmentation from the start. The initial Whisper
+                # transcription may be language-biased and miss portions of other languages.
+                if allowed_languages and len(allowed_languages) > 1:
+                    logger.info(f"User explicitly selected {len(allowed_languages)} languages: {allowed_languages}")
+                    logger.info("Using comprehensive audio segmentation to ensure all languages are detected...")
+                    
+                    if progress_callback:
+                        progress_callback("Segmenting audio file for comprehensive multi-language detection...")
+                    
+                    # Get total audio duration
+                    import subprocess
+                    try:
+                        ffprobe_cmd = [
+                            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                            '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
+                        ]
+                        duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
+                        total_duration = float(duration_output.decode().strip())
+                    except Exception as e:
+                        logger.warning(f"Could not get audio duration: {e}, doing initial transcription first")
+                        # Fallback: do initial transcription to get duration
+                        if progress_callback:
+                            progress_callback("Getting audio duration...")
+                        result = self.transcribe(
+                            audio_path,
+                            language=None,
+                            initial_prompt=initial_prompt,
+                            word_timestamps=False,
+                            progress_callback=progress_callback
+                        )
+                        total_duration = result.get('segments', [{}])[-1].get('end', 0) if result.get('segments') else 0
+                        initial_segments = result.get('segments', [])
+                    else:
+                        initial_segments = []
+                    
+                    # Segment entire audio into 2-second chunks for comprehensive coverage
+                    chunk_size = 2.0
+                    audio_segments = []
+                    current_time = 0.0
+                    chunk_count = 0
+                    total_chunks = int(total_duration / chunk_size) + 1
+                    
+                    while current_time < total_duration:
+                        chunk_start = current_time
+                        chunk_end = min(current_time + chunk_size, total_duration)
+                        chunk_duration = chunk_end - chunk_start
+                        
+                        if chunk_duration < 0.1:  # Skip very short chunks
+                            break
+                        
+                        # Extract and transcribe this chunk
+                        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                            temp_path = temp_audio.name
+                        
+                        try:
+                            # Extract chunk using ffmpeg
+                            subprocess.run([
+                                'ffmpeg', '-y', '-i', audio_path,
+                                '-ss', str(chunk_start),
+                                '-t', str(chunk_duration),
+                                '-ar', '16000', '-ac', '1',
+                                temp_path
+                            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                            
+                            # Transcribe this chunk
+                            chunk_result = self.transcribe(
+                                temp_path,
+                                language=None,  # Auto-detect
+                                progress_callback=None
+                            )
+                            
+                            detected_lang = chunk_result.get('language', 'unknown')
+                            transcribed_text = chunk_result.get('text', '').strip()
+                            
+                            # Only include if language is in allowed list
+                            if detected_lang in allowed_languages:
+                                if transcribed_text:  # Only add non-empty transcriptions
+                                    audio_segments.append({
+                                        'language': detected_lang,
+                                        'start': chunk_start,
+                                        'end': chunk_end,
+                                        'text': transcribed_text
+                                    })
+                                    chunk_count += 1
+                            
+                            if progress_callback and chunk_count % 5 == 0:
+                                progress_callback(f"Processed {chunk_count}/{total_chunks} audio chunks...")
+                                
+                        except Exception as e:
+                            logger.warning(f"Failed to transcribe chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}")
+                        finally:
+                            if os.path.exists(temp_path):
+                                try:
+                                    os.unlink(temp_path)
+                                except Exception:
+                                    pass
+                        
+                        current_time += chunk_size
+                    
+                    # Merge consecutive segments with same language
+                    self.language_segments = self._merge_consecutive_language_segments(audio_segments)
+                    
+                    # Build result from language segments
+                    result = {
+                        'text': ' '.join(seg['text'] for seg in self.language_segments),
+                        'segments': initial_segments if initial_segments else self.language_segments,
+                        'language': self.language_segments[0].get('language', 'unknown') if self.language_segments else 'unknown',
+                        'language_segments': self.language_segments,
+                        'language_timeline': self._create_language_timeline(self.language_segments),
+                        'classification': {'mode': 'forced-multilang-comprehensive'}
+                    }
+                    if allowed_languages:
+                        result['allowed_languages'] = allowed_languages
+                    
+                    detected_languages = set(seg.get('language', 'unknown') for seg in self.language_segments)
+                    logger.info(f"Comprehensive segmentation complete: detected {detected_languages} ({len(self.language_segments)} segments from {chunk_count} chunks)")
+                    return result
+                
+                # If only one language selected or no explicit selection, use fast heuristic path
                 if progress_callback:
                     progress_callback("Full word-level transcription (sampling skipped)...")
                 result = self.transcribe(
@@ -169,88 +290,100 @@ class EnhancedTranscriber(Transcriber):
                     if progress_callback:
                         progress_callback("Heuristic detected single language, using audio-based re-analysis...")
                     
-                    # Check if initial transcription might have both languages but heuristic missed it
-                    # by looking at the raw text for indicators of ALL allowed languages
-                    has_missing_language_indicators = False
-                    missing_languages = []
-                    if initial_text and allowed_languages:
-                        # Get stopwords for all allowed languages from the heuristic dictionaries
-                        stopwords_dict = {
-                            'en': frozenset(["the","and","is","are","to","of","in","that","for","you","it","on","with","this","be","have","at","or","as","i","we","they","was","were","will","would","can","could","a","an","from","by","about","what","which","who","how","do","does","did","not","if","there","their","them","our","your"]),
-                            'es': frozenset(["el","la","los","las","un","una","unos","unas","de","y","en","a","que","por","con","para","como","es","su","al","lo","se","del","más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me","hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso","ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra"]),
-                            'cs': frozenset(["a","i","že","co","jak","když","ale","už","proto","tak","by","byl","byla","bylo","byli","aby","jsem","jsme","jste","jsi","být","mít","ten","to","ta","tento","tato","toto","se","si","na","v","ve","z","ze","do","s","o","u","k","pro","který","která","které","kteří","protože","je","není","může","tady","tam","taky","ještě"]),
-                            'fr': frozenset(["le","la","les","un","une","des","du","de","et","en","à","que","il","elle","nous","vous","ils","elles","au","aux","avec","par","sur","pas","plus","mais","ou","comme","son","sa","ses","leur","leurs","est","sont","été","être","a","ont","avait","avais","avais","fut","fûmes","fûtes","furent"]),
-                            'de': frozenset(["der","die","das","ein","eine","eines","einer","einem","den","dem","des","und","zu","mit","auf","für","von","im","ist","war","wurde","werden","wie","als","auch","an","bei","nach","vor","aus","durch","über","unter","zwischen","gegen","ohne","um","am","aber","nur","noch","schon","man","sein","ihre","ihr","seine","uns","euch","sie","wir","du","er","es"]),
-                            'it': frozenset(["il","lo","la","i","gli","le","un","una","uno","di","a","da","in","con","su","per","tra","fra","che","non","più","ma","come","se","quando","dove","chi","quale","quelli","questo","questa","questi","queste","sono","era","erano","essere","avere","ha","hanno","abbiamo","avete","avevano"]),
-                            'pt': frozenset(["o","a","os","as","um","uma","uns","umas","de","da","do","das","dos","em","por","para","com","sem","sobre","entre","mas","ou","se","que","quando","como","onde","quem","qual","quais","este","esta","estes","estas","aquele","aquela","aqueles","aquelas","foi","eram","ser","ter","tem","têm","tinha","tínhamos","tinham"]),
-                            'pl': frozenset(["i","w","z","na","do","od","za","po","przez","dla","o","u","pod","nad","przed","bez","czy","nie","tak","ale","lub","albo","to","ten","ta","te","ci","co","który","która","které","którzy","być","jest","są","był","była","było","byli","były"]),
-                        }
-                        diacritics_dict = {
-                            'en': frozenset(),
-                            'es': frozenset("áéíóúüñÁÉÍÓÚÜÑ"),
-                            'cs': frozenset("áéíóúůýčďěňřšťžÁÉÍÓÚŮÝČĎĚŇŘŠŤŽ"),
-                            'fr': frozenset("àâäéèêëîïôöùûüÿçÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
-                            'de': frozenset("äöüßÄÖÜ"),
-                            'it': frozenset("àèéìîòóùÀÈÉÌÎÒÓÙ"),
-                            'pt': frozenset("áâãàçéêíóôõúÁÂÃÀÇÉÊÍÓÔÕÚ"),
-                            'pl': frozenset("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ"),
-                        }
-                        
-                        text_lower = initial_text.lower()
-                        words = set(w.strip(".,!?;:") for w in text_lower.split())
-                        text_chars = set(initial_text)
-                        
-                        # Check each allowed language for indicators
-                        for lang_code in allowed_languages:
-                            if lang_code in detected_languages:
-                                continue  # Already detected, skip
-                            
-                            if lang_code not in stopwords_dict:
-                                continue  # No stopwords for this language
-                            
-                            # Check stopwords
-                            lang_stopwords = stopwords_dict.get(lang_code, frozenset())
-                            stopword_hits = len(words & lang_stopwords)
-                            
-                            # Check diacritics
-                            lang_diacritics = diacritics_dict.get(lang_code, frozenset())
-                            diacritic_hits = len(text_chars & lang_diacritics)
-                            
-                            # If we find indicators of this language, it's likely present but heuristic missed it
-                            if stopword_hits >= 2 or (diacritic_hits >= 2 and lang_code != 'en'):  # At least 2 stopwords or 2 diacritics
-                                has_missing_language_indicators = True
-                                missing_languages.append(lang_code)
-                                lang_name = self.LANGUAGE_NAMES.get(lang_code, lang_code.upper())
-                                logger.info(f"Found indicators for {lang_name} ({lang_code}): {stopword_hits} stopwords, {diacritic_hits} diacritics - likely present but heuristic missed it")
-                        
-                        if has_missing_language_indicators:
-                            logger.info(f"Detected indicators for missing languages: {missing_languages}")
+                    # CRITICAL: When user specifies multiple languages but only one is detected,
+                    # we MUST use audio-based re-transcription. The initial Whisper transcription
+                    # may be language-biased (e.g., if it detected Czech first, it might have
+                    # only transcribed Czech portions and skipped English entirely).
+                    # 
+                    # Instead of re-transcribing existing segments (which might miss parts),
+                    # we segment the ENTIRE audio file into small chunks and transcribe each.
+                    logger.info("Multiple languages expected but only one detected - segmenting entire audio file for comprehensive detection...")
                     
-                    if has_missing_language_indicators:
-                        # Re-analyze the existing segments with more granular chunking
-                        logger.info("Re-analyzing with smaller chunk size for better language detection...")
-                        self.language_segments = self._detect_language_from_transcript(
-                            initial_segments, 
-                            chunk_size=1.0,  # Use smaller 1-second windows
-                            audio_path=audio_path
-                        )
-                        detected_languages = set(seg.get('language', 'unknown') for seg in self.language_segments)
-                        logger.info(f"After re-analysis with smaller chunks: detected {detected_languages}")
+                    # Get total audio duration
+                    import subprocess
+                    try:
+                        ffprobe_cmd = [
+                            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                            '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
+                        ]
+                        duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
+                        total_duration = float(duration_output.decode().strip())
+                    except Exception as e:
+                        logger.warning(f"Could not get audio duration: {e}, using segments end time")
+                        total_duration = initial_segments[-1].get('end', 0) if initial_segments else 0
                     
-                    # If still only one language, use audio-based re-transcription
-                    if len(detected_languages) == 1:
-                        logger.info("Still only one language detected, using audio chunk re-transcription...")
-                        self.language_segments = self._retranscribe_segments(
-                            audio_path,
-                            initial_segments,
-                            progress_callback
-                        )
-                        # Filter to allowed languages only
-                        if allowed_languages:
-                            self.language_segments = [
-                                seg for seg in self.language_segments
-                                if seg.get('language', 'unknown') in allowed_languages
-                            ]
+                    # Segment entire audio into 2-second chunks for comprehensive coverage
+                    chunk_size = 2.0
+                    audio_segments = []
+                    current_time = 0.0
+                    chunk_count = 0
+                    
+                    if progress_callback:
+                        progress_callback("Segmenting audio file for comprehensive language detection...")
+                    
+                    while current_time < total_duration:
+                        chunk_start = current_time
+                        chunk_end = min(current_time + chunk_size, total_duration)
+                        chunk_duration = chunk_end - chunk_start
+                        
+                        if chunk_duration < 0.1:  # Skip very short chunks
+                            break
+                        
+                        # Extract and transcribe this chunk
+                        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                            temp_path = temp_audio.name
+                        
+                        try:
+                            # Extract chunk using ffmpeg
+                            subprocess.run([
+                                'ffmpeg', '-y', '-i', audio_path,
+                                '-ss', str(chunk_start),
+                                '-t', str(chunk_duration),
+                                '-ar', '16000', '-ac', '1',
+                                temp_path
+                            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                            
+                            # Transcribe this chunk
+                            chunk_result = self.transcribe(
+                                temp_path,
+                                language=None,  # Auto-detect
+                                progress_callback=None
+                            )
+                            
+                            detected_lang = chunk_result.get('language', 'unknown')
+                            transcribed_text = chunk_result.get('text', '').strip()
+                            
+                            # Only include if language is in allowed list
+                            if not allowed_languages or detected_lang in allowed_languages:
+                                if transcribed_text:  # Only add non-empty transcriptions
+                                    audio_segments.append({
+                                        'language': detected_lang,
+                                        'start': chunk_start,
+                                        'end': chunk_end,
+                                        'text': transcribed_text
+                                    })
+                                    chunk_count += 1
+                            
+                            if progress_callback and chunk_count % 5 == 0:
+                                progress_callback(f"Processed {chunk_count} audio chunks...")
+                                
+                        except Exception as e:
+                            logger.warning(f"Failed to transcribe chunk [{chunk_start:.1f}-{chunk_end:.1f}s]: {e}")
+                        finally:
+                            if os.path.exists(temp_path):
+                                try:
+                                    os.unlink(temp_path)
+                                except Exception:
+                                    pass
+                        
+                        current_time += chunk_size
+                    
+                    # Merge consecutive segments with same language
+                    self.language_segments = self._merge_consecutive_language_segments(audio_segments)
+                    
+                    # Check if we now have multiple languages
+                    detected_languages = set(seg.get('language', 'unknown') for seg in self.language_segments)
+                    logger.info(f"After comprehensive audio segmentation: detected {detected_languages} ({len(self.language_segments)} segments from {chunk_count} chunks)")
                 
                 result['text'] = ' '.join(seg['text'] for seg in self.language_segments)
                 result['language_segments'] = self.language_segments
