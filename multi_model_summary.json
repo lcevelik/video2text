@@ -1,0 +1,34 @@
+[
+  {
+    "model": "tiny",
+    "duration_sec": 49.9,
+    "text_chars": 41317,
+    "segments": 452,
+    "short_segments": 0,
+    "avg_chars_per_segment": 91.41
+  },
+  {
+    "model": "base",
+    "duration_sec": 79.3,
+    "text_chars": 41733,
+    "segments": 609,
+    "short_segments": 10,
+    "avg_chars_per_segment": 68.53
+  },
+  {
+    "model": "small",
+    "duration_sec": 235.3,
+    "text_chars": 42490,
+    "segments": 807,
+    "short_segments": 0,
+    "avg_chars_per_segment": 52.65
+  },
+  {
+    "model": "medium",
+    "duration_sec": 279.3,
+    "text_chars": 1182,
+    "segments": 591,
+    "short_segments": 591,
+    "avg_chars_per_segment": 2.0
+  }
+]
