@@ -49,7 +49,11 @@ def check_audio_input_devices() -> bool:
 
 def get_audio_devices():
     """
-    Get lists of available audio input devices with platform-specific logic.
+    Get lists of available audio input devices with OBS-style detection logic.
+
+    OBS Approach:
+    - Microphones: Devices with input channels (not loopback/monitor)
+    - System Audio: OUTPUT devices (captured via loopback) OR input monitor devices
 
     Returns:
         tuple: (microphone_devices, loopback_devices)
@@ -64,58 +68,90 @@ def get_audio_devices():
 
         current_platform = get_platform()
 
-        logger.info("=== Audio Device Detection ===")
+        logger.info("=== OBS-Style Audio Device Detection ===")
         logger.info(f"Platform: {current_platform}")
         logger.info(f"Total devices found: {len(devices)}")
 
-        # Platform-specific loopback device keywords
+        # Platform-specific loopback/monitor device keywords
         loopback_keywords = {
-            'windows': ['stereo mix', 'loopback', 'wave out mix', 'what u hear', 'mixer'],
-            'macos': ['blackhole', 'soundflower', 'loopback', 'aggregate device'],
+            'windows': ['stereo mix', 'loopback', 'wave out mix', 'what u hear', 'what you hear', 'mixer'],
+            'macos': ['blackhole', 'soundflower', 'loopback', 'aggregate device', 'multi-output'],
             'linux': ['monitor', 'loopback', 'pulse', 'alsa loopback']
         }
 
         # Get keywords for current platform (with fallback)
         platform_keywords = loopback_keywords.get(current_platform, [])
         all_keywords = platform_keywords + ['stereo mix', 'loopback', 'monitor', 'blackhole', 'soundflower']
-        # Remove duplicates while preserving order
-        keywords = list(dict.fromkeys(all_keywords))
+        keywords = list(dict.fromkeys(all_keywords))  # Remove duplicates
 
         for idx, device in enumerate(devices):
+            device_name = device['name']
+            device_name_lower = device_name.lower()
+            input_channels = device['max_input_channels']
+            output_channels = device['max_output_channels']
+
             # Log all device info for debugging
-            logger.info(f"Device {idx}: {device['name']}")
-            logger.info(f"  - Input channels: {device['max_input_channels']}")
-            logger.info(f"  - Output channels: {device['max_output_channels']}")
+            logger.info(f"Device {idx}: {device_name}")
+            logger.info(f"  - Input channels: {input_channels}")
+            logger.info(f"  - Output channels: {output_channels}")
             logger.info(f"  - Default sample rate: {device.get('default_samplerate', 'N/A')}")
             logger.info(f"  - Host API: {device.get('hostapi', 'N/A')}")
 
-            if device['max_input_channels'] > 0:
-                device_name = device['name']
-                device_name_lower = device_name.lower()
+            # Skip devices with no channels at all
+            if input_channels == 0 and output_channels == 0:
+                logger.info(f"  → SKIPPED: No input or output channels")
+                continue
 
-                # Check if it's a loopback/system audio device
-                is_loopback = any(kw in device_name_lower for kw in keywords)
+            # Check if device name matches loopback keywords
+            matches_loopback_keyword = any(kw in device_name_lower for kw in keywords)
 
-                # Platform-specific heuristics
-                if current_platform == 'macos':
-                    # On macOS, check for aggregate devices or specific patterns
-                    if 'aggregate' in device_name_lower or 'multi-output' in device_name_lower:
-                        is_loopback = True
+            # Platform-specific heuristics for loopback detection
+            platform_loopback_hint = False
+            if current_platform == 'macos':
+                # macOS: aggregate devices or multi-output are usually virtual audio routers
+                if 'aggregate' in device_name_lower or 'multi-output' in device_name_lower:
+                    platform_loopback_hint = True
+            elif current_platform == 'linux':
+                # Linux: .monitor suffix or "Monitor of" prefix indicates PulseAudio monitor
+                if '.monitor' in device_name_lower or 'monitor of' in device_name_lower:
+                    platform_loopback_hint = True
 
-                elif current_platform == 'linux':
-                    # On Linux, PulseAudio monitor devices are loopback
-                    if '.monitor' in device_name_lower or 'monitor of' in device_name_lower:
-                        is_loopback = True
+            # OBS-STYLE CATEGORIZATION
+            # ======================
 
-                if is_loopback:
+            # CASE 1: Output-only device (OBS uses these for loopback capture)
+            # Windows WASAPI: eRender devices with AUDCLNT_STREAMFLAGS_LOOPBACK
+            # These are your speakers/headphones that we capture FROM
+            if output_channels > 0 and input_channels == 0:
+                # Pure output device - perfect for loopback/system audio capture
+                loopback_devices.append((idx, f"{device_name} [Output Loopback]"))
+                logger.info(f"  → Categorized as: SYSTEM AUDIO (Output Device - Loopback)")
+
+            # CASE 2: Input device that matches loopback/monitor keywords
+            # Linux: PulseAudio monitor sources (e.g., "Monitor of Built-in Audio")
+            # Windows: Virtual cables (e.g., "VB-Cable Output", "Stereo Mix")
+            # macOS: Virtual devices (e.g., "BlackHole 2ch", "Soundflower")
+            elif input_channels > 0 and (matches_loopback_keyword or platform_loopback_hint):
+                loopback_devices.append((idx, device_name))
+                logger.info(f"  → Categorized as: SYSTEM AUDIO (Monitor/Virtual Device)")
+
+            # CASE 3: Regular input device (microphone, line-in)
+            elif input_channels > 0:
+                microphone_devices.append((idx, device_name))
+                logger.info(f"  → Categorized as: MICROPHONE")
+
+            # CASE 4: Both input and output (aggregate/full-duplex device)
+            # Treat as microphone unless it matches loopback keywords
+            else:
+                if matches_loopback_keyword or platform_loopback_hint:
                     loopback_devices.append((idx, device_name))
-                    logger.info(f"  → Categorized as: LOOPBACK/SYSTEM AUDIO")
+                    logger.info(f"  → Categorized as: SYSTEM AUDIO (Aggregate Device)")
                 else:
                     microphone_devices.append((idx, device_name))
-                    logger.info(f"  → Categorized as: MICROPHONE")
+                    logger.info(f"  → Categorized as: MICROPHONE (Full-Duplex)")
 
-        logger.info(f"Summary: {len(microphone_devices)} microphone(s), {len(loopback_devices)} loopback device(s)")
-        logger.info("=== End Device Detection ===")
+        logger.info(f"Summary: {len(microphone_devices)} microphone(s), {len(loopback_devices)} system audio source(s)")
+        logger.info("=== End OBS-Style Device Detection ===")
 
         return microphone_devices, loopback_devices
 
