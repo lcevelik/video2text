@@ -12,14 +12,14 @@ import platform
 from pathlib import Path
 from typing import Optional, List
 
-from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (  # type: ignore
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
     QComboBox, QCheckBox, QGroupBox
 )
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPalette
+from PySide6.QtCore import Qt, QTimer, QEvent  # type: ignore
+from PySide6.QtGui import QPalette  # type: ignore
 
 from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone
@@ -58,6 +58,11 @@ class Video2TextQt(QMainWindow):
 
         self.setup_ui()
         self.apply_theme()
+        # Ensure ffmpeg is available to pydub across the app
+        try:
+            self._configure_ffmpeg_converter()
+        except Exception as _fferr:
+            logger.debug(f"FFmpeg configuration skipped: {_fferr}")
         self.center_window()
 
         # Runtime compatibility checks (Python 3.13 audio stack)
@@ -135,11 +140,19 @@ class Video2TextQt(QMainWindow):
             import sys as _sys
             if _sys.version_info >= (3, 13):
                 try:
-                    # Either pyaudioop or audioop-lts (backport) is acceptable
-                    try:
-                        import pyaudioop  # noqa: F401
-                    except Exception:
-                        import audioop  # noqa: F401
+                    import importlib
+
+                    def _has_audioop_module() -> bool:
+                        for name in ("pyaudioop", "audioop"):
+                            try:
+                                importlib.import_module(name)
+                                return True
+                            except Exception:
+                                continue
+                        return False
+
+                    if not _has_audioop_module():
+                        raise ModuleNotFoundError("audioop compatibility modules missing")
                 except Exception:
                     msg = QMessageBox(self)
                     msg.setIcon(QMessageBox.Information)
@@ -305,10 +318,88 @@ class Video2TextQt(QMainWindow):
 
         logger.info(f"Applied {'dark' if self.is_dark_mode else 'light'} theme")
 
+    def closeEvent(self, event):
+        """Ensure background threads stop cleanly on window close."""
+        try:
+            # Stop preview worker if running
+            if hasattr(self, 'preview_worker') and self.preview_worker and self.preview_worker.isRunning():
+                self.preview_worker.stop()
+                self.preview_worker.wait(1000)
+                self.preview_worker = None
+            # Stop recording worker if running
+            if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
+                try:
+                    self.recording_worker.stop()
+                except Exception:
+                    pass
+                self.recording_worker.wait(1500)
+                self.recording_worker = None
+        except Exception as e:
+            logger.warning(f"Error while shutting down workers: {e}")
+        super().closeEvent(event)
+
+    def _configure_ffmpeg_converter(self):
+        """Configure pydub to use an available ffmpeg binary without requiring shell restart."""
+        try:
+            import shutil as _shutil
+            from pathlib import Path as _Path
+            from pydub import AudioSegment  # type: ignore
+        except Exception:
+            return
+
+        # If ffmpeg is on PATH, set converter and return
+        if _shutil.which('ffmpeg'):
+            try:
+                AudioSegment.converter = 'ffmpeg'
+                logger.info("pydub configured to use ffmpeg from PATH")
+            except Exception:
+                pass
+            return
+
+        # Try common install locations, including winget default cache
+        candidates = [
+            r"C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
+            r"C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe",
+            str(_Path.home() / "scoop" / "apps" / "ffmpeg" / "current" / "bin" / "ffmpeg.exe"),
+            str(_Path(os.environ.get('LOCALAPPDATA', '')) / "Microsoft" / "WinGet" / "Packages" / "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "ffmpeg-8.0-full_build" / "bin" / "ffmpeg.exe"),
+        ]
+        for p in candidates:
+            try:
+                if _Path(p).exists():
+                    try:
+                        AudioSegment.converter = p
+                        logger.info(f"pydub configured to use ffmpeg at: {p}")
+                    except Exception:
+                        os.environ['FFMPEG_BINARY'] = p
+                        logger.info(f"Set FFMPEG_BINARY for pydub: {p}")
+                    break
+            except Exception:
+                continue
+
     def update_all_cards_theme(self):
         """Update theme for all Card widgets."""
         for widget in self.findChildren(Card):
             widget.update_theme(self.is_dark_mode)
+
+    def eventFilter(self, obj, event):
+        """Refresh devices when user interacts with device selectors (on popup open)."""
+        try:
+            if event.type() == QEvent.MouseButtonPress:
+                if obj is getattr(self, 'mic_combo', None) or obj is getattr(self, 'speaker_combo', None):
+                    # Refresh devices just before showing popup
+                    self.refresh_audio_devices()
+        except Exception:
+            pass
+        return super().eventFilter(obj, event)
+
+    def changeEvent(self, event):
+        """Refresh device lists when window becomes active (focus returns)."""
+        try:
+            if event.type() == QEvent.ActivationChange and self.isActiveWindow():
+                self.refresh_audio_devices()
+        except Exception:
+            pass
+        return super().changeEvent(event)
 
     def update_sidebar_theme(self, sidebar):
         """Update sidebar theme colors."""
@@ -630,22 +721,12 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Audio Device Selection Header with Refresh and Help Buttons
+        # Audio Device Selection Header (simplified)
         device_header_layout = QHBoxLayout()
         device_section = QLabel("📡 Audio Sources")
         device_section.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
         device_header_layout.addWidget(device_section)
         device_header_layout.addStretch()
-
-        self.setup_help_btn = ModernButton("❓ Setup Guide")
-        self.setup_help_btn.setMinimumHeight(30)
-        self.setup_help_btn.clicked.connect(self.show_audio_setup_guide)
-        device_header_layout.addWidget(self.setup_help_btn)
-
-        self.refresh_devices_btn = ModernButton("🔄 Refresh")
-        self.refresh_devices_btn.setMinimumHeight(30)
-        self.refresh_devices_btn.clicked.connect(self.refresh_audio_devices)
-        device_header_layout.addWidget(self.refresh_devices_btn)
         layout.addLayout(device_header_layout)
 
         # Microphone selection
@@ -670,25 +751,14 @@ class Video2TextQt(QMainWindow):
         speaker_layout.addWidget(self.speaker_combo, 1)
         layout.addLayout(speaker_layout)
 
-        # Device info label (shows debug info)
-        self.device_info_label = QLabel("")
-        self.device_info_label.setStyleSheet(f"font-size: 11px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-family: monospace;")
-        self.device_info_label.setWordWrap(True)
-        layout.addWidget(self.device_info_label)
-
-        # Populate device lists
+        # Populate device lists now
         self.refresh_audio_devices()
 
-        # Test Audio button
-        test_layout = QHBoxLayout()
-        test_layout.setAlignment(Qt.AlignCenter)
-        self.test_audio_btn = ModernButton("🔍 Test Audio Levels")
-        self.test_audio_btn.setMinimumHeight(40)
-        self.test_audio_btn.setMinimumWidth(200)
-        self.test_audio_btn.clicked.connect(self.toggle_audio_preview)
-        test_layout.addWidget(self.test_audio_btn)
-        layout.addLayout(test_layout)
+        # Refresh on interaction: when user opens either combo, refresh devices first
+        self.mic_combo.installEventFilter(self)
+        self.speaker_combo.installEventFilter(self)
 
+        # Always-on audio level preview (no manual test button)
         layout.addSpacing(10)
 
         # VU Meters (always visible for testing)
@@ -705,49 +775,7 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(self.vu_meters_widget)
         layout.addSpacing(10)
 
-        # Audio Filters Section
-        filters_group = QGroupBox("🎛️ Audio Filters (OBS-Style)")
-        filters_group.setStyleSheet(f"""
-            QGroupBox {{
-                font-weight: bold;
-                border: 2px solid {Theme.get('border', self.is_dark_mode)};
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }}
-        """)
-        filters_layout = QVBoxLayout()
-
-        # Noise Gate
-        self.noise_gate_checkbox = QCheckBox("🚪 Noise Gate - Remove background noise when not speaking")
-        self.noise_gate_checkbox.setChecked(True)  # Enabled by default
-        filters_layout.addWidget(self.noise_gate_checkbox)
-
-        # RNNoise
-        rnnoise_layout = QHBoxLayout()
-        self.rnnoise_checkbox = QCheckBox("🔇 RNNoise - AI-powered noise suppression (recommended)")
-        self.rnnoise_checkbox.setChecked(True)  # Enabled by default
-        rnnoise_layout.addWidget(self.rnnoise_checkbox)
-
-        rnnoise_info = QLabel("(Requires: pip install rnnoise)")
-        rnnoise_info.setStyleSheet(f"font-size: 10px; color: {Theme.get('text_secondary', self.is_dark_mode)}; font-style: italic;")
-        rnnoise_layout.addWidget(rnnoise_info)
-        rnnoise_layout.addStretch()
-        filters_layout.addLayout(rnnoise_layout)
-
-        # Enhanced Compressor
-        self.compressor_checkbox = QCheckBox("⚡ Enhanced Compressor - OBS-style dynamics (better than basic)")
-        self.compressor_checkbox.setChecked(True)  # Enabled by default
-        filters_layout.addWidget(self.compressor_checkbox)
-
-        filters_group.setLayout(filters_layout)
-        layout.addWidget(filters_group)
-        layout.addSpacing(10)
+        # Simplified UI: remove Audio Filters section
 
         # Record toggle button
         button_container = QWidget()
@@ -790,6 +818,8 @@ class Video2TextQt(QMainWindow):
 
         layout.addStretch()
         widget.setLayout(layout)
+        # Start meters automatically
+        QTimer.singleShot(200, self.ensure_audio_preview_running)
         return widget
 
     def create_basic_transcript_tab(self):
@@ -875,53 +905,68 @@ class Video2TextQt(QMainWindow):
         """Refresh the audio device combo boxes with platform-specific help."""
         logger.info("Refreshing audio devices...")
         current_platform = get_platform()
-        platform_help = get_platform_audio_setup_help()
         mic_devices, speaker_devices = get_audio_devices()
 
-        # Build debug info
-        info_lines = []
-        info_lines.append(f"Platform: {current_platform.upper()}")
-        info_lines.append(f"✓ Found {len(mic_devices)} microphone(s)")
-        info_lines.append(f"✓ Found {len(speaker_devices)} system audio device(s)")
+        # Preserve current selections
+        prev_mic = self.mic_combo.currentData() if hasattr(self, 'mic_combo') else None
+        prev_speaker = self.speaker_combo.currentData() if hasattr(self, 'speaker_combo') else None
 
-        # Populate microphone combo
+        # Populate microphone combo (simplified labels)
         self.mic_combo.clear()
         if mic_devices:
+            # Add an option to follow system default microphone
+            self.mic_combo.addItem("Default Microphone — follows system", None)
             for idx, name in mic_devices:
-                self.mic_combo.addItem(f"{name} (#{idx})", idx)
-                info_lines.append(f"  🎤 {name} (device #{idx})")
-            self.selected_mic_device = mic_devices[0][0]  # Select first by default
+                self.mic_combo.addItem(name, idx)
+            # Select the default-follow item by default
+            # Try to restore selection; otherwise default-follow
+            restored = False
+            if prev_mic is not None:
+                for i in range(self.mic_combo.count()):
+                    if self.mic_combo.itemData(i) == prev_mic:
+                        self.mic_combo.setCurrentIndex(i)
+                        restored = True
+                        break
+            if not restored:
+                self.mic_combo.setCurrentIndex(0)
+                self.selected_mic_device = None
         else:
             self.mic_combo.addItem("❌ No microphone found", None)
             self.selected_mic_device = None
-            info_lines.append("")
-            info_lines.append("⚠️  No microphone detected!")
-            # Add platform-specific permission help
-            for line in platform_help.get('permissions', [])[:3]:  # Show first 3 lines
-                info_lines.append(line)
 
-        # Populate speaker combo
+        # Populate speaker combo (simplified labels)
         self.speaker_combo.clear()
         if speaker_devices:
+            # Add an option to follow system default output on Windows (WASAPI loopback)
+            if current_platform == 'windows':
+                from gui.workers import DEFAULT_SPEAKER_FOLLOW_SYSTEM
+                self.speaker_combo.addItem("Default System Output — follows Windows default", DEFAULT_SPEAKER_FOLLOW_SYSTEM)
             for idx, name in speaker_devices:
-                self.speaker_combo.addItem(f"{name} (#{idx})", idx)
-                info_lines.append(f"  🔊 {name} (device #{idx})")
-            self.selected_speaker_device = speaker_devices[0][0]  # Select first by default
+                self.speaker_combo.addItem(name, idx)
+            # Try to restore selection; otherwise default-follow on Windows
+            restored = False
+            if prev_speaker is not None:
+                for i in range(self.speaker_combo.count()):
+                    if self.speaker_combo.itemData(i) == prev_speaker:
+                        self.speaker_combo.setCurrentIndex(i)
+                        restored = True
+                        break
+            if not restored:
+                if current_platform == 'windows':
+                    self.speaker_combo.setCurrentIndex(0)
+                    self.selected_speaker_device = self.speaker_combo.currentData()
+                else:
+                    # Pick first detected device
+                    self.speaker_combo.setCurrentIndex(0)
+                    self.selected_speaker_device = self.speaker_combo.currentData()
         else:
             self.speaker_combo.addItem("❌ No system audio device (optional)", None)
             self.selected_speaker_device = None
-            info_lines.append("")
-            info_lines.append("ℹ️  No system audio device detected")
-            # Add platform-specific loopback setup help (first 5 lines)
-            for line in platform_help.get('loopback_install', [])[:5]:
-                info_lines.append(line)
-            info_lines.append("   (Click '?' button for full setup guide)")
-
-        # Update debug info label
-        self.device_info_label.setText("\n".join(info_lines))
 
         # Show status message
         self.statusBar().showMessage(f"Devices refreshed: {len(mic_devices)} mic(s), {len(speaker_devices)} speaker(s)", 3000)
+        # Keep meters alive with any new selections
+        QTimer.singleShot(50, self.ensure_audio_preview_running)
 
     def on_mic_device_changed(self, index):
         """Handle microphone device selection change."""
@@ -1026,6 +1071,29 @@ class Video2TextQt(QMainWindow):
             self.test_audio_btn.apply_style()
             logger.info("Audio preview started")
 
+    def ensure_audio_preview_running(self):
+        """Start preview if not already running; used for always-on meters."""
+        try:
+            if self.is_recording:
+                return
+            # If worker exists but stopped, clear it
+            if self.preview_worker and not self.preview_worker.isRunning():
+                self.preview_worker = None
+            if not self.preview_worker:
+                if self.selected_mic_device is None and self.selected_speaker_device is None:
+                    # Still start with defaults if possible
+                    pass
+                self.preview_worker = AudioPreviewWorker(
+                    mic_device=self.selected_mic_device,
+                    speaker_device=self.selected_speaker_device,
+                    parent=self
+                )
+                self.preview_worker.audio_level.connect(self.update_audio_levels)
+                self.preview_worker.start()
+                logger.info("Audio preview auto-started")
+        except Exception as e:
+            logger.warning(f"ensure_audio_preview_running failed: {e}")
+
     def toggle_basic_recording(self):
         """Toggle recording in Basic Mode (one-button flow)."""
         if not self.is_recording:
@@ -1083,9 +1151,6 @@ class Video2TextQt(QMainWindow):
             self.preview_worker.stop()
             self.preview_worker.wait()
             self.preview_worker = None
-            self.test_audio_btn.setText("🔍 Test Audio Levels")
-            self.test_audio_btn.primary = False
-            self.test_audio_btn.apply_style()
 
         self.is_recording = True
         self.recording_start_time = time.time()
@@ -1111,7 +1176,8 @@ class Video2TextQt(QMainWindow):
         self.drop_zone.setEnabled(False)
         self.mic_combo.setEnabled(False)
         self.speaker_combo.setEnabled(False)
-        self.test_audio_btn.setEnabled(False)
+        if hasattr(self, 'test_audio_btn') and self.test_audio_btn:
+            self.test_audio_btn.setEnabled(False)
 
         # Show duration label
         self.recording_duration_label.show()
@@ -1124,16 +1190,16 @@ class Video2TextQt(QMainWindow):
 
         logger.info(f"Started basic mode recording (mic:{self.selected_mic_device}, speaker:{self.selected_speaker_device})")
 
-        # Collect filter settings from UI
+        # Collect filter settings (static defaults; UI panel removed)
         filter_settings = {
-            'noise_gate_enabled': self.noise_gate_checkbox.isChecked(),
-            'noise_gate_threshold': -32.0,  # Default value
+            'noise_gate_enabled': True,
+            'noise_gate_threshold': -32.0,
             'noise_gate_attack': 25.0,
             'noise_gate_release': 150.0,
             'noise_gate_hold': 200.0,
-            'rnnoise_enabled': self.rnnoise_checkbox.isChecked(),
-            'use_enhanced_compressor': self.compressor_checkbox.isChecked(),
-            'compressor_threshold': -18.0,  # Default value
+            'rnnoise_enabled': True,
+            'use_enhanced_compressor': True,
+            'compressor_threshold': -18.0,
             'compressor_ratio': 3.0,
             'compressor_attack': 6.0,
             'compressor_release': 60.0,
@@ -1174,7 +1240,8 @@ class Video2TextQt(QMainWindow):
         # Re-enable controls
         self.mic_combo.setEnabled(True)
         self.speaker_combo.setEnabled(True)
-        self.test_audio_btn.setEnabled(True)
+        if hasattr(self, 'test_audio_btn') and self.test_audio_btn:
+            self.test_audio_btn.setEnabled(True)
 
         # Hide duration label
         self.recording_duration_label.hide()
@@ -1189,6 +1256,8 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('warning', self.is_dark_mode)};")
 
         logger.info("Stopped basic mode recording")
+        # Resume meters shortly after stopping
+        QTimer.singleShot(400, self.ensure_audio_preview_running)
 
     def update_recording_duration(self):
         """Update recording duration display."""

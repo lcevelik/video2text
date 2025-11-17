@@ -10,6 +10,9 @@ import sys
 import re
 import logging
 import torch
+import shutil
+import subprocess
+import platform
 from io import StringIO
 
 import whisper
@@ -117,16 +120,62 @@ class Transcriber:
         Returns:
             str: Device name ('cuda', 'mps', or 'cpu')
         """
+        # Allow override: VIDEO2TEXT_DEVICE=cpu|cuda|mps
+        forced = os.environ.get('VIDEO2TEXT_DEVICE', '').strip().lower()
+        if forced in ('cpu', 'cuda', 'mps'):
+            if forced == 'cuda' and not torch.cuda.is_available():
+                logger.warning("VIDEO2TEXT_DEVICE=cuda set, but torch.cuda.is_available() is False")
+            elif forced == 'mps' and not torch.backends.mps.is_available():
+                logger.warning("VIDEO2TEXT_DEVICE=mps set, but torch.backends.mps.is_available() is False")
+            else:
+                if forced == 'cuda':
+                    try:
+                        logger.info(f"✓ Using NVIDIA GPU (forced): {torch.cuda.get_device_name(0)}")
+                    except Exception:
+                        logger.info("✓ Using NVIDIA GPU (forced)")
+                elif forced == 'mps':
+                    logger.info("✓ Using Apple Silicon GPU (MPS) (forced)")
+                else:
+                    logger.info("Using CPU (forced)")
+                return forced
+
         if torch.cuda.is_available():
             device = 'cuda'
-            logger.info(f"✓ Using NVIDIA GPU: {torch.cuda.get_device_name(0)} (with FP16 acceleration)")
+            try:
+                name = torch.cuda.get_device_name(0)
+            except Exception:
+                name = 'NVIDIA GPU'
+            logger.info(f"✓ Using NVIDIA GPU: {name} (CUDA {torch.version.cuda or 'unknown'})")
         elif torch.backends.mps.is_available():
             device = 'mps'
             logger.info("✓ Using Apple Silicon GPU (Metal Performance Shaders) - Optimized for M1/M2/M3/M4!")
             logger.info("Note: Using full precision (FP32) on MPS for numerical stability with large models")
         else:
             device = 'cpu'
-            logger.info("Using CPU (no GPU acceleration available)")
+            # Provide helpful diagnostics for Windows/NVIDIA
+            if platform.system() == 'Windows':
+                has_nvidia = False
+                try:
+                    if shutil.which('nvidia-smi'):
+                        proc = subprocess.run(['nvidia-smi', '-L'], capture_output=True, text=True, timeout=2)
+                        has_nvidia = (proc.returncode == 0 and proc.stdout.strip() != '')
+                except Exception:
+                    pass
+                cuda_built = bool(getattr(torch.version, 'cuda', None))
+                if has_nvidia and not torch.cuda.is_available():
+                    if not cuda_built:
+                        logger.info("Using CPU (PyTorch installed without CUDA support)")
+                        logger.info("→ NVIDIA GPU detected but current torch wheel is CPU-only.")
+                        logger.info("→ To enable GPU, install CUDA-enabled PyTorch, e.g.:")
+                        logger.info("   pip uninstall -y torch torchaudio torchvision")
+                        logger.info("   pip install --index-url https://download.pytorch.org/whl/cu121 torch torchaudio torchvision")
+                    else:
+                        logger.info("Using CPU (torch CUDA build present but driver/runtime unavailable)")
+                        logger.info("→ Ensure NVIDIA driver and CUDA runtime match the torch build.")
+                else:
+                    logger.info("Using CPU (no GPU acceleration available)")
+            else:
+                logger.info("Using CPU (no GPU acceleration available)")
         return device
     
     def load_model(self, progress_callback=None):

@@ -10,7 +10,7 @@ This is now a simple launcher that imports from the refactored gui package.
 import sys
 import logging
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication  # type: ignore
 
 from gui.main_window import Video2TextQt
 
