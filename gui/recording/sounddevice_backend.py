@@ -362,8 +362,9 @@ class SoundDeviceBackend(RecordingBackend):
                 logger.info(f"Opening loopback stream on WASAPI output with "
                           f"{loopback_channels} channel(s)")
 
-                # Configure WASAPI loopback
-                extra = sd.WasapiSettings(loopback=True)
+                # For WASAPI loopback: no extra settings needed
+                # Opening an InputStream on an output device automatically enables loopback
+                extra = None
             else:
                 # Input monitor device
                 loopback_channels = min(loopback_info['max_input_channels'], 2)
