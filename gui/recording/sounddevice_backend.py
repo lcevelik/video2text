@@ -206,7 +206,7 @@ class SoundDeviceBackend(RecordingBackend):
                         matches_loopback = any(kw in device_name_lower
                                              for kw in ['stereo mix', 'loopback', 'monitor',
                                                        'speakers wave', 'blackhole',
-                                                       'soundflower', 'steam'])
+                                                       'soundflower'])
                         if device.get('max_input_channels', 0) > 0 and matches_loopback:
                             loopback_device = idx
                             logger.info(f"✅ Auto-detected loopback device (monitor/input): "
@@ -221,6 +221,16 @@ class SoundDeviceBackend(RecordingBackend):
                 # 2) Fallback: WASAPI output-only devices
                 if loopback_device is None:
                     logger.info("Step 2: Looking for WASAPI output devices (for loopback mode)...")
+
+                    # Try to get the default output device
+                    default_output = None
+                    try:
+                        default_output = sd.default.device[1]
+                        if default_output is not None and isinstance(default_output, int) and default_output >= 0:
+                            logger.info(f"System default output device: [{default_output}] {devices[default_output].get('name','')}")
+                    except Exception as e:
+                        logger.debug(f"Could not get default output device: {e}")
+
                     wasapi_candidates = []
                     for idx, device in enumerate(devices):
                         if idx == mic_device:
@@ -242,16 +252,23 @@ class SoundDeviceBackend(RecordingBackend):
 
                             if has_output and not has_input and is_wasapi:
                                 wasapi_candidates.append(idx)
-                                logger.info(f"  Found WASAPI output device: [{idx}] {device.get('name','')}")
+                                is_default = " (DEFAULT)" if idx == default_output else ""
+                                logger.info(f"  Found WASAPI output device: [{idx}] {device.get('name','')}{is_default}")
                         except Exception as e:
                             logger.debug(f"  Error checking device {idx}: {e}")
                             continue
 
                     if wasapi_candidates:
-                        # Use the first WASAPI output device (usually the default speaker)
-                        loopback_device = wasapi_candidates[0]
-                        logger.info(f"✅ Selected WASAPI output for loopback: "
-                                  f"[{loopback_device}] {devices[loopback_device].get('name','')}")
+                        # Prefer the default output device if it's in the candidates
+                        if default_output in wasapi_candidates:
+                            loopback_device = default_output
+                            logger.info(f"✅ Selected default WASAPI output for loopback: "
+                                      f"[{loopback_device}] {devices[loopback_device].get('name','')}")
+                        else:
+                            # Use the first WASAPI output device
+                            loopback_device = wasapi_candidates[0]
+                            logger.info(f"✅ Selected WASAPI output for loopback: "
+                                      f"[{loopback_device}] {devices[loopback_device].get('name','')}")
                     else:
                         logger.warning("⚠️  No WASAPI output devices found!")
             else:
