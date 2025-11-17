@@ -59,6 +59,21 @@ class SoundDeviceBackend(RecordingBackend):
         devices = sd.query_devices()
         logger.info(f"Total devices available: {len(devices)}")
 
+        # Log all devices for debugging
+        logger.info("=== Available Audio Devices ===")
+        for idx, device in enumerate(devices):
+            logger.info(f"  [{idx}] {device['name']}")
+            logger.info(f"      Input channels: {device['max_input_channels']}, "
+                       f"Output channels: {device['max_output_channels']}")
+            logger.info(f"      Sample rate: {device.get('default_samplerate', 'N/A')}")
+            try:
+                hostapi_idx = device.get('hostapi', None)
+                if hostapi_idx is not None:
+                    hostapi_name = sd.query_hostapis()[hostapi_idx]['name']
+                    logger.info(f"      Host API: {hostapi_name}")
+            except:
+                pass
+
         # Find and open microphone
         mic_device = self._find_microphone_device(devices)
         self._open_microphone_stream(mic_device, devices)
@@ -67,6 +82,8 @@ class SoundDeviceBackend(RecordingBackend):
         loopback_device = self._find_loopback_device(devices, mic_device)
         if loopback_device is not None:
             self._open_loopback_stream(loopback_device, devices)
+        else:
+            logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
 
         self.is_recording = True
         self.record_start_time = time.time()
@@ -152,7 +169,10 @@ class SoundDeviceBackend(RecordingBackend):
         from gui.utils import get_platform
 
         loopback_device = None
-        is_macos = get_platform() == 'macos'
+        platform = get_platform()
+        is_macos = platform == 'macos'
+
+        logger.info(f"=== Finding Loopback Device (Platform: {platform}) ===")
 
         if is_macos:
             # On macOS, look for BlackHole as the system audio source
@@ -174,8 +194,10 @@ class SoundDeviceBackend(RecordingBackend):
             loopback_device = self.speaker_device
 
             if loopback_device is None:
-                # Auto-detect loopback device
+                logger.info("Auto-detecting loopback device for Windows/Linux...")
+
                 # 1) Prefer input-capable devices with loopback/monitor names
+                logger.info("Step 1: Looking for input devices with loopback/monitor names...")
                 for idx, device in enumerate(devices):
                     if idx == mic_device:
                         continue
@@ -187,34 +209,58 @@ class SoundDeviceBackend(RecordingBackend):
                                                        'soundflower', 'steam'])
                         if device.get('max_input_channels', 0) > 0 and matches_loopback:
                             loopback_device = idx
-                            logger.info(f"Auto-detected loopback device (monitor/input): "
-                                      f"{device.get('name','')}")
+                            logger.info(f"✅ Auto-detected loopback device (monitor/input): "
+                                      f"[{idx}] {device.get('name','')}")
                             break
-                    except Exception:
+                        elif matches_loopback:
+                            logger.debug(f"  Found loopback name but no input channels: [{idx}] {device.get('name','')}")
+                    except Exception as e:
+                        logger.debug(f"  Error checking device {idx}: {e}")
                         continue
 
                 # 2) Fallback: WASAPI output-only devices
                 if loopback_device is None:
+                    logger.info("Step 2: Looking for WASAPI output devices (for loopback mode)...")
+                    wasapi_candidates = []
                     for idx, device in enumerate(devices):
                         if idx == mic_device:
                             continue
                         try:
-                            if (device.get('max_output_channels', 0) > 0 and
-                                device.get('max_input_channels', 0) == 0):
-                                ha_idx = device.get('hostapi', None)
+                            has_output = device.get('max_output_channels', 0) > 0
+                            has_input = device.get('max_input_channels', 0) > 0
+                            ha_idx = device.get('hostapi', None)
+                            ha_name = ''
+                            try:
+                                if ha_idx is not None:
+                                    ha_name = sd.query_hostapis()[ha_idx]['name'].lower()
+                            except Exception:
                                 ha_name = ''
-                                try:
-                                    if ha_idx is not None:
-                                        ha_name = sd.query_hostapis()[ha_idx]['name'].lower()
-                                except Exception:
-                                    ha_name = ''
-                                if 'wasapi' in ha_name:
-                                    loopback_device = idx
-                                    logger.info(f"Auto-detected WASAPI output for loopback: "
-                                              f"{device.get('name','')}")
-                                    break
-                        except Exception:
+
+                            is_wasapi = 'wasapi' in ha_name
+                            logger.debug(f"  [{idx}] {device.get('name','')}: "
+                                       f"out={has_output}, in={has_input}, api={ha_name}, wasapi={is_wasapi}")
+
+                            if has_output and not has_input and is_wasapi:
+                                wasapi_candidates.append(idx)
+                                logger.info(f"  Found WASAPI output device: [{idx}] {device.get('name','')}")
+                        except Exception as e:
+                            logger.debug(f"  Error checking device {idx}: {e}")
                             continue
+
+                    if wasapi_candidates:
+                        # Use the first WASAPI output device (usually the default speaker)
+                        loopback_device = wasapi_candidates[0]
+                        logger.info(f"✅ Selected WASAPI output for loopback: "
+                                  f"[{loopback_device}] {devices[loopback_device].get('name','')}")
+                    else:
+                        logger.warning("⚠️  No WASAPI output devices found!")
+            else:
+                logger.info(f"Using specified speaker device: [{loopback_device}]")
+
+        if loopback_device is not None:
+            logger.info(f"Final loopback device selection: [{loopback_device}] {devices[loopback_device].get('name','')}")
+        else:
+            logger.warning("No loopback device found - system audio will not be captured")
 
         return loopback_device
 
@@ -222,6 +268,8 @@ class SoundDeviceBackend(RecordingBackend):
         """Open system audio / loopback stream."""
         import sounddevice as sd
         from gui.utils import get_platform
+
+        logger.info(f"=== Opening Loopback Stream on Device [{loopback_device}] ===")
 
         def speaker_callback(indata, frames, time_info, status):
             if status:
@@ -233,6 +281,9 @@ class SoundDeviceBackend(RecordingBackend):
                 else:
                     mono_data = indata
                 self.speaker_chunks.append(mono_data.copy())
+                if len(self.speaker_chunks) <= 3:
+                    logger.info(f"📥 Speaker chunk #{len(self.speaker_chunks)} captured: {mono_data.shape}, "
+                              f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
         try:
             # Resolve device for Windows "follow system"
@@ -303,6 +354,12 @@ class SoundDeviceBackend(RecordingBackend):
                 logger.warning("Loopback device has 0 channels; skipping speaker capture")
                 return
 
+            logger.info(f"Opening stream with parameters:")
+            logger.info(f"  Device: {target_device} ({devices[target_device].get('name','')})")
+            logger.info(f"  Sample rate: {speaker_rate} Hz")
+            logger.info(f"  Channels: {loopback_channels}")
+            logger.info(f"  WASAPI loopback mode: {extra is not None}")
+
             self.speaker_stream = sd.InputStream(
                 device=target_device,
                 samplerate=speaker_rate,
@@ -310,15 +367,17 @@ class SoundDeviceBackend(RecordingBackend):
                 callback=speaker_callback,
                 extra_settings=extra
             )
+
+            logger.info("Stream created, starting...")
             self.speaker_stream.start()
             self.speaker_sample_rate = speaker_rate
 
-            logger.info(f"✅ Speaker stream opened: device {target_device}, "
+            logger.info(f"✅ Speaker stream opened successfully: device {target_device}, "
                        f"rate {speaker_rate}Hz, channels {loopback_channels}")
 
         except Exception as e:
-            logger.warning(f"Could not open loopback stream on device {loopback_device}: {e}")
-            logger.info("Recording will continue with microphone only")
+            logger.error(f"❌ Failed to open loopback stream on device {loopback_device}: {e}", exc_info=True)
+            logger.warning("Recording will continue with microphone only")
 
     def stop_recording(self) -> RecordingResult:
         """Stop recording and return collected audio."""
