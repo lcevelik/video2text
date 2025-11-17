@@ -130,7 +130,7 @@ try:
                         return
 
                     # Allocate buffer to copy data into
-                    buffer = objc.allocate_buffer(buffer_length)
+                    buffer = objc.allocateBuffer(buffer_length)
 
                     # Copy data from block buffer
                     status = AVFoundation.CMBlockBufferCopyDataBytes(
