@@ -253,18 +253,37 @@ try:
                 # Initialize NSApplication (required for ScreenCaptureKit)
                 app = NSApplication.sharedApplication()
 
+                # Check if we can use ScreenCaptureKit (basic check)
+                # The actual permission check happens when we try to start the stream
+                logger.info("Initializing ScreenCaptureKit for system audio capture")
+                logger.info("Note: This requires Screen Recording permission")
+                logger.info("If this is the first time, macOS will prompt for permission")
+
                 # Create and initialize delegate
                 self.delegate = AudioCaptureDelegate.alloc().init()
                 logger.info("Created ScreenCaptureKit delegate")
 
                 # Get shareable content (asynchronously)
-                # We need to get the system audio content
+                # We need displays to create a proper content filter
                 def content_completion(content, error):
                     if error:
                         logger.error(f"Failed to get shareable content: {error}")
                         return
 
+                    if not content:
+                        logger.error("No shareable content available")
+                        return
+
                     logger.info("Got shareable content, configuring stream...")
+
+                    # Get the main display for audio capture
+                    displays = content.displays()
+                    if not displays or len(displays) == 0:
+                        logger.error("No displays found for ScreenCaptureKit")
+                        return
+
+                    main_display = displays[0]
+                    logger.info(f"Using display: {main_display.displayID()}")
 
                     # Create stream configuration for audio-only capture
                     config = SCKit.SCStreamConfiguration.alloc().init()
@@ -277,17 +296,32 @@ try:
                     config.setChannelCount_(2)  # Stereo
                     config.setSampleRate_(48000)  # 48kHz (standard for system audio)
 
-                    # We don't need video
-                    config.setWidth_(1)  # Minimum width
-                    config.setHeight_(1)  # Minimum height
-                    config.setPixelFormat_(1111970369)  # kCVPixelFormatType_32BGRA
+                    # Minimize video capture (we only want audio)
+                    config.setWidth_(2)  # Minimum width (1 causes issues)
+                    config.setHeight_(2)  # Minimum height
+                    # Set minimum frame rate for video (we don't care about video, only audio)
+                    try:
+                        # Create CMTime for 1 fps (value=1, timescale=1)
+                        min_frame_interval = AVFoundation.CMTimeMake(1, 1)
+                        config.setMinimumFrameInterval_(min_frame_interval)
+                    except:
+                        pass  # Not critical, we only need audio
+                    config.setQueueDepth_(3)  # Small queue
 
-                    # Create filter for system audio
-                    # We want to capture ALL system audio
-                    content_filter = SCKit.SCContentFilter.alloc().init()
+                    # Create content filter with the main display
+                    # This captures all audio from this display (system audio)
+                    content_filter = SCKit.SCContentFilter.alloc().initWithDisplay_excludingWindows_(
+                        main_display,
+                        []  # Don't exclude any windows
+                    )
+
+                    if not content_filter:
+                        logger.error("Failed to create content filter")
+                        return
+
+                    logger.info("Created content filter for display audio")
 
                     # Create stream
-                    error_ptr = None
                     self.screen_stream = SCKit.SCStream.alloc().initWithFilter_configuration_delegate_(
                         content_filter,
                         config,
@@ -298,10 +332,26 @@ try:
                         logger.error("Failed to create ScreenCaptureKit stream")
                         return
 
+                    logger.info("Created SCStream, starting capture...")
+
+                    # Add audio output to the stream
+                    # This is CRITICAL for audio capture
+                    try:
+                        self.screen_stream.addStreamOutput_type_sampleHandlerQueue_error_(
+                            self.delegate,
+                            1,  # SCStreamOutputTypeAudio
+                            None,  # Use default queue
+                            None
+                        )
+                        logger.info("Added audio output handler to stream")
+                    except Exception as e:
+                        logger.warning(f"Could not add stream output (may not be needed): {e}")
+
                     # Start the stream
                     def start_completion(error):
                         if error:
                             logger.error(f"Failed to start stream: {error}")
+                            logger.info("Check System Settings → Privacy & Security → Screen Recording")
                         else:
                             logger.info("✅ ScreenCaptureKit system audio stream started")
 
