@@ -13,10 +13,119 @@ import threading
 import time
 import numpy as np
 from typing import Optional, Callable
-from ctypes import POINTER, cast, c_float, c_int16, c_uint8
+from ctypes import (
+    POINTER, Structure, c_float, c_int16, c_uint8, c_uint16, c_uint32,
+    c_int64, c_void_p, HRESULT, byref, cast
+)
 import comtypes
+from comtypes import GUID, COMMETHOD, IUnknown
 
 logger = logging.getLogger(__name__)
+
+
+# ===== Windows Audio Constants =====
+CLSID_MMDeviceEnumerator = GUID('{BCDE0395-E52F-467C-8E3D-C4579291692E}')
+IID_IMMDeviceEnumerator = GUID('{A95664D2-9614-4F35-A746-DE8DB63617E6}')
+IID_IMMDevice = GUID('{D666063F-1587-4E43-81F1-B948E807363F}')
+IID_IAudioClient = GUID('{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}')
+IID_IAudioCaptureClient = GUID('{C8ADBD64-E71E-48a0-A4DE-185C395CD317}')
+
+# EDataFlow enum
+eRender = 0  # Audio rendering (output)
+eCapture = 1  # Audio capture (input)
+eAll = 2
+
+# ERole enum
+eConsole = 0
+eMultimedia = 1
+eCommunications = 2
+
+# Audio client flags
+AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
+AUDCLNT_SHAREMODE_SHARED = 0
+
+
+# ===== COM Structures =====
+class WAVEFORMATEX(Structure):
+    _fields_ = [
+        ('wFormatTag', c_uint16),
+        ('nChannels', c_uint16),
+        ('nSamplesPerSec', c_uint32),
+        ('nAvgBytesPerSec', c_uint32),
+        ('nBlockAlign', c_uint16),
+        ('wBitsPerSample', c_uint16),
+        ('cbSize', c_uint16),
+    ]
+
+
+# ===== COM Interfaces =====
+class IMMDeviceEnumerator(IUnknown):
+    _iid_ = IID_IMMDeviceEnumerator
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'EnumAudioEndpoints'),
+        COMMETHOD([], HRESULT, 'GetDefaultAudioEndpoint',
+                  (['in'], c_uint32, 'dataFlow'),
+                  (['in'], c_uint32, 'role'),
+                  (['out'], POINTER(POINTER(IUnknown)), 'ppDevice')),
+    ]
+
+
+class IMMDevice(IUnknown):
+    _iid_ = IID_IMMDevice
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'Activate',
+                  (['in'], POINTER(GUID), 'iid'),
+                  (['in'], c_uint32, 'dwClsCtx'),
+                  (['in'], c_void_p, 'pActivationParams'),
+                  (['out'], POINTER(c_void_p), 'ppInterface')),
+        COMMETHOD([], HRESULT, 'OpenPropertyStore'),
+        COMMETHOD([], HRESULT, 'GetId',
+                  (['out'], POINTER(c_void_p), 'ppstrId')),
+        COMMETHOD([], HRESULT, 'GetState'),
+    ]
+
+
+class IAudioClient(IUnknown):
+    _iid_ = IID_IAudioClient
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'Initialize',
+                  (['in'], c_uint32, 'ShareMode'),
+                  (['in'], c_uint32, 'StreamFlags'),
+                  (['in'], c_int64, 'hnsBufferDuration'),
+                  (['in'], c_int64, 'hnsPeriodicity'),
+                  (['in'], POINTER(WAVEFORMATEX), 'pFormat'),
+                  (['in'], POINTER(GUID), 'AudioSessionGuid')),
+        COMMETHOD([], HRESULT, 'GetBufferSize'),
+        COMMETHOD([], HRESULT, 'GetStreamLatency'),
+        COMMETHOD([], HRESULT, 'GetCurrentPadding'),
+        COMMETHOD([], HRESULT, 'IsFormatSupported'),
+        COMMETHOD([], HRESULT, 'GetMixFormat',
+                  (['out'], POINTER(POINTER(WAVEFORMATEX)), 'ppDeviceFormat')),
+        COMMETHOD([], HRESULT, 'GetDevicePeriod'),
+        COMMETHOD([], HRESULT, 'Start'),
+        COMMETHOD([], HRESULT, 'Stop'),
+        COMMETHOD([], HRESULT, 'Reset'),
+        COMMETHOD([], HRESULT, 'SetEventHandle'),
+        COMMETHOD([], HRESULT, 'GetService',
+                  (['in'], POINTER(GUID), 'riid'),
+                  (['out'], POINTER(c_void_p), 'ppv')),
+    ]
+
+
+class IAudioCaptureClient(IUnknown):
+    _iid_ = IID_IAudioCaptureClient
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'GetBuffer',
+                  (['out'], POINTER(c_void_p), 'ppData'),
+                  (['out'], POINTER(c_uint32), 'pNumFramesToRead'),
+                  (['out'], POINTER(c_uint32), 'pdwFlags'),
+                  (['out'], POINTER(c_uint64), 'pu64DevicePosition'),
+                  (['out'], POINTER(c_uint64), 'pu64QPCPosition')),
+        COMMETHOD([], HRESULT, 'ReleaseBuffer',
+                  (['in'], c_uint32, 'NumFramesRead')),
+        COMMETHOD([], HRESULT, 'GetNextPacketSize',
+                  (['out'], POINTER(c_uint32), 'pNumFramesInNextPacket')),
+    ]
 
 
 class WASAPILoopbackCapture:
@@ -64,47 +173,50 @@ class WASAPILoopbackCapture:
             # Initialize COM
             comtypes.CoInitialize()
 
-            # Import Windows audio interfaces
-            from comtypes import CLSCTX_ALL, GUID
-
-            try:
-                from pycaw.constants import CLSID_MMDeviceEnumerator
-                import pycaw.api.mmdeviceapi as mmdeviceapi
-                import pycaw.api.audioclient as audioclient
-            except ImportError:
-                logger.error("pycaw library not found. Install with: pip install pycaw comtypes")
-                raise
-
-            # Define GUIDs that pycaw doesn't provide
-            IID_IAudioClient = GUID('{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}')
-            IID_IAudioCaptureClient = GUID('{C8ADBD64-E71E-48a0-A4DE-185C395CD317}')
-
-            # Get device enumerator
+            # Create device enumerator
             self.device_enumerator = comtypes.CoCreateInstance(
                 CLSID_MMDeviceEnumerator,
-                mmdeviceapi.IMMDeviceEnumerator,
-                CLSCTX_ALL
+                IMMDeviceEnumerator,
+                comtypes.CLSCTX_ALL
             )
 
-            # Get default audio endpoint (speakers/headphones)
-            # eRender = 0 (output device), eConsole = 0 (default device role)
-            self.device = self.device_enumerator.GetDefaultAudioEndpoint(
-                0,  # eRender - output device
-                0   # eConsole - console role
+            # Get default audio output device (speakers/headphones)
+            device_ptr = POINTER(IMMDevice)()
+            hr = self.device_enumerator.GetDefaultAudioEndpoint(
+                eRender,  # Output device
+                eConsole,  # Console role
+                byref(device_ptr)
             )
 
-            device_id = self.device.GetId()
-            logger.info(f"Using default output device: {device_id}")
+            if hr != 0:
+                raise RuntimeError(f"Failed to get default audio endpoint: HRESULT {hr:#x}")
+
+            self.device = cast(device_ptr, POINTER(IMMDevice))
+            logger.info("Got default audio output device")
 
             # Activate audio client
-            self.audio_client = self.device.Activate(
-                IID_IAudioClient,
-                CLSCTX_ALL,
-                None
+            audio_client_ptr = c_void_p()
+            hr = self.device.Activate(
+                byref(IID_IAudioClient),
+                comtypes.CLSCTX_ALL,
+                None,
+                byref(audio_client_ptr)
             )
 
-            # Get the audio format
-            self.wave_format = self.audio_client.GetMixFormat()
+            if hr != 0:
+                raise RuntimeError(f"Failed to activate audio client: HRESULT {hr:#x}")
+
+            self.audio_client = cast(audio_client_ptr, POINTER(IAudioClient))
+            logger.info("Audio client activated")
+
+            # Get the mix format
+            wave_format_ptr = POINTER(WAVEFORMATEX)()
+            hr = self.audio_client.GetMixFormat(byref(wave_format_ptr))
+
+            if hr != 0:
+                raise RuntimeError(f"Failed to get mix format: HRESULT {hr:#x}")
+
+            self.wave_format = wave_format_ptr
 
             # Log audio format details
             self.sample_rate = self.wave_format.contents.nSamplesPerSec
@@ -114,14 +226,9 @@ class WASAPILoopbackCapture:
             logger.info(f"Audio format: {self.sample_rate}Hz, {self.channels}ch, {bits_per_sample}bit")
 
             # Initialize audio client in loopback mode
-            AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
-            AUDCLNT_SHAREMODE_SHARED = 0
+            buffer_duration = 10000000  # 1 second in 100-nanosecond units
 
-            # Reference time units (100-nanosecond intervals)
-            # 10,000,000 = 1 second
-            buffer_duration = 10000000  # 1 second
-
-            self.audio_client.Initialize(
+            hr = self.audio_client.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,
                 AUDCLNT_STREAMFLAGS_LOOPBACK,
                 buffer_duration,
@@ -130,13 +237,30 @@ class WASAPILoopbackCapture:
                 None  # Audio session GUID
             )
 
+            if hr != 0:
+                raise RuntimeError(f"Failed to initialize audio client: HRESULT {hr:#x}")
+
+            logger.info("Audio client initialized in loopback mode")
+
             # Get the capture client
-            self.capture_client = self.audio_client.GetService(
-                IID_IAudioCaptureClient
+            capture_client_ptr = c_void_p()
+            hr = self.audio_client.GetService(
+                byref(IID_IAudioCaptureClient),
+                byref(capture_client_ptr)
             )
 
+            if hr != 0:
+                raise RuntimeError(f"Failed to get capture client: HRESULT {hr:#x}")
+
+            self.capture_client = cast(capture_client_ptr, POINTER(IAudioCaptureClient))
+            logger.info("Capture client obtained")
+
             # Start the audio client
-            self.audio_client.Start()
+            hr = self.audio_client.Start()
+            if hr != 0:
+                raise RuntimeError(f"Failed to start audio client: HRESULT {hr:#x}")
+
+            logger.info("Audio client started")
 
             # Start capture thread
             self.is_capturing = True
@@ -158,41 +282,61 @@ class WASAPILoopbackCapture:
             while self.is_capturing:
                 try:
                     # Get next packet size
-                    packet_length = self.capture_client.GetNextPacketSize()
+                    packet_length = c_uint32()
+                    hr = self.capture_client.GetNextPacketSize(byref(packet_length))
 
-                    while packet_length > 0:
+                    if hr != 0:
+                        logger.error(f"GetNextPacketSize failed: HRESULT {hr:#x}")
+                        break
+
+                    while packet_length.value > 0:
                         # Get the buffer
-                        data_pointer, num_frames, flags, position, qpc_position = \
-                            self.capture_client.GetBuffer()
+                        data_pointer = c_void_p()
+                        num_frames = c_uint32()
+                        flags = c_uint32()
+                        device_position = c_uint64()
+                        qpc_position = c_uint64()
 
-                        if num_frames > 0:
+                        hr = self.capture_client.GetBuffer(
+                            byref(data_pointer),
+                            byref(num_frames),
+                            byref(flags),
+                            byref(device_position),
+                            byref(qpc_position)
+                        )
+
+                        if hr != 0:
+                            logger.error(f"GetBuffer failed: HRESULT {hr:#x}")
+                            break
+
+                        if num_frames.value > 0:
                             # Convert pointer to numpy array based on format
-                            total_samples = num_frames * self.channels
+                            total_samples = num_frames.value * self.channels
 
                             if self.wave_format.contents.wBitsPerSample == 32:
                                 # Float32 format - most common for WASAPI
-                                buffer = (c_float * total_samples).from_address(data_pointer)
+                                buffer = (c_float * total_samples).from_address(data_pointer.value)
                                 audio_data = np.frombuffer(buffer, dtype=np.float32).copy()
                             elif self.wave_format.contents.wBitsPerSample == 16:
                                 # Int16 format - convert to float32
-                                buffer = (c_int16 * total_samples).from_address(data_pointer)
+                                buffer = (c_int16 * total_samples).from_address(data_pointer.value)
                                 audio_data = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
                             else:
                                 # Unsupported format - log and skip
                                 logger.warning(f"Unsupported bit depth: {self.wave_format.contents.wBitsPerSample}")
-                                self.capture_client.ReleaseBuffer(num_frames)
-                                packet_length = self.capture_client.GetNextPacketSize()
+                                self.capture_client.ReleaseBuffer(num_frames.value)
+                                hr = self.capture_client.GetNextPacketSize(byref(packet_length))
                                 continue
 
                             # Reshape to (frames, channels)
-                            audio_data = audio_data.reshape(num_frames, self.channels)
+                            audio_data = audio_data.reshape(num_frames.value, self.channels)
 
                             # Store chunk
                             self.audio_chunks.append(audio_data.copy())
 
                             # Call callback if provided
                             if self.callback:
-                                self.callback(audio_data, num_frames, None, None)
+                                self.callback(audio_data, num_frames.value, None, None)
 
                             # Log first few chunks for debugging
                             if len(self.audio_chunks) <= 3:
@@ -202,10 +346,14 @@ class WASAPILoopbackCapture:
                                           f"max={audio_data.max():.6f}")
 
                         # Release the buffer
-                        self.capture_client.ReleaseBuffer(num_frames)
+                        hr = self.capture_client.ReleaseBuffer(num_frames.value)
+                        if hr != 0:
+                            logger.error(f"ReleaseBuffer failed: HRESULT {hr:#x}")
 
                         # Get next packet size
-                        packet_length = self.capture_client.GetNextPacketSize()
+                        hr = self.capture_client.GetNextPacketSize(byref(packet_length))
+                        if hr != 0:
+                            break
 
                     # Small delay to prevent CPU spinning
                     time.sleep(0.01)

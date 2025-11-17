@@ -427,7 +427,7 @@ class SoundDeviceBackend(RecordingBackend):
             from .wasapi_loopback import WASAPILoopbackCapture
         except ImportError as e:
             logger.error(f"Failed to import WASAPI loopback module: {e}")
-            logger.error("Install required package: pip install pycaw")
+            logger.error("Install required package: pip install comtypes")
             raise
 
         def wasapi_callback(indata, frames, time_info, status):
