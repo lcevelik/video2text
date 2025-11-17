@@ -44,6 +44,7 @@ try:
             self.channels = 2
             self.callback_count = 0
             self.format_detected = False  # Flag to detect format only once
+            self.is_non_interleaved = False  # Track if audio is planar or interleaved
             logger.info("AudioCaptureDelegate initialized")
             return self
 
@@ -105,6 +106,9 @@ try:
                         is_signed_integer = (asbd_ptr.mFormatFlags & 4) != 0  # kAudioFormatFlagIsSignedInteger = 4
                         is_packed = (asbd_ptr.mFormatFlags & 8) != 0  # kAudioFormatFlagIsPacked = 8
                         is_non_interleaved = (asbd_ptr.mFormatFlags & 0x20) != 0  # kAudioFormatFlagIsNonInterleaved = 32
+
+                        # Store the format flag for audio processing
+                        self.is_non_interleaved = is_non_interleaved
 
                         logger.info(f"  Format type: {'Float' if is_float else 'Integer (signed)' if is_signed_integer else 'Integer (unsigned)'}")
                         logger.info(f"  Packed: {is_packed}, Non-interleaved: {is_non_interleaved}, Big-endian: {is_big_endian}")
@@ -208,10 +212,25 @@ try:
 
                 # Handle stereo -> mono conversion
                 if self.channels == 2 and len(audio_data) >= 2:
-                    # Reshape to (samples, channels) and average to mono
-                    audio_data = audio_data.reshape(-1, 2).mean(axis=1)
+                    if self.is_non_interleaved:
+                        # Non-interleaved (planar) format: [L0, L1, ..., Ln, R0, R1, ..., Rn]
+                        # Split into separate channels and average
+                        samples_per_channel = len(audio_data) // self.channels
+                        left_channel = audio_data[:samples_per_channel]
+                        right_channel = audio_data[samples_per_channel:samples_per_channel * 2]
+                        audio_data = (left_channel + right_channel) / 2.0
+                        if self.callback_count <= 3:
+                            logger.info(f"🔊 Callback #{self.callback_count}: Converted PLANAR stereo to mono, {len(audio_data)} samples")
+                            logger.info(f"   Left channel range: min={left_channel.min():.6f}, max={left_channel.max():.6f}")
+                            logger.info(f"   Right channel range: min={right_channel.min():.6f}, max={right_channel.max():.6f}")
+                    else:
+                        # Interleaved format: [L0, R0, L1, R1, L2, R2, ...]
+                        # Reshape to (samples, channels) and average to mono
+                        audio_data = audio_data.reshape(-1, 2).mean(axis=1)
+                        if self.callback_count <= 3:
+                            logger.info(f"🔊 Callback #{self.callback_count}: Converted INTERLEAVED stereo to mono, {len(audio_data)} samples")
+
                     if self.callback_count <= 3:
-                        logger.info(f"🔊 Callback #{self.callback_count}: Converted stereo to mono, {len(audio_data)} samples")
                         logger.info(f"   After mono: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
                         logger.info(f"   First 10 mono samples: {audio_data[:10].tolist()}")
 
