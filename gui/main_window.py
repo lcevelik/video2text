@@ -972,11 +972,15 @@ class Video2TextQt(QMainWindow):
         """Handle microphone device selection change."""
         self.selected_mic_device = self.mic_combo.currentData()
         logger.info(f"Selected microphone device: {self.mic_combo.currentText()} (index: {self.selected_mic_device})")
+        # Restart preview worker with new device selection
+        self.restart_audio_preview()
 
     def on_speaker_device_changed(self, index):
         """Handle speaker device selection change."""
         self.selected_speaker_device = self.speaker_combo.currentData()
         logger.info(f"Selected speaker device: {self.speaker_combo.currentText()} (index: {self.selected_speaker_device})")
+        # Restart preview worker with new device selection
+        self.restart_audio_preview()
 
     def show_audio_setup_guide(self):
         """Show platform-specific audio setup guide."""
@@ -1070,6 +1074,21 @@ class Video2TextQt(QMainWindow):
             self.test_audio_btn.primary = True
             self.test_audio_btn.apply_style()
             logger.info("Audio preview started")
+
+    def restart_audio_preview(self):
+        """Stop and restart audio preview worker with current device selections."""
+        try:
+            # Stop existing worker
+            if self.preview_worker and self.preview_worker.isRunning():
+                self.preview_worker.stop()
+                self.preview_worker.wait(500)
+                self.preview_worker = None
+
+            # Start new worker with current selections
+            if not self.is_recording:
+                self.ensure_audio_preview_running()
+        except Exception as e:
+            logger.warning(f"Failed to restart audio preview: {e}")
 
     def ensure_audio_preview_running(self):
         """Start preview if not already running; used for always-on meters."""

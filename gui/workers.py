@@ -78,13 +78,31 @@ class AudioPreviewWorker(QThread):
 
             if self.mic_device is not None:
                 try:
+                    # Build candidate sample rates with device default first, then fallbacks
+                    candidate_rates = []
                     try:
                         mic_info = sd.query_devices(self.mic_device)
-                        mic_rate = int(mic_info.get('default_samplerate', sample_rate) or sample_rate)
+                        default_rate = int(mic_info.get('default_samplerate', 0) or 0)
+                        if default_rate > 0:
+                            candidate_rates.append(default_rate)
                     except Exception:
-                        mic_rate = sample_rate
-                    mic_stream = sd.InputStream(device=self.mic_device, samplerate=mic_rate, channels=1, callback=mic_callback)
-                    mic_stream.start()
+                        pass
+                    candidate_rates.extend([48000, 44100, 32000, 16000])
+
+                    # Try each rate until one works
+                    mic_stream_opened = False
+                    for mic_rate in candidate_rates:
+                        try:
+                            mic_stream = sd.InputStream(device=self.mic_device, samplerate=mic_rate, channels=1, callback=mic_callback)
+                            mic_stream.start()
+                            mic_stream_opened = True
+                            logger.info(f"Opened mic preview at {mic_rate}Hz")
+                            break
+                        except Exception as e:
+                            continue
+
+                    if not mic_stream_opened:
+                        logger.warning(f"Could not start mic preview with any sample rate (tried: {', '.join(str(r) for r in candidate_rates)}Hz)")
                 except Exception as e:
                     logger.warning(f"Could not start mic preview: {e}")
 
@@ -106,7 +124,7 @@ class AudioPreviewWorker(QThread):
                         info = None
                     else:
                         info = devs[target_device]
-                    if info['max_output_channels'] > 0 and info['max_input_channels'] == 0:
+                    if info is not None and info['max_output_channels'] > 0 and info['max_input_channels'] == 0:
                         speaker_channels = min(max(1, info['max_output_channels']), 2)
                         extra = None
                         # Prefer WASAPI loopback if available
@@ -117,10 +135,11 @@ class AudioPreviewWorker(QThread):
                             extra = None
                         # Use device default samplerate for compatibility
                         speaker_rate = int(info.get('default_samplerate', sample_rate) or sample_rate)
-                    else:
+                    elif info is not None:
                         speaker_channels = min(max(1, info['max_input_channels']), 2)
                         extra = None
                         speaker_rate = sample_rate
+                    # else: info is None, speaker stream will be skipped by check at line 137
 
                     def multi_ch_cb(indata, frames, time_info, status):
                         if self.is_running:
@@ -515,8 +534,14 @@ class RecordingWorker(QThread):
                     mic_stream = None
                     continue
             if mic_stream is None:
-                logger.error("Failed to open microphone with any tested sample rate")
-                self.recording_error.emit("❌ Could not open microphone (invalid sample rate); try changing input device or Windows format")
+                error_details = "\n".join([f"  - {rate}Hz: {err}" for rate, err in zip(candidate_rates, open_errors)])
+                logger.error(f"Failed to open microphone. Tried rates:\n{error_details}")
+                self.recording_error.emit(
+                    f"❌ Could not open microphone with any sample rate.\n\n"
+                    f"Tried: {', '.join(str(r) for r in candidate_rates)}Hz\n\n"
+                    f"Try: Change Windows sound format to 48000Hz or 44100Hz\n"
+                    f"(Right-click speaker icon → Sound Settings → Device Properties → Advanced)"
+                )
                 return
 
             # Start speaker/loopback stream
