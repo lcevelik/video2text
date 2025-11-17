@@ -42,23 +42,26 @@ try:
             self.is_recording = True
             self.sample_rate = 48000  # Default, will be updated from actual stream
             self.channels = 2
+            self.callback_count = 0
+            logger.info("AudioCaptureDelegate initialized")
             return self
 
-        def stream_didOutputSampleBuffer_ofType_(self, stream, sample_buffer, output_type):
-            """
-            Called when ScreenCaptureKit outputs a new sample buffer.
+        @objc.python_method
+        def _process_audio_buffer(self, sample_buffer, output_type):
+            """Python method to process audio (called from Objective-C callback)."""
+            self.callback_count += 1
 
-            Args:
-                stream: SCStream instance
-                sample_buffer: CMSampleBuffer containing audio data
-                output_type: SCStreamOutputType (1 = audio)
-            """
+            if self.callback_count <= 3:
+                logger.info(f"Audio callback #{self.callback_count} received (type={output_type})")
+
             if not self.is_recording:
                 return
 
             try:
                 # Check if this is audio (SCStreamOutputTypeAudio = 1)
                 if output_type != 1:
+                    if self.callback_count <= 3:
+                        logger.info(f"Non-audio callback (type={output_type}), skipping")
                     return
 
                 # Get audio format description
@@ -148,9 +151,20 @@ try:
                 # Store as column vector for consistency
                 if len(audio_data) > 0:
                     self.audio_chunks.append(audio_data.reshape(-1, 1))
+                    if len(self.audio_chunks) <= 3:
+                        logger.info(f"Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
 
             except Exception as e:
                 logger.error(f"Error processing ScreenCaptureKit audio: {e}", exc_info=True)
+
+        def stream_didOutputSampleBuffer_ofType_(self, stream, sample_buffer, output_type):
+            """
+            SCStreamDelegate callback - called when ScreenCaptureKit outputs a sample buffer.
+
+            This is the Objective-C callback that PyObjC will invoke.
+            We immediately delegate to the Python method for easier debugging.
+            """
+            self._process_audio_buffer(sample_buffer, output_type)
 
         def stream_didStopWithError_(self, stream, error):
             """Called when the stream stops."""
@@ -414,7 +428,11 @@ try:
                 self.mic_stream.close()
 
             logger.info(f"Mic chunks collected: {len(self.mic_chunks)}")
-            logger.info(f"System audio chunks collected: {len(self.delegate.audio_chunks) if self.delegate else 0}")
+            if self.delegate:
+                logger.info(f"System audio callbacks received: {self.delegate.callback_count}")
+                logger.info(f"System audio chunks collected: {len(self.delegate.audio_chunks)}")
+            else:
+                logger.info("System audio chunks collected: 0 (no delegate)")
 
             # Process microphone data
             if not self.mic_chunks:
