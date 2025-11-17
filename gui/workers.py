@@ -427,8 +427,12 @@ class RecordingWorker(QThread):
             mic_chunks = []
             speaker_chunks = []
 
+            logger.info("=== Recording Worker Started ===")
+            logger.info(f"Requested devices - Mic: {self.mic_device}, Speaker: {self.speaker_device}")
+
             # Device detection - use specified devices or auto-detect
             devices = sd.query_devices()
+            logger.info(f"Total devices available: {len(devices)}")
 
             # Find microphone - use specified or auto-detect
             mic_device = self.mic_device  # Use user selection if provided
@@ -498,17 +502,26 @@ class RecordingWorker(QThread):
                         except Exception:
                             continue
 
-            # Callbacks
+            # Callbacks with debug tracking
+            mic_callback_count = [0]  # Use list to allow modification in nested function
+            speaker_callback_count = [0]
+
             def mic_callback(indata, frames, time_info, status):
+                if status:
+                    logger.warning(f"Mic callback status: {status}")
                 if self.is_recording:
                     mic_chunks.append(indata.copy())
+                    mic_callback_count[0] += 1
                     # Calculate RMS (root mean square) level for visualization
                     rms = np.sqrt(np.mean(indata**2))
                     self.mic_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
             def speaker_callback(indata, frames, time_info, status):
+                if status:
+                    logger.warning(f"Speaker callback status: {status}")
                 if self.is_recording:
                     speaker_chunks.append(indata.copy())
+                    speaker_callback_count[0] += 1
                     # Calculate RMS level
                     rms = np.sqrt(np.mean(indata**2))
                     self.speaker_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
@@ -528,10 +541,12 @@ class RecordingWorker(QThread):
                     mic_stream = sd.InputStream(device=mic_device, samplerate=int(r), channels=1, callback=mic_callback)
                     mic_stream.start()
                     mic_capture_rate = int(r)
+                    logger.info(f"✅ Mic stream opened: device {mic_device}, rate {r}Hz")
                     break
                 except Exception as e:
                     open_errors.append(str(e))
                     mic_stream = None
+                    logger.debug(f"Failed to open mic at {r}Hz: {e}")
                     continue
             if mic_stream is None:
                 error_details = "\n".join([f"  - {rate}Hz: {err}" for rate, err in zip(candidate_rates, open_errors)])
@@ -637,7 +652,7 @@ class RecordingWorker(QThread):
                             extra_settings=extra
                         )
                         speaker_stream.start()
-                        logger.info(f"Successfully opened loopback stream on device {target_device}")
+                        logger.info(f"✅ Speaker stream opened: device {target_device}, rate {speaker_rate}Hz, channels {loopback_channels}")
                     else:
                         logger.warning("Skipping speaker capture due to unresolved output device or channel count")
                 except Exception as e:
@@ -649,6 +664,10 @@ class RecordingWorker(QThread):
             last_level_update = time.time()
             record_start = last_level_update
             auto_switch_checked = False
+
+            logger.info(f"🔴 Recording started at {record_start}")
+            logger.info(f"is_recording = {self.is_recording}")
+
             while self.is_recording:
                 sd.sleep(100)
                 # Emit audio levels every 100ms
@@ -705,6 +724,12 @@ class RecordingWorker(QThread):
                                 logger.warning(f"Failed auto-switch to recording loopback {idx}: {e}")
 
             # Stop streams
+            logger.info(f"⏹️  Recording stopped. Duration: {time.time() - record_start:.1f}s")
+            logger.info(f"Mic callbacks fired: {mic_callback_count[0]}")
+            logger.info(f"Speaker callbacks fired: {speaker_callback_count[0]}")
+            logger.info(f"Mic chunks collected: {len(mic_chunks)}")
+            logger.info(f"Speaker chunks collected: {len(speaker_chunks)}")
+
             mic_stream.stop()
             mic_stream.close()
             if speaker_stream:
@@ -714,116 +739,133 @@ class RecordingWorker(QThread):
             # Process and save
             if mic_chunks:
                 mic_data = np.concatenate(mic_chunks, axis=0)
+                logger.info(f"Mic data shape after concatenate: {mic_data.shape}, size: {mic_data.size}")
                 if mic_data.size == 0:
+                    logger.error("Mic data is empty after concatenation!")
                     self.recording_error.emit("❌ No audio captured from microphone; please try again")
                     return
+            else:
+                logger.error(f"❌ CRITICAL: mic_chunks is empty! Callbacks fired: {mic_callback_count[0]}, is_recording was: {self.is_recording}")
+                self.recording_error.emit(
+                    f"❌ No audio samples captured!\n\n"
+                    f"Debug info:\n"
+                    f"- Mic callbacks fired: {mic_callback_count[0]}\n"
+                    f"- Recording duration: {time.time() - record_start:.1f}s\n"
+                    f"- Device: {mic_device}\n\n"
+                    f"Try:\n"
+                    f"1. Check if microphone is working in other apps\n"
+                    f"2. Try a different microphone from the dropdown\n"
+                    f"3. Run: python diagnose_audio.py"
+                )
+                return
 
-                # Apply audio filters to microphone
-                mic_data = self._apply_filters(mic_data, mic_capture_rate or sample_rate_final)
+            # Apply audio filters to microphone
+            mic_data = self._apply_filters(mic_data, mic_capture_rate or sample_rate_final)
 
-                # Resample mic to final rate if needed, then normalize
-                if mic_capture_rate and mic_capture_rate != sample_rate_final:
-                    mic_data = self._resample(mic_data, mic_capture_rate, sample_rate_final)
-                # Normalize microphone audio with AGC
-                mic_data = self._normalize_audio(mic_data, target_rms=0.15)
+            # Resample mic to final rate if needed, then normalize
+            if mic_capture_rate and mic_capture_rate != sample_rate_final:
+                mic_data = self._resample(mic_data, mic_capture_rate, sample_rate_final)
+            # Normalize microphone audio with AGC
+            mic_data = self._normalize_audio(mic_data, target_rms=0.15)
 
-                if speaker_chunks:
-                    speaker_data = np.concatenate(speaker_chunks, axis=0)
-                    if speaker_data.size == 0:
-                        speaker_data = None
+            if speaker_chunks:
+                speaker_data = np.concatenate(speaker_chunks, axis=0)
+                if speaker_data.size == 0:
+                    speaker_data = None
 
-                    # Apply audio filters to speaker
-                    if speaker_data is not None:
-                        # Resample speaker to final rate if needed
-                        if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
-                            speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
-                        # Apply filters at final sample rate (after resampling)
-                        speaker_data = self._apply_filters(speaker_data, sample_rate_final)
+                # Apply audio filters to speaker
+                if speaker_data is not None:
+                    # Resample speaker to final rate if needed
+                    if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
+                        speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
+                    # Apply filters at final sample rate (after resampling)
+                    speaker_data = self._apply_filters(speaker_data, sample_rate_final)
 
-                    # Normalize speaker audio with AGC
-                    speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
+                # Normalize speaker audio with AGC
+                speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
 
-                    if speaker_data is not None:
-                        # Align lengths
-                        max_len = max(len(mic_data), len(speaker_data))
-                        if len(mic_data) < max_len:
-                            mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
-                        if len(speaker_data) < max_len:
-                            speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
+                if speaker_data is not None:
+                    # Align lengths
+                    max_len = max(len(mic_data), len(speaker_data))
+                    if len(mic_data) < max_len:
+                        mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
+                    if len(speaker_data) < max_len:
+                        speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
 
-                        # Mix: 60% mic + 40% speaker
-                        final_data = (mic_data * 0.6 + speaker_data * 0.4)
-                    else:
-                        final_data = mic_data
+                    # Mix: 60% mic + 40% speaker
+                    final_data = (mic_data * 0.6 + speaker_data * 0.4)
                 else:
                     final_data = mic_data
+            else:
+                final_data = mic_data
 
-                if final_data is None or final_data.size == 0:
-                    self.recording_error.emit("❌ Recording error: no audio samples captured")
-                    return
+            if final_data is None or final_data.size == 0:
+                logger.error(f"Final data is empty! mic_data size: {mic_data.size if 'mic_data' in locals() else 'N/A'}")
+                self.recording_error.emit("❌ Recording error: no audio samples captured")
+                return
 
-                # Final normalization with enhanced compressor (if enabled)
-                if self.filter_settings.get('use_enhanced_compressor', False):
-                    try:
-                        from gui.audio_filters import EnhancedCompressor
-                        compressor = EnhancedCompressor(
-                            threshold_db=self.filter_settings.get('compressor_threshold', -18.0),
-                            ratio=self.filter_settings.get('compressor_ratio', 3.0),
-                            attack_ms=self.filter_settings.get('compressor_attack', 6.0),
-                            release_ms=self.filter_settings.get('compressor_release', 60.0),
-                            output_gain_db=self.filter_settings.get('compressor_gain', 0.0),
-                            sample_rate=sample_rate_final
-                        )
-                        final_data = compressor.process(final_data)
-                    except Exception:
-                        # Fallback to simple compressor if module not available
-                        final_data = self._apply_compression(final_data)
-                else:
-                    # Use original simple compression
-                    final_data = self._apply_compression(final_data)
-
-                # Final safety limiting to prevent clipping
-                if final_data.size > 0:
-                    max_val = np.max(np.abs(final_data))
-                    if max_val > 0.95:
-                        final_data = final_data / max_val * 0.95
-
-                # Create output directory if it doesn't exist
-                self.output_dir.mkdir(parents=True, exist_ok=True)
-
-                # Generate filename with timestamp
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"recording_{timestamp}.mp3"
-                recorded_path = str(self.output_dir / filename)
-
-                # Save recording as high-quality MP3 (320kbps)
-                final_data_int16 = (final_data * 32767).astype(np.int16)
-
-                # Convert numpy array to AudioSegment and export as MP3
-                audio_segment = AudioSegment(
-                    final_data_int16.tobytes(),
-                    frame_rate=sample_rate_final,
-                    sample_width=2,  # 16-bit audio = 2 bytes
-                    channels=1  # mono
-                )
+            # Final normalization with enhanced compressor (if enabled)
+            if self.filter_settings.get('use_enhanced_compressor', False):
                 try:
-                    audio_segment.export(recorded_path, format="mp3", bitrate="320k")
-                except Exception as export_err:
-                    logger.warning(f"MP3 export failed ({export_err}); falling back to WAV")
-                    import wave
-                    wav_path = str(self.output_dir / f"recording_{timestamp}.wav")
-                    with wave.open(wav_path, 'wb') as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(sample_rate_final)
-                        wf.writeframes(final_data_int16.tobytes())
-                    recorded_path = wav_path
+                    from gui.audio_filters import EnhancedCompressor
+                    compressor = EnhancedCompressor(
+                        threshold_db=self.filter_settings.get('compressor_threshold', -18.0),
+                        ratio=self.filter_settings.get('compressor_ratio', 3.0),
+                        attack_ms=self.filter_settings.get('compressor_attack', 6.0),
+                        release_ms=self.filter_settings.get('compressor_release', 60.0),
+                        output_gain_db=self.filter_settings.get('compressor_gain', 0.0),
+                        sample_rate=sample_rate_final
+                    )
+                    final_data = compressor.process(final_data)
+                except Exception:
+                    # Fallback to simple compressor if module not available
+                    final_data = self._apply_compression(final_data)
+            else:
+                # Use original simple compression
+                final_data = self._apply_compression(final_data)
 
-                duration = len(final_data) / sample_rate_final
-                logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
+            # Final safety limiting to prevent clipping
+            if final_data.size > 0:
+                max_val = np.max(np.abs(final_data))
+                if max_val > 0.95:
+                    final_data = final_data / max_val * 0.95
 
-                # Emit signal to main thread
-                self.recording_complete.emit(recorded_path, duration)
+            # Create output directory if it doesn't exist
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"recording_{timestamp}.mp3"
+            recorded_path = str(self.output_dir / filename)
+
+            # Save recording as high-quality MP3 (320kbps)
+            final_data_int16 = (final_data * 32767).astype(np.int16)
+
+            # Convert numpy array to AudioSegment and export as MP3
+            audio_segment = AudioSegment(
+                final_data_int16.tobytes(),
+                frame_rate=sample_rate_final,
+                sample_width=2,  # 16-bit audio = 2 bytes
+                channels=1  # mono
+            )
+            try:
+                audio_segment.export(recorded_path, format="mp3", bitrate="320k")
+            except Exception as export_err:
+                logger.warning(f"MP3 export failed ({export_err}); falling back to WAV")
+                import wave
+                wav_path = str(self.output_dir / f"recording_{timestamp}.wav")
+                with wave.open(wav_path, 'wb') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sample_rate_final)
+                    wf.writeframes(final_data_int16.tobytes())
+                recorded_path = wav_path
+
+            duration = len(final_data) / sample_rate_final
+            logger.info(f"✅ Recording saved: {recorded_path} ({duration:.1f}s)")
+
+            # Emit signal to main thread
+            self.recording_complete.emit(recorded_path, duration)
 
         except Exception as e:
             logger.error(f"Recording error: {e}", exc_info=True)
