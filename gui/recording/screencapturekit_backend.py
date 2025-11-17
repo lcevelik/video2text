@@ -84,9 +84,31 @@ try:
                 # The ASBD is a C struct, access fields using attribute names
                 if not self.format_detected:
                     try:
-                        # Try to access as struct
+                        # Try to access as struct and log ALL fields for debugging
                         self.sample_rate = int(asbd_ptr.mSampleRate)
                         self.channels = int(asbd_ptr.mChannelsPerFrame)
+
+                        # Log complete ASBD information for debugging
+                        logger.info("=== Audio Stream Basic Description (ASBD) ===")
+                        logger.info(f"  mSampleRate: {asbd_ptr.mSampleRate} Hz")
+                        logger.info(f"  mFormatID: {asbd_ptr.mFormatID} (0x{asbd_ptr.mFormatID:08X})")
+                        logger.info(f"  mFormatFlags: {asbd_ptr.mFormatFlags} (0x{asbd_ptr.mFormatFlags:08X})")
+                        logger.info(f"  mBytesPerPacket: {asbd_ptr.mBytesPerPacket}")
+                        logger.info(f"  mFramesPerPacket: {asbd_ptr.mFramesPerPacket}")
+                        logger.info(f"  mBytesPerFrame: {asbd_ptr.mBytesPerFrame}")
+                        logger.info(f"  mChannelsPerFrame: {asbd_ptr.mChannelsPerFrame}")
+                        logger.info(f"  mBitsPerChannel: {asbd_ptr.mBitsPerChannel}")
+
+                        # Decode format flags
+                        is_float = (asbd_ptr.mFormatFlags & 1) != 0  # kAudioFormatFlagIsFloat = 1
+                        is_big_endian = (asbd_ptr.mFormatFlags & 2) != 0  # kAudioFormatFlagIsBigEndian = 2
+                        is_signed_integer = (asbd_ptr.mFormatFlags & 4) != 0  # kAudioFormatFlagIsSignedInteger = 4
+                        is_packed = (asbd_ptr.mFormatFlags & 8) != 0  # kAudioFormatFlagIsPacked = 8
+                        is_non_interleaved = (asbd_ptr.mFormatFlags & 0x20) != 0  # kAudioFormatFlagIsNonInterleaved = 32
+
+                        logger.info(f"  Format type: {'Float' if is_float else 'Integer (signed)' if is_signed_integer else 'Integer (unsigned)'}")
+                        logger.info(f"  Packed: {is_packed}, Non-interleaved: {is_non_interleaved}, Big-endian: {is_big_endian}")
+
                     except AttributeError:
                         # If that fails, ASBD might be accessed differently in PyObjC
                         # Extract basic format information from format description instead
@@ -163,10 +185,22 @@ try:
                         logger.info(f"   Sample count: {len(audio_data)} (expected frames: {buffer_length // 8})")
                         logger.info(f"   Data range: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
                         logger.info(f"   First 10 samples: {audio_data[:10].tolist()}")
+
+                        # Also check as Int16 to see if format is wrong
+                        int16_data = np.frombuffer(buffer, dtype=np.int16, count=buffer_length // 2)
+                        logger.info(f"   [DEBUG] If interpreted as Int16: min={int16_data.min()}, max={int16_data.max()}, mean={int16_data.mean():.2f}")
+                        logger.info(f"   [DEBUG] First 10 as Int16: {int16_data[:10].tolist()}")
+
                         nan_count = np.isnan(audio_data).sum()
                         inf_count = np.isinf(audio_data).sum()
                         if nan_count > 0 or inf_count > 0:
                             logger.warning(f"   ⚠️  Data contains NaN: {nan_count}, Inf: {inf_count}")
+
+                    # Also log when we first get non-zero data
+                    if self.callback_count <= 20:
+                        max_abs = np.abs(audio_data).max()
+                        if max_abs > 0.0001:  # Non-silence threshold
+                            logger.info(f"🔊 Callback #{self.callback_count}: First non-silence detected! Max absolute value: {max_abs:.6f}")
 
                 except Exception as e:
                     logger.error(f"❌ Failed to extract audio buffer in callback #{self.callback_count}: {e}", exc_info=True)
