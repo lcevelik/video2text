@@ -737,7 +737,8 @@ class RecordingWorker(QThread):
                         # Resample speaker to final rate if needed
                         if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
                             speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
-                        speaker_data = self._apply_filters(speaker_data, speaker_capture_rate or sample_rate_final)
+                        # Apply filters at final sample rate (after resampling)
+                        speaker_data = self._apply_filters(speaker_data, sample_rate_final)
 
                     # Normalize speaker audio with AGC
                     speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
