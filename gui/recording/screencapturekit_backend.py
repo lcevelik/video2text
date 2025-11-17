@@ -43,6 +43,7 @@ try:
             self.sample_rate = 48000  # Default, will be updated from actual stream
             self.channels = 2
             self.callback_count = 0
+            self.format_detected = False  # Flag to detect format only once
             logger.info("AudioCaptureDelegate initialized")
             return self
 
@@ -79,9 +80,9 @@ try:
                     logger.warning("No audio stream basic description")
                     return
 
-                # Extract sample rate and channel count from the ASBD
+                # Extract sample rate and channel count from the ASBD (only once)
                 # The ASBD is a C struct, access fields using attribute names
-                if self.sample_rate == 48000:  # First time only
+                if not self.format_detected:
                     try:
                         # Try to access as struct
                         self.sample_rate = int(asbd_ptr.mSampleRate)
@@ -108,6 +109,7 @@ try:
                             self.sample_rate = 48000
                             self.channels = 2
 
+                    self.format_detected = True
                     logger.info(f"ScreenCaptureKit audio: {self.sample_rate}Hz, {self.channels} channels")
 
                 # Get audio buffer from sample buffer
@@ -153,8 +155,18 @@ try:
 
                     # Convert to numpy array (Float32 PCM)
                     audio_data = np.frombuffer(buffer, dtype=np.float32, count=buffer_length // 4)
-                    if self.callback_count <= 5:
+
+                    # Detailed diagnostics for first few callbacks
+                    if self.callback_count <= 3:
                         logger.info(f"✅ Callback #{self.callback_count}: Extracted {len(audio_data)} samples")
+                        logger.info(f"   Buffer length: {buffer_length} bytes (aligned: {buffer_length % 8 == 0})")
+                        logger.info(f"   Sample count: {len(audio_data)} (expected frames: {buffer_length // 8})")
+                        logger.info(f"   Data range: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
+                        logger.info(f"   First 10 samples: {audio_data[:10].tolist()}")
+                        nan_count = np.isnan(audio_data).sum()
+                        inf_count = np.isinf(audio_data).sum()
+                        if nan_count > 0 or inf_count > 0:
+                            logger.warning(f"   ⚠️  Data contains NaN: {nan_count}, Inf: {inf_count}")
 
                 except Exception as e:
                     logger.error(f"❌ Failed to extract audio buffer in callback #{self.callback_count}: {e}", exc_info=True)
@@ -164,8 +176,10 @@ try:
                 if self.channels == 2 and len(audio_data) >= 2:
                     # Reshape to (samples, channels) and average to mono
                     audio_data = audio_data.reshape(-1, 2).mean(axis=1)
-                    if self.callback_count <= 5:
+                    if self.callback_count <= 3:
                         logger.info(f"🔊 Callback #{self.callback_count}: Converted stereo to mono, {len(audio_data)} samples")
+                        logger.info(f"   After mono: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
+                        logger.info(f"   First 10 mono samples: {audio_data[:10].tolist()}")
 
                 # Store as column vector for consistency
                 if len(audio_data) > 0:
