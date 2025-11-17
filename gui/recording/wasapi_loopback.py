@@ -13,7 +13,7 @@ import threading
 import time
 import numpy as np
 from typing import Optional, Callable
-from ctypes import POINTER, cast, c_float
+from ctypes import POINTER, cast, c_float, c_int16, c_uint8
 import comtypes
 
 logger = logging.getLogger(__name__)
@@ -66,15 +66,18 @@ class WASAPILoopbackCapture:
 
             # Import Windows audio interfaces
             from comtypes import CLSCTX_ALL, GUID
-            from ctypes import c_void_p
 
             try:
-                from pycaw.constants import CLSID_MMDeviceEnumerator, IID_IAudioCaptureClient
+                from pycaw.constants import CLSID_MMDeviceEnumerator
                 import pycaw.api.mmdeviceapi as mmdeviceapi
                 import pycaw.api.audioclient as audioclient
             except ImportError:
                 logger.error("pycaw library not found. Install with: pip install pycaw comtypes")
                 raise
+
+            # Define GUIDs that pycaw doesn't provide
+            IID_IAudioClient = GUID('{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}')
+            IID_IAudioCaptureClient = GUID('{C8ADBD64-E71E-48a0-A4DE-185C395CD317}')
 
             # Get device enumerator
             self.device_enumerator = comtypes.CoCreateInstance(
@@ -84,7 +87,7 @@ class WASAPILoopbackCapture:
             )
 
             # Get default audio endpoint (speakers/headphones)
-            # eRender = output device, eConsole = default device role
+            # eRender = 0 (output device), eConsole = 0 (default device role)
             self.device = self.device_enumerator.GetDefaultAudioEndpoint(
                 0,  # eRender - output device
                 0   # eConsole - console role
@@ -95,7 +98,7 @@ class WASAPILoopbackCapture:
 
             # Activate audio client
             self.audio_client = self.device.Activate(
-                audioclient.IID_IAudioClient,
+                IID_IAudioClient,
                 CLSCTX_ALL,
                 None
             )
@@ -111,7 +114,6 @@ class WASAPILoopbackCapture:
             logger.info(f"Audio format: {self.sample_rate}Hz, {self.channels}ch, {bits_per_sample}bit")
 
             # Initialize audio client in loopback mode
-            # AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
             AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
             AUDCLNT_SHAREMODE_SHARED = 0
 
@@ -164,24 +166,23 @@ class WASAPILoopbackCapture:
                             self.capture_client.GetBuffer()
 
                         if num_frames > 0:
-                            # Calculate buffer size in bytes
-                            bytes_per_frame = self.wave_format.contents.nBlockAlign
-                            buffer_size = num_frames * bytes_per_frame
+                            # Convert pointer to numpy array based on format
+                            total_samples = num_frames * self.channels
 
-                            # Convert pointer to numpy array
-                            # WASAPI typically returns float32 data
                             if self.wave_format.contents.wBitsPerSample == 32:
-                                # Float32 format
-                                audio_data = np.frombuffer(
-                                    (c_float * (num_frames * self.channels)).from_address(data_pointer),
-                                    dtype=np.float32
-                                )
+                                # Float32 format - most common for WASAPI
+                                buffer = (c_float * total_samples).from_address(data_pointer)
+                                audio_data = np.frombuffer(buffer, dtype=np.float32).copy()
+                            elif self.wave_format.contents.wBitsPerSample == 16:
+                                # Int16 format - convert to float32
+                                buffer = (c_int16 * total_samples).from_address(data_pointer)
+                                audio_data = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
                             else:
-                                # Int16 format (convert to float32)
-                                audio_data = np.frombuffer(
-                                    (c_float * (num_frames * self.channels)).from_address(data_pointer),
-                                    dtype=np.int16
-                                ).astype(np.float32) / 32768.0
+                                # Unsupported format - log and skip
+                                logger.warning(f"Unsupported bit depth: {self.wave_format.contents.wBitsPerSample}")
+                                self.capture_client.ReleaseBuffer(num_frames)
+                                packet_length = self.capture_client.GetNextPacketSize()
+                                continue
 
                             # Reshape to (frames, channels)
                             audio_data = audio_data.reshape(num_frames, self.channels)
