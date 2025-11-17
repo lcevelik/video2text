@@ -23,12 +23,10 @@ from PySide6.QtGui import QPalette  # type: ignore
 
 from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone
-from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
+from gui.workers import RecordingWorker, TranscriptionWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
-from gui.utils import check_audio_input_devices, get_audio_devices, get_platform, get_platform_audio_setup_help
-from gui.vu_meter import VUMeter
+from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help
 from transcriber import Transcriber
-from transcription.enhanced import EnhancedTranscriber
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +68,9 @@ class Video2TextQt(QMainWindow):
             self.check_runtime_compat()
         except Exception as _compat_err:
             logger.debug(f"Compat check skipped: {_compat_err}")
-
-        # Schedule model preloading after window is shown (non-blocking)
-        # This loads both models into memory for instant transcription startup
-        QTimer.singleShot(500, self.preload_models)
+        # Removed eager Whisper model preloading: models now load on-demand
+        # when transcription actually starts (single-language loads 1 model;
+        # multi-language path path loads detection+transcription models lazily).
 
     # Early stub to guarantee existence even if later method definition changes order
     def cancel_transcription(self):
@@ -136,89 +133,6 @@ class Video2TextQt(QMainWindow):
 
     def check_runtime_compat(self):
         """Warn users on Python 3.13 if pyaudioop is missing (needed for recording)."""
-        try:
-            import sys as _sys
-            if _sys.version_info >= (3, 13):
-                try:
-                    import importlib
-
-                    def _has_audioop_module() -> bool:
-                        for name in ("pyaudioop", "audioop"):
-                            try:
-                                importlib.import_module(name)
-                                return True
-                            except Exception:
-                                continue
-                        return False
-
-                    if not _has_audioop_module():
-                        raise ModuleNotFoundError("audioop compatibility modules missing")
-                except Exception:
-                    msg = QMessageBox(self)
-                    msg.setIcon(QMessageBox.Information)
-                    msg.setWindowTitle("Audio Compatibility")
-                    msg.setText("Python 3.13 detected: add 'pyaudioop' or 'audioop-lts' for recording support.")
-                    msg.setInformativeText(
-                        "Recording/export uses audio processing that moved out of Python 3.13.\n"
-                        "Quick fix (run once in your venv):\n\n"
-                        "pip install pyaudioop\n"
-                        "or\n"
-                        "pip install audioop-lts\n\n"
-                        "We'll still work for file uploads; this only affects recording."
-                    )
-                    msg.addButton("OK", QMessageBox.AcceptRole)
-                    try:
-                        msg.exec()
-                    except Exception:
-                        pass
-                    logger.warning("Python 3.13 detected without audioop compatibility. Recording may fail. Run: pip install pyaudioop or audioop-lts")
-        except Exception as e:
-            logger.debug(f"Runtime compat check failed: {e}")
-
-    def preload_models(self):
-        """
-        Preload Whisper models on app startup for instant transcription.
-
-        This loads both 'base' and 'large' models into GPU memory, eliminating
-        the ~20-40 second model loading delay when transcription starts.
-
-        Models are stored in EnhancedTranscriber class-level cache and reused
-        across all transcription workers for maximum performance.
-        """
-        try:
-            logger.info("🚀 Starting model preload on app startup...")
-            start_time = time.time()
-
-            # Populate the EnhancedTranscriber class-level cache with preloaded models
-            with EnhancedTranscriber._model_cache_lock:
-                # Preload base model (used for detection and single-language)
-                if 'base' not in EnhancedTranscriber._model_cache:
-                    logger.info("Preloading 'base' model (for detection and single-language)...")
-                    base_model = Transcriber(model_size='base')
-                    base_model.load_model()
-                    EnhancedTranscriber._model_cache['base'] = base_model
-                    logger.info(f"✓ 'base' model preloaded to class cache (device: {base_model.device})")
-                else:
-                    logger.info("✓ 'base' model already in cache")
-
-                # Preload large model (used for multi-language transcription)
-                if 'large' not in EnhancedTranscriber._model_cache:
-                    logger.info("Preloading 'large' model (for multi-language transcription)...")
-                    large_model = Transcriber(model_size='large')
-                    large_model.load_model()
-                    EnhancedTranscriber._model_cache['large'] = large_model
-                    logger.info(f"✓ 'large' model preloaded to class cache (device: {large_model.device})")
-                else:
-                    logger.info("✓ 'large' model already in cache")
-
-            elapsed = time.time() - start_time
-            logger.info(f"✅ Model preload complete! Both models ready in {elapsed:.1f}s")
-            logger.info(f"   → All transcription workers will reuse these preloaded models")
-            logger.info(f"   → Transcription will now start instantly without model loading delay")
-
-        except Exception as e:
-            logger.warning(f"Model preload failed (will load on-demand): {e}")
-            # Don't crash the app, just fall back to on-demand loading
 
     def detect_system_theme(self):
         """Detect if system is in dark mode."""
@@ -321,11 +235,6 @@ class Video2TextQt(QMainWindow):
     def closeEvent(self, event):
         """Ensure background threads stop cleanly on window close."""
         try:
-            # Stop preview worker if running
-            if hasattr(self, 'preview_worker') and self.preview_worker and self.preview_worker.isRunning():
-                self.preview_worker.stop()
-                self.preview_worker.wait(1000)
-                self.preview_worker = None
             # Stop recording worker if running
             if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
                 try:
@@ -382,23 +291,11 @@ class Video2TextQt(QMainWindow):
             widget.update_theme(self.is_dark_mode)
 
     def eventFilter(self, obj, event):
-        """Refresh devices when user interacts with device selectors (on popup open)."""
-        try:
-            if event.type() == QEvent.MouseButtonPress:
-                if obj is getattr(self, 'mic_combo', None) or obj is getattr(self, 'speaker_combo', None):
-                    # Refresh devices just before showing popup
-                    self.refresh_audio_devices()
-        except Exception:
-            pass
+        """No-op, was for device refresh."""
         return super().eventFilter(obj, event)
 
     def changeEvent(self, event):
-        """Refresh device lists when window becomes active (focus returns)."""
-        try:
-            if event.type() == QEvent.ActivationChange and self.isActiveWindow():
-                self.refresh_audio_devices()
-        except Exception:
-            pass
+        """No-op, was for device refresh."""
         return super().changeEvent(event)
 
     def update_sidebar_theme(self, sidebar):
@@ -608,7 +505,6 @@ class Video2TextQt(QMainWindow):
         self.is_recording = False
         self.recording_start_time = None
         self.recording_worker = None  # QThread worker for recording
-        self.preview_worker = None  # QThread worker for audio preview
         self.recording_timer = QTimer()
         self.recording_timer.timeout.connect(self.update_recording_duration)
         self.selected_mic_device = None  # User-selected microphone device
@@ -721,61 +617,14 @@ class Video2TextQt(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Audio Device Selection Header (simplified)
-        device_header_layout = QHBoxLayout()
-        device_section = QLabel("📡 Audio Sources")
-        device_section.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Theme.get('text_primary', self.is_dark_mode)};")
-        device_header_layout.addWidget(device_section)
-        device_header_layout.addStretch()
-        layout.addLayout(device_header_layout)
+        # Simplified UI: No device selection, just a record button.
+        # The worker will use the system's default devices.
+        info_label = QLabel("Recording will use the system's default microphone and audio output.")
+        info_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
 
-        # Microphone selection
-        mic_layout = QHBoxLayout()
-        mic_label = QLabel("🎤 Microphone:")
-        mic_label.setMinimumWidth(120)
-        self.mic_combo = QComboBox()
-        self.mic_combo.setMinimumHeight(35)
-        self.mic_combo.currentIndexChanged.connect(self.on_mic_device_changed)
-        mic_layout.addWidget(mic_label)
-        mic_layout.addWidget(self.mic_combo, 1)
-        layout.addLayout(mic_layout)
-
-        # Speaker selection
-        speaker_layout = QHBoxLayout()
-        speaker_label = QLabel("🔊 Speaker/System:")
-        speaker_label.setMinimumWidth(120)
-        self.speaker_combo = QComboBox()
-        self.speaker_combo.setMinimumHeight(35)
-        self.speaker_combo.currentIndexChanged.connect(self.on_speaker_device_changed)
-        speaker_layout.addWidget(speaker_label)
-        speaker_layout.addWidget(self.speaker_combo, 1)
-        layout.addLayout(speaker_layout)
-
-        # Populate device lists now
-        self.refresh_audio_devices()
-
-        # Refresh on interaction: when user opens either combo, refresh devices first
-        self.mic_combo.installEventFilter(self)
-        self.speaker_combo.installEventFilter(self)
-
-        # Always-on audio level preview (no manual test button)
-        layout.addSpacing(10)
-
-        # VU Meters (always visible for testing)
-        self.vu_meters_widget = QWidget()
-        vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
-        vu_meters_layout.setSpacing(10)
-
-        self.mic_vu_meter = VUMeter("🎤 Microphone")
-        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
-
-        vu_meters_layout.addWidget(self.mic_vu_meter)
-        vu_meters_layout.addWidget(self.speaker_vu_meter)
-
-        layout.addWidget(self.vu_meters_widget)
-        layout.addSpacing(10)
-
-        # Simplified UI: remove Audio Filters section
+        layout.addStretch(1)
 
         # Record toggle button
         button_container = QWidget()
@@ -800,6 +649,8 @@ class Video2TextQt(QMainWindow):
         self.recording_duration_label.hide()
         layout.addWidget(self.recording_duration_label)
 
+        layout.addStretch(1)
+
         # Progress section
         self.basic_record_progress_label = QLabel("Ready to record")
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
@@ -811,15 +662,27 @@ class Video2TextQt(QMainWindow):
         layout.addWidget(self.basic_record_progress_bar)
 
         # Info tip
-        info = QLabel("💡 Test your audio before recording to ensure proper levels\n💡 Recording automatically transcribes when stopped")
+        info = QLabel("💡 After stopping, the recording is saved but NOT automatically transcribed\n💡 Click 'Transcribe Recording' to manually start transcription")
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        layout.addStretch()
+        # Manual transcription button (appears after a recording completes)
+        self.transcribe_recording_btn = ModernButton("Transcribe Recording", primary=True)
+        self.transcribe_recording_btn.setMinimumHeight(42)
+        self.transcribe_recording_btn.hide()
+        def _start_transcribe_recording():
+            if not self.video_path:
+                QMessageBox.information(self, "No Recording", "No recording available. Please record first.")
+                return
+            # Reset multi-language choice so dialog appears for each manual transcription
+            self.multi_language_mode = None
+            self.prompt_multi_language_and_transcribe(from_start=True)
+        self.transcribe_recording_btn.clicked.connect(_start_transcribe_recording)
+        layout.addWidget(self.transcribe_recording_btn)
+
+        layout.addStretch(2)
         widget.setLayout(layout)
-        # Start meters automatically
-        QTimer.singleShot(200, self.ensure_audio_preview_running)
         return widget
 
     def create_basic_transcript_tab(self):
@@ -902,85 +765,16 @@ class Video2TextQt(QMainWindow):
         logger.info(f"Selected file: {file_path}")
 
     def refresh_audio_devices(self):
-        """Refresh the audio device combo boxes with platform-specific help."""
-        logger.info("Refreshing audio devices...")
-        current_platform = get_platform()
-        mic_devices, speaker_devices = get_audio_devices()
-
-        # Preserve current selections
-        prev_mic = self.mic_combo.currentData() if hasattr(self, 'mic_combo') else None
-        prev_speaker = self.speaker_combo.currentData() if hasattr(self, 'speaker_combo') else None
-
-        # Populate microphone combo (simplified labels)
-        self.mic_combo.clear()
-        if mic_devices:
-            # Add an option to follow system default microphone
-            self.mic_combo.addItem("Default Microphone — follows system", None)
-            for idx, name in mic_devices:
-                self.mic_combo.addItem(name, idx)
-            # Select the default-follow item by default
-            # Try to restore selection; otherwise default-follow
-            restored = False
-            if prev_mic is not None:
-                for i in range(self.mic_combo.count()):
-                    if self.mic_combo.itemData(i) == prev_mic:
-                        self.mic_combo.setCurrentIndex(i)
-                        restored = True
-                        break
-            if not restored:
-                self.mic_combo.setCurrentIndex(0)
-                self.selected_mic_device = None
-        else:
-            self.mic_combo.addItem("❌ No microphone found", None)
-            self.selected_mic_device = None
-
-        # Populate speaker combo (simplified labels)
-        self.speaker_combo.clear()
-        if speaker_devices:
-            # Add an option to follow system default output on Windows (WASAPI loopback)
-            if current_platform == 'windows':
-                from gui.workers import DEFAULT_SPEAKER_FOLLOW_SYSTEM
-                self.speaker_combo.addItem("Default System Output — follows Windows default", DEFAULT_SPEAKER_FOLLOW_SYSTEM)
-            for idx, name in speaker_devices:
-                self.speaker_combo.addItem(name, idx)
-            # Try to restore selection; otherwise default-follow on Windows
-            restored = False
-            if prev_speaker is not None:
-                for i in range(self.speaker_combo.count()):
-                    if self.speaker_combo.itemData(i) == prev_speaker:
-                        self.speaker_combo.setCurrentIndex(i)
-                        restored = True
-                        break
-            if not restored:
-                if current_platform == 'windows':
-                    self.speaker_combo.setCurrentIndex(0)
-                    self.selected_speaker_device = self.speaker_combo.currentData()
-                else:
-                    # Pick first detected device
-                    self.speaker_combo.setCurrentIndex(0)
-                    self.selected_speaker_device = self.speaker_combo.currentData()
-        else:
-            self.speaker_combo.addItem("❌ No system audio device (optional)", None)
-            self.selected_speaker_device = None
-
-        # Show status message
-        self.statusBar().showMessage(f"Devices refreshed: {len(mic_devices)} mic(s), {len(speaker_devices)} speaker(s)", 3000)
-        # Keep meters alive with any new selections
-        QTimer.singleShot(50, self.ensure_audio_preview_running)
+        """No-op. Device selection removed."""
+        pass
 
     def on_mic_device_changed(self, index):
-        """Handle microphone device selection change."""
-        self.selected_mic_device = self.mic_combo.currentData()
-        logger.info(f"Selected microphone device: {self.mic_combo.currentText()} (index: {self.selected_mic_device})")
-        # Restart preview worker with new device selection
-        self.restart_audio_preview()
+        """No-op. Device selection removed."""
+        pass
 
     def on_speaker_device_changed(self, index):
-        """Handle speaker device selection change."""
-        self.selected_speaker_device = self.speaker_combo.currentData()
-        logger.info(f"Selected speaker device: {self.speaker_combo.currentText()} (index: {self.selected_speaker_device})")
-        # Restart preview worker with new device selection
-        self.restart_audio_preview()
+        """No-op. Device selection removed."""
+        pass
 
     def show_audio_setup_guide(self):
         """Show platform-specific audio setup guide."""
@@ -1045,73 +839,16 @@ class Video2TextQt(QMainWindow):
         dialog.exec()
 
     def toggle_audio_preview(self):
-        """Toggle audio level preview without recording."""
-        if self.preview_worker and self.preview_worker.isRunning():
-            # Stop preview
-            self.preview_worker.stop()
-            self.preview_worker.wait()
-            self.preview_worker = None
-            self.test_audio_btn.setText("🔍 Test Audio Levels")
-            self.test_audio_btn.primary = False
-            self.test_audio_btn.apply_style()
-            self.mic_vu_meter.reset()
-            self.speaker_vu_meter.reset()
-            logger.info("Audio preview stopped")
-        else:
-            # Start preview
-            if self.selected_mic_device is None and self.selected_speaker_device is None:
-                QMessageBox.warning(self, "No Devices", "Please select at least one audio device to test.")
-                return
-
-            self.preview_worker = AudioPreviewWorker(
-                mic_device=self.selected_mic_device,
-                speaker_device=self.selected_speaker_device,
-                parent=self
-            )
-            self.preview_worker.audio_level.connect(self.update_audio_levels)
-            self.preview_worker.start()
-            self.test_audio_btn.setText("⏹️ Stop Testing")
-            self.test_audio_btn.primary = True
-            self.test_audio_btn.apply_style()
-            logger.info("Audio preview started")
+        """No-op. VU meters and preview removed."""
+        pass
 
     def restart_audio_preview(self):
-        """Stop and restart audio preview worker with current device selections."""
-        try:
-            # Stop existing worker
-            if self.preview_worker and self.preview_worker.isRunning():
-                self.preview_worker.stop()
-                self.preview_worker.wait(500)
-                self.preview_worker = None
-
-            # Start new worker with current selections
-            if not self.is_recording:
-                self.ensure_audio_preview_running()
-        except Exception as e:
-            logger.warning(f"Failed to restart audio preview: {e}")
+        """No-op. VU meters and preview removed."""
+        pass
 
     def ensure_audio_preview_running(self):
-        """Start preview if not already running; used for always-on meters."""
-        try:
-            if self.is_recording:
-                return
-            # If worker exists but stopped, clear it
-            if self.preview_worker and not self.preview_worker.isRunning():
-                self.preview_worker = None
-            if not self.preview_worker:
-                if self.selected_mic_device is None and self.selected_speaker_device is None:
-                    # Still start with defaults if possible
-                    pass
-                self.preview_worker = AudioPreviewWorker(
-                    mic_device=self.selected_mic_device,
-                    speaker_device=self.selected_speaker_device,
-                    parent=self
-                )
-                self.preview_worker.audio_level.connect(self.update_audio_levels)
-                self.preview_worker.start()
-                logger.info("Audio preview auto-started")
-        except Exception as e:
-            logger.warning(f"ensure_audio_preview_running failed: {e}")
+        """No-op. VU meters and preview removed."""
+        pass
 
     def toggle_basic_recording(self):
         """Toggle recording in Basic Mode (one-button flow)."""
@@ -1165,12 +902,6 @@ class Video2TextQt(QMainWindow):
 
     def start_basic_recording(self):
         """Start recording in Basic Mode."""
-        # Stop any running audio preview
-        if self.preview_worker and self.preview_worker.isRunning():
-            self.preview_worker.stop()
-            self.preview_worker.wait()
-            self.preview_worker = None
-
         self.is_recording = True
         self.recording_start_time = time.time()
 
@@ -1193,10 +924,6 @@ class Video2TextQt(QMainWindow):
 
         # Disable drop zone and device selection during recording
         self.drop_zone.setEnabled(False)
-        self.mic_combo.setEnabled(False)
-        self.speaker_combo.setEnabled(False)
-        if hasattr(self, 'test_audio_btn') and self.test_audio_btn:
-            self.test_audio_btn.setEnabled(False)
 
         # Show duration label
         self.recording_duration_label.show()
@@ -1207,40 +934,18 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_label.setText("Recording in progress...")
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)}; font-weight: bold;")
 
-        logger.info(f"Started basic mode recording (mic:{self.selected_mic_device}, speaker:{self.selected_speaker_device})")
+        logger.info(f"Started basic mode recording (mic: default, speaker: default/system)")
 
-        # Collect filter settings (static defaults; UI panel removed)
-        filter_settings = {
-            'noise_gate_enabled': True,
-            'noise_gate_threshold': -32.0,
-            'noise_gate_attack': 25.0,
-            'noise_gate_release': 150.0,
-            'noise_gate_hold': 200.0,
-            'rnnoise_enabled': True,
-            'use_enhanced_compressor': True,
-            'compressor_threshold': -18.0,
-            'compressor_ratio': 3.0,
-            'compressor_attack': 6.0,
-            'compressor_release': 60.0,
-            'compressor_gain': 0.0
-        }
-
-        # Start actual recording in QThread worker with selected devices and filters
+        # Start actual recording in QThread worker with default devices
         self.recording_worker = RecordingWorker(
             output_dir=self.settings["recordings_dir"],
-            mic_device=self.selected_mic_device,
-            speaker_device=self.selected_speaker_device,
-            filter_settings=filter_settings,
+            mic_device=None,  # Use default
+            speaker_device=None, # Use default
             parent=self
         )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
-        self.recording_worker.audio_level.connect(self.update_audio_levels)
         self.recording_worker.start()
-
-        # Reset VU meters
-        self.mic_vu_meter.reset()
-        self.speaker_vu_meter.reset()
 
     def stop_basic_recording(self):
         """Stop recording in Basic Mode."""
@@ -1257,10 +962,7 @@ class Video2TextQt(QMainWindow):
         self.basic_record_btn.apply_style()
 
         # Re-enable controls
-        self.mic_combo.setEnabled(True)
-        self.speaker_combo.setEnabled(True)
-        if hasattr(self, 'test_audio_btn') and self.test_audio_btn:
-            self.test_audio_btn.setEnabled(True)
+        self.drop_zone.setEnabled(True)
 
         # Hide duration label
         self.recording_duration_label.hide()
@@ -1275,8 +977,6 @@ class Video2TextQt(QMainWindow):
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('warning', self.is_dark_mode)};")
 
         logger.info("Stopped basic mode recording")
-        # Resume meters shortly after stopping
-        QTimer.singleShot(400, self.ensure_audio_preview_running)
 
     def update_recording_duration(self):
         """Update recording duration display."""
@@ -1287,9 +987,8 @@ class Video2TextQt(QMainWindow):
             self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
 
     def update_audio_levels(self, mic_level, speaker_level):
-        """Update VU meters with current audio levels (thread-safe slot)."""
-        self.mic_vu_meter.set_level(mic_level)
-        self.speaker_vu_meter.set_level(speaker_level)
+        """No-op. VU meters removed."""
+        pass
 
     def on_recording_complete(self, recorded_path, duration):
         """Slot called when recording completes successfully (thread-safe)."""
@@ -1297,16 +996,18 @@ class Video2TextQt(QMainWindow):
         self.video_path = recorded_path
         # Reset mode for new recording
         self.multi_language_mode = None
-        self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s) - Starting transcription...")
+        self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s). File saved.")
 
         # Re-enable controls
         self.drop_zone.setEnabled(True)
 
         # Update progress label
-        self.basic_record_progress_label.setText(f"Recording complete ({duration:.1f}s) - Starting transcription...")
+        self.basic_record_progress_label.setText(f"Recording complete ({duration:.1f}s). Ready for manual transcription.")
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('success', self.is_dark_mode)};")
 
-        QTimer.singleShot(600, self.prompt_multi_language_and_transcribe)
+        # Show manual transcribe button
+        if hasattr(self, 'transcribe_recording_btn'):
+            self.transcribe_recording_btn.show()
 
     def on_recording_error(self, error_message):
         """Slot called when recording encounters an error (thread-safe)."""
@@ -1716,3 +1417,35 @@ class Video2TextQt(QMainWindow):
             self.statusBar().showMessage("Ready for new transcription")
         except Exception:
             pass
+        # Hide manual transcribe button if present
+        if hasattr(self, 'transcribe_recording_btn'):
+            self.transcribe_recording_btn.hide()
+
+    # ---------- Tab activation management ----------
+    def on_basic_tab_changed(self, index: int):
+        """Handle sidebar tab changes."""
+        try:
+            # Switch stacked widget
+            if hasattr(self, 'basic_tab_stack'):
+                self.basic_tab_stack.setCurrentIndex(index)
+        except Exception:
+            pass
+
+        # If recording is ongoing and user navigates away, stop recording gracefully
+        if index != 0 and getattr(self, 'is_recording', False):
+            logger.info("Leaving Record tab while recording; stopping recording")
+            try:
+                self.stop_basic_recording()
+            except Exception as e:
+                logger.warning(f"Failed to stop recording on tab change: {e}")
+        # Update status bar
+        try:
+            tab_names = {0: "Record", 1: "Upload", 2: "Transcript"}
+            self.statusBar().showMessage(f"Switched to {tab_names.get(index, 'Unknown')} tab")
+        except Exception:
+            pass
+
+    # Override refresh_audio_devices to avoid auto preview start when not on Record tab
+    def refresh_audio_devices(self):
+        """No-op. Device selection removed."""
+        pass

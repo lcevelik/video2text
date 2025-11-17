@@ -14,226 +14,10 @@ DEFAULT_SPEAKER_FOLLOW_SYSTEM = -2
 
 logger = logging.getLogger(__name__)
 
+# BlackHole is the preferred method for system audio capture on macOS
+# if ScreenCaptureKit fails or is not desired.
+# We will simply check for a device named "BlackHole 2ch".
 
-class AudioPreviewWorker(QThread):
-    """Qt worker thread for audio level preview without recording."""
-
-    audio_level = Signal(float, float)  # (mic_level, speaker_level)
-
-    def __init__(self, mic_device=None, speaker_device=None, parent=None):
-        super().__init__(parent)
-        self.is_running = True
-        self.mic_device = mic_device
-        self.speaker_device = speaker_device
-        self.mic_level = 0.0
-        self.speaker_level = 0.0
-
-    def stop(self):
-        """Stop the preview."""
-        self.is_running = False
-
-    def run(self):
-        """Monitor audio levels without recording."""
-        try:
-            import sounddevice as sd  # type: ignore
-            import numpy as np  # type: ignore
-            import time
-
-            sample_rate = 16000
-
-            def _resolve_default_output_device():
-                """Try to resolve a usable output device index for loopback.
-
-                Returns an int index or None if not found.
-                """
-                try:
-                    out_index = sd.default.device[1]
-                except Exception:
-                    out_index = None
-                if out_index is not None and isinstance(out_index, int) and out_index >= 0:
-                    return out_index
-                # Fallback: first device with output channels
-                try:
-                    for i, d in enumerate(sd.query_devices()):
-                        if d.get('max_output_channels', 0) > 0:
-                            return i
-                except Exception:
-                    pass
-                return None
-
-            # Callbacks
-            def mic_callback(indata, frames, time_info, status):
-                if self.is_running:
-                    rms = np.sqrt(np.mean(indata**2))
-                    self.mic_level = float(min(1.0, rms * 10))
-
-            def speaker_callback(indata, frames, time_info, status):
-                if self.is_running:
-                    rms = np.sqrt(np.mean(indata**2))
-                    self.speaker_level = float(min(1.0, rms * 10))
-
-            # Start streams
-            mic_stream = None
-            speaker_stream = None
-
-            if self.mic_device is not None:
-                try:
-                    # Build candidate sample rates with device default first, then fallbacks
-                    candidate_rates = []
-                    try:
-                        mic_info = sd.query_devices(self.mic_device)
-                        default_rate = int(mic_info.get('default_samplerate', 0) or 0)
-                        if default_rate > 0:
-                            candidate_rates.append(default_rate)
-                    except Exception:
-                        pass
-                    candidate_rates.extend([48000, 44100, 32000, 16000])
-
-                    # Try each rate until one works
-                    mic_stream_opened = False
-                    for mic_rate in candidate_rates:
-                        try:
-                            mic_stream = sd.InputStream(device=self.mic_device, samplerate=mic_rate, channels=1, callback=mic_callback)
-                            mic_stream.start()
-                            mic_stream_opened = True
-                            logger.info(f"Opened mic preview at {mic_rate}Hz")
-                            break
-                        except Exception as e:
-                            continue
-
-                    if not mic_stream_opened:
-                        logger.warning(f"Could not start mic preview with any sample rate (tried: {', '.join(str(r) for r in candidate_rates)}Hz)")
-                except Exception as e:
-                    logger.warning(f"Could not start mic preview: {e}")
-
-            if self.speaker_device is not None:
-                try:
-                    devs = sd.query_devices()
-                    target_device = self.speaker_device
-
-                    # Follow system default output (Windows)
-                    if self.speaker_device == DEFAULT_SPEAKER_FOLLOW_SYSTEM and get_platform() == 'windows':
-                        resolved = _resolve_default_output_device()
-                        if resolved is not None:
-                            target_device = resolved
-                        else:
-                            logger.warning("No usable default output device found for loopback preview; skipping speaker meter")
-                            target_device = None
-
-                    if target_device is None:
-                        info = None
-                    else:
-                        info = devs[target_device]
-                    if info is not None and info['max_output_channels'] > 0 and info['max_input_channels'] == 0:
-                        speaker_channels = min(max(1, info['max_output_channels']), 2)
-                        extra = None
-                        # Prefer WASAPI loopback if available
-                        try:
-                            if 'wasapi' in sd.query_hostapis()[info['hostapi']]['name'].lower():
-                                extra = sd.WasapiSettings(loopback=True)
-                        except Exception:
-                            extra = None
-                        # Use device default samplerate for compatibility
-                        speaker_rate = int(info.get('default_samplerate', sample_rate) or sample_rate)
-                    elif info is not None:
-                        speaker_channels = min(max(1, info['max_input_channels']), 2)
-                        extra = None
-                        speaker_rate = sample_rate
-                    # else: info is None, speaker stream will be skipped by check at line 137
-
-                    def multi_ch_cb(indata, frames, time_info, status):
-                        if self.is_running:
-                            data = indata
-                            if data.ndim == 2 and data.shape[1] > 1:
-                                data = np.mean(data, axis=1, keepdims=True)
-                            rms = np.sqrt(np.mean(data**2))
-                            self.speaker_level = float(min(1.0, rms * 10))
-
-                    if target_device is not None:
-                        speaker_stream = sd.InputStream(
-                            device=target_device,
-                            samplerate=speaker_rate,
-                            channels=speaker_channels,
-                            callback=multi_ch_cb,
-                            extra_settings=extra
-                        )
-                        speaker_stream.start()
-                except Exception as e:
-                    logger.warning(f"Could not start speaker preview: {e}")
-
-            # Monitor while active
-            last_level_update = time.time()
-            preview_start = last_level_update
-            tried_devices = set()
-            if 'target_device' in locals() and isinstance(target_device, int):
-                tried_devices.add(target_device)
-            # Prepare candidate loopback devices (top-ranked, simplified)
-            try:
-                _mics, loopbacks = get_audio_devices()
-                candidate_loopbacks = [idx for idx, _ in loopbacks]
-            except Exception:
-                candidate_loopbacks = []
-            while self.is_running:
-                sd.sleep(100)
-                current_time = time.time()
-                if current_time - last_level_update >= 0.1:
-                    self.audio_level.emit(self.mic_level, self.speaker_level)
-                    last_level_update = current_time
-
-                # If speaker level is still silent after ~1s, auto-try next loopback device
-                if self.speaker_device is not None and speaker_stream and (current_time - preview_start) > 1.0:
-                    if self.speaker_level < 0.005 and candidate_loopbacks:
-                        # Try next untested candidate
-                        next_idx = None
-                        for idx in candidate_loopbacks:
-                            if idx not in tried_devices:
-                                next_idx = idx
-                                break
-                        if next_idx is not None:
-                            try:
-                                info = devs[next_idx]
-                                # Determine channels and settings
-                                if info['max_output_channels'] > 0 and info['max_input_channels'] == 0:
-                                    speaker_channels = min(max(1, info['max_output_channels']), 2)
-                                    extra = None
-                                    try:
-                                        if 'wasapi' in sd.query_hostapis()[info['hostapi']]['name'].lower():
-                                            extra = sd.WasapiSettings(loopback=True)
-                                    except Exception:
-                                        extra = None
-                                    speaker_rate = int(info.get('default_samplerate', sample_rate) or sample_rate)
-                                else:
-                                    speaker_channels = min(max(1, info['max_input_channels']), 2)
-                                    extra = None
-                                    speaker_rate = sample_rate
-
-                                # Switch stream
-                                speaker_stream.stop(); speaker_stream.close()
-                                speaker_stream = sd.InputStream(
-                                    device=next_idx,
-                                    samplerate=speaker_rate,
-                                    channels=speaker_channels,
-                                    callback=multi_ch_cb,
-                                    extra_settings=extra
-                                )
-                                speaker_stream.start()
-                                tried_devices.add(next_idx)
-                                preview_start = current_time  # reset timer
-                                logger.info(f"Auto-switched speaker preview to device {next_idx}: {info.get('name','')}")
-                            except Exception as switch_err:
-                                tried_devices.add(next_idx)
-                                logger.warning(f"Failed to switch speaker preview to {next_idx}: {switch_err}")
-
-            # Stop streams
-            if mic_stream:
-                mic_stream.stop()
-                mic_stream.close()
-            if speaker_stream:
-                speaker_stream.stop()
-                speaker_stream.close()
-
-        except Exception as e:
-            logger.error(f"Audio preview error: {e}", exc_info=True)
 
 
 class RecordingWorker(QThread):
@@ -243,18 +27,13 @@ class RecordingWorker(QThread):
     recording_complete = Signal(str, float)  # (file_path, duration)
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
-    audio_level = Signal(float, float)  # (mic_level, speaker_level) in range 0.0-1.0
 
-    def __init__(self, output_dir, mic_device=None, speaker_device=None,
-                 filter_settings=None, parent=None):
+    def __init__(self, output_dir, mic_device=None, speaker_device=None, parent=None):
         super().__init__(parent)
         self.is_recording = True
         self.output_dir = Path(output_dir)
         self.mic_device = mic_device  # Device index or None for auto-detect
         self.speaker_device = speaker_device  # Device index or None for auto-detect
-        self.mic_level = 0.0
-        self.speaker_level = 0.0
-        self.filter_settings = filter_settings or {}
 
     def stop(self):
         """Stop the recording."""
@@ -277,6 +56,9 @@ class RecordingWorker(QThread):
         if audio_data is None or audio_data.size == 0:
             return audio_data
 
+        # Ensure float format to prevent clipping/wrapping issues with int
+        audio_data = audio_data.astype(np.float32)
+
         # Calculate current RMS
         current_rms = np.sqrt(np.mean(audio_data**2))
 
@@ -295,7 +77,8 @@ class RecordingWorker(QThread):
         normalized = audio_data * gain
 
         # Soft clipping to prevent hard clipping artifacts
-        normalized = np.tanh(normalized * 1.2) * 0.9
+        # This will gently compress peaks instead of harsh clipping
+        normalized = np.tanh(normalized)
 
         return normalized
 
@@ -347,46 +130,6 @@ class RecordingWorker(QThread):
             compressed = compressed * (target_level / current_peak)
 
         return compressed
-
-    def _apply_filters(self, audio_data, sample_rate):
-        """
-        Apply audio filters (RNNoise, Noise Gate) based on settings.
-
-        Args:
-            audio_data: numpy array of audio samples
-            sample_rate: audio sample rate
-
-        Returns:
-            Filtered audio data
-        """
-        try:
-            from gui.audio_filters import AudioFilterChain
-        except Exception:
-            # Filters module not available; return original audio
-            return audio_data
-
-        # Create filter chain
-        filter_chain = AudioFilterChain(sample_rate=sample_rate)
-
-        # Add noise gate if enabled
-        if self.filter_settings.get('noise_gate_enabled', False):
-            filter_chain.add_noise_gate(
-                enabled=True,
-                threshold_db=self.filter_settings.get('noise_gate_threshold', -32.0),
-                attack_ms=self.filter_settings.get('noise_gate_attack', 25.0),
-                release_ms=self.filter_settings.get('noise_gate_release', 150.0),
-                hold_ms=self.filter_settings.get('noise_gate_hold', 200.0)
-            )
-
-        # Add RNNoise if enabled
-        if self.filter_settings.get('rnnoise_enabled', False):
-            filter_chain.add_rnnoise(enabled=True)
-
-        # Process audio through filter chain
-        if filter_chain.filters:
-            return filter_chain.process(audio_data)
-        else:
-            return audio_data
 
     def _resample(self, audio_data, from_rate, to_rate):
         try:
@@ -459,52 +202,66 @@ class RecordingWorker(QThread):
                 self.recording_error.emit("❌ No microphone found!")
                 return
 
-            # Find loopback device - use specified or auto-detect
-            loopback_device = self.speaker_device  # Use user selection if provided
-            if loopback_device is None:
-                # Auto-detect loopback device
-                # Prefer input-monitor sources first; fall back to WASAPI output-only devices
-                try:
-                    hostapis = sd.query_hostapis()
-                except Exception:
-                    hostapis = []
-                # 1) Prefer input-capable devices with loopback/monitor names
+            # System audio capture: Use BlackHole on macOS, otherwise loopback device
+            loopback_device = None
+            is_macos = get_platform() == 'macos'
+
+            if is_macos:
+                # On macOS, look for BlackHole as the system audio source
                 for idx, device in enumerate(devices):
-                    if idx == mic_device:
-                        continue
-                    try:
-                        device_name_lower = str(device.get('name', '')).lower()
-                        matches_loopback = any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'speakers wave', 'blackhole', 'soundflower', 'steam'])
-                        if device.get('max_input_channels', 0) > 0 and matches_loopback:
-                            loopback_device = idx
-                            logger.info(f"Auto-detected loopback device (monitor/input): {device.get('name','')}")
-                            break
-                    except Exception:
-                        continue
-                # 2) Fallback: WASAPI output-only devices (skip non-WASAPI outputs)
+                    if 'blackhole 2ch' in device.get('name', '').lower():
+                        loopback_device = idx
+                        logger.info(f"Found BlackHole 2ch for system audio capture: {device.get('name','')}")
+                        break
                 if loopback_device is None:
+                    logger.warning("BlackHole 2ch not found. System audio will not be recorded.")
+                    logger.info("Please install BlackHole for system audio recording on macOS: https://github.com/ExistentialAudio/BlackHole")
+
+            else:
+                # Find loopback device for non-macOS
+                loopback_device = self.speaker_device
+                if loopback_device is None:
+                    # Auto-detect loopback device
+                    try:
+                        hostapis = sd.query_hostapis()
+                    except Exception:
+                        hostapis = []
+                    # 1) Prefer input-capable devices with loopback/monitor names
                     for idx, device in enumerate(devices):
                         if idx == mic_device:
                             continue
                         try:
-                            if device.get('max_output_channels', 0) > 0 and device.get('max_input_channels', 0) == 0:
-                                ha_idx = device.get('hostapi', None)
-                                ha_name = ''
-                                try:
-                                    if ha_idx is not None:
-                                        ha_name = sd.query_hostapis()[ha_idx]['name'].lower()
-                                except Exception:
-                                    ha_name = ''
-                                if 'wasapi' in ha_name:
-                                    loopback_device = idx
-                                    logger.info(f"Auto-detected WASAPI output for loopback: {device.get('name','')}")
-                                    break
+                            device_name_lower = str(device.get('name', '')).lower()
+                            matches_loopback = any(kw in device_name_lower for kw in ['stereo mix', 'loopback', 'monitor', 'speakers wave', 'blackhole', 'soundflower', 'steam'])
+                            if device.get('max_input_channels', 0) > 0 and matches_loopback:
+                                loopback_device = idx
+                                logger.info(f"Auto-detected loopback device (monitor/input): {device.get('name','')}")
+                                break
                         except Exception:
                             continue
+                    # 2) Fallback: WASAPI output-only devices (skip non-WASAPI outputs)
+                    if loopback_device is None:
+                        for idx, device in enumerate(devices):
+                            if idx == mic_device:
+                                continue
+                            try:
+                                if device.get('max_output_channels', 0) > 0 and device.get('max_input_channels', 0) == 0:
+                                    ha_idx = device.get('hostapi', None)
+                                    ha_name = ''
+                                    try:
+                                        if ha_idx is not None:
+                                            ha_name = sd.query_hostapis()[ha_idx]['name'].lower()
+                                    except Exception:
+                                        ha_name = ''
+                                    if 'wasapi' in ha_name:
+                                        loopback_device = idx
+                                        logger.info(f"Auto-detected WASAPI output for loopback: {device.get('name','')}")
+                                        break
+                            except Exception:
+                                continue
 
             # Callbacks with debug tracking
             mic_callback_count = [0]  # Use list to allow modification in nested function
-            speaker_callback_count = [0]
 
             def mic_callback(indata, frames, time_info, status):
                 if status:
@@ -512,19 +269,12 @@ class RecordingWorker(QThread):
                 if self.is_recording:
                     mic_chunks.append(indata.copy())
                     mic_callback_count[0] += 1
-                    # Calculate RMS (root mean square) level for visualization
-                    rms = np.sqrt(np.mean(indata**2))
-                    self.mic_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
             def speaker_callback(indata, frames, time_info, status):
                 if status:
                     logger.warning(f"Speaker callback status: {status}")
                 if self.is_recording:
                     speaker_chunks.append(indata.copy())
-                    speaker_callback_count[0] += 1
-                    # Calculate RMS level
-                    rms = np.sqrt(np.mean(indata**2))
-                    self.speaker_level = float(min(1.0, rms * 10))  # Scale and clamp to 0-1
 
             # Start mic stream (use device default sample rate with fallback)
             mic_capture_rate = None
@@ -559,7 +309,7 @@ class RecordingWorker(QThread):
                 )
                 return
 
-            # Start speaker/loopback stream
+            # Start speaker/loopback stream if not using ScreenCaptureKit
             speaker_stream = None
             speaker_capture_rate = None
             if loopback_device is not None:
@@ -615,7 +365,8 @@ class RecordingWorker(QThread):
                         # Input monitor device - use input channels
                         if loopback_info:
                             loopback_channels = min(loopback_info['max_input_channels'], 2)
-                            speaker_rate = mic_capture_rate or sample_rate_final
+                            # For BlackHole and other virtual devices, match the mic rate
+                            speaker_rate = int(loopback_info.get('default_samplerate', mic_capture_rate or sample_rate_final) or (mic_capture_rate or sample_rate_final))
                             speaker_capture_rate = speaker_rate
                         else:
                             loopback_channels = 0
@@ -632,9 +383,6 @@ class RecordingWorker(QThread):
                             else:
                                 mono_data = indata
                             speaker_chunks.append(mono_data.copy())
-                            # Calculate RMS level
-                            rms = np.sqrt(np.mean(mono_data**2))
-                            self.speaker_level = float(min(1.0, rms * 10))
 
                     extra = None
                     try:
@@ -661,72 +409,17 @@ class RecordingWorker(QThread):
 
             # Record while active
             import time
-            last_level_update = time.time()
-            record_start = last_level_update
-            auto_switch_checked = False
+            record_start = time.time()
 
             logger.info(f"🔴 Recording started at {record_start}")
             logger.info(f"is_recording = {self.is_recording}")
 
             while self.is_recording:
                 sd.sleep(100)
-                # Emit audio levels every 100ms
-                current_time = time.time()
-                if current_time - last_level_update >= 0.1:
-                    self.audio_level.emit(self.mic_level, self.speaker_level)
-                    last_level_update = current_time
-
-                # One-time auto-switch attempt for recording if speaker is silent after ~0.8s
-                if not auto_switch_checked and speaker_stream is not None and (current_time - record_start) > 0.8:
-                    auto_switch_checked = True
-                    if self.speaker_level < 0.005:
-                        try:
-                            _mics, loopbacks = get_audio_devices()
-                            candidate_loopbacks = [idx for idx, _ in loopbacks]
-                        except Exception:
-                            candidate_loopbacks = []
-                        tried = set([target_device]) if 'target_device' in locals() and isinstance(target_device, int) else set()
-                        for idx in candidate_loopbacks:
-                            if idx in tried:
-                                continue
-                            try:
-                                info = devices[idx]
-                                if info['max_output_channels'] > 0 and info['max_input_channels'] == 0:
-                                    loopback_channels = min(info['max_output_channels'], 2)
-                                    extra = None
-                                    try:
-                                        ha_name = sd.query_hostapis()[info['hostapi']]['name'].lower()
-                                        if 'wasapi' in ha_name:
-                                            extra = sd.WasapiSettings(loopback=True)
-                                        else:
-                                            # Skip non-WASAPI outputs
-                                            raise RuntimeError('Non-WASAPI output device skipped')
-                                    except Exception:
-                                        extra = None
-                                    new_rate = int(info.get('default_samplerate', sample_rate_final) or sample_rate_final)
-                                else:
-                                    loopback_channels = min(info['max_input_channels'], 2)
-                                    extra = None
-                                    new_rate = sample_rate_final
-
-                                speaker_stream.stop(); speaker_stream.close()
-                                speaker_stream = sd.InputStream(
-                                    device=idx,
-                                    samplerate=new_rate,
-                                    channels=loopback_channels,
-                                    callback=multi_channel_speaker_callback,
-                                    extra_settings=extra
-                                )
-                                speaker_stream.start()
-                                logger.info(f"Auto-switched recording loopback to device {idx}: {info.get('name','')}")
-                                break
-                            except Exception as e:
-                                logger.warning(f"Failed auto-switch to recording loopback {idx}: {e}")
 
             # Stop streams
             logger.info(f"⏹️  Recording stopped. Duration: {time.time() - record_start:.1f}s")
             logger.info(f"Mic callbacks fired: {mic_callback_count[0]}")
-            logger.info(f"Speaker callbacks fired: {speaker_callback_count[0]}")
             logger.info(f"Mic chunks collected: {len(mic_chunks)}")
             logger.info(f"Speaker chunks collected: {len(speaker_chunks)}")
 
@@ -759,41 +452,29 @@ class RecordingWorker(QThread):
                 )
                 return
 
-            # Apply audio filters to microphone
-            mic_data = self._apply_filters(mic_data, mic_capture_rate or sample_rate_final)
-
-            # Resample mic to final rate if needed, then normalize
+            # Resample mic to final rate if needed
             if mic_capture_rate and mic_capture_rate != sample_rate_final:
                 mic_data = self._resample(mic_data, mic_capture_rate, sample_rate_final)
-            # Normalize microphone audio with AGC
-            mic_data = self._normalize_audio(mic_data, target_rms=0.15)
 
             if speaker_chunks:
                 speaker_data = np.concatenate(speaker_chunks, axis=0)
                 if speaker_data.size == 0:
                     speaker_data = None
 
-                # Apply audio filters to speaker
-                if speaker_data is not None:
-                    # Resample speaker to final rate if needed
-                    if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
-                        speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
-                    # Apply filters at final sample rate (after resampling)
-                    speaker_data = self._apply_filters(speaker_data, sample_rate_final)
-
-                # Normalize speaker audio with AGC
-                speaker_data = self._normalize_audio(speaker_data, target_rms=0.12)
+                # Resample speaker to final rate if needed
+                if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
+                    speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
 
                 if speaker_data is not None:
-                    # Align lengths
+                    # Align lengths before mixing
                     max_len = max(len(mic_data), len(speaker_data))
                     if len(mic_data) < max_len:
                         mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
                     if len(speaker_data) < max_len:
                         speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
 
-                    # Mix: 60% mic + 40% speaker
-                    final_data = (mic_data * 0.6 + speaker_data * 0.4)
+                    # Mix by averaging to prevent clipping before normalization
+                    final_data = (mic_data + speaker_data) / 2.0
                 else:
                     final_data = mic_data
             else:
@@ -804,31 +485,14 @@ class RecordingWorker(QThread):
                 self.recording_error.emit("❌ Recording error: no audio samples captured")
                 return
 
-            # Final normalization with enhanced compressor (if enabled)
-            if self.filter_settings.get('use_enhanced_compressor', False):
-                try:
-                    from gui.audio_filters import EnhancedCompressor
-                    compressor = EnhancedCompressor(
-                        threshold_db=self.filter_settings.get('compressor_threshold', -18.0),
-                        ratio=self.filter_settings.get('compressor_ratio', 3.0),
-                        attack_ms=self.filter_settings.get('compressor_attack', 6.0),
-                        release_ms=self.filter_settings.get('compressor_release', 60.0),
-                        output_gain_db=self.filter_settings.get('compressor_gain', 0.0),
-                        sample_rate=sample_rate_final
-                    )
-                    final_data = compressor.process(final_data)
-                except Exception:
-                    # Fallback to simple compressor if module not available
-                    final_data = self._apply_compression(final_data)
-            else:
-                # Use original simple compression
-                final_data = self._apply_compression(final_data)
+            # Normalize the final mixed audio
+            final_data = self._normalize_audio(final_data, target_rms=0.12)
 
             # Final safety limiting to prevent clipping
             if final_data.size > 0:
                 max_val = np.max(np.abs(final_data))
-                if max_val > 0.95:
-                    final_data = final_data / max_val * 0.95
+                if max_val > 0.98:
+                    final_data = final_data / max_val * 0.98
 
             # Create output directory if it doesn't exist
             self.output_dir.mkdir(parents=True, exist_ok=True)
