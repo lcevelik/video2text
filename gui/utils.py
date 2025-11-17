@@ -174,9 +174,10 @@ def _dedupe_and_format(device_entries, sd, is_loopback: bool):
     formatted = []
     for idx, name, hostapi_name in picked.values():
         label = _simplify_device_label(name)
-        # Exclude noisy or useless entries
+        # Exclude only truly problematic devices (reduced from previous aggressive filtering)
         exclude_keywords = [
-            'steam', 'blackmagic', 'iphone', 'hands-free', 'wave', 'display'
+            'steam streaming',  # More specific to avoid false positives
+            'iphone',
         ]
         low = label.lower()
         if any(k in low for k in exclude_keywords):
@@ -194,8 +195,8 @@ def _dedupe_and_format(device_entries, sd, is_loopback: bool):
 
     # Sort by score desc, then name
     formatted.sort(key=lambda t: (-t[0], t[2]))
-    # Limit list to top-N to avoid overwhelming users
-    limit = 6 if is_loopback else 8
+    # Limit list to top-N to avoid overwhelming users (increased from 6/8 to show more options)
+    limit = 10 if is_loopback else 12
     top = formatted[:limit]
     return [(idx, label) for _, idx, label in top]
 
