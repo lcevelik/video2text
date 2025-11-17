@@ -133,12 +133,19 @@ try:
                     buffer = objc.allocateBuffer(buffer_length)
 
                     # Copy data from block buffer
-                    status = AVFoundation.CMBlockBufferCopyDataBytes(
+                    # PyObjC returns (status, buffer) tuple when passing mutable buffer
+                    result = AVFoundation.CMBlockBufferCopyDataBytes(
                         block_buffer,
                         0,  # offsetToData
                         buffer_length,  # dataLength
                         buffer  # destination
                     )
+
+                    # Handle tuple return from PyObjC
+                    if isinstance(result, tuple):
+                        status, buffer = result
+                    else:
+                        status = result
 
                     if status != 0:
                         logger.warning(f"⚠️  CMBlockBufferCopyDataBytes failed with status {status}")
