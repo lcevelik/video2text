@@ -144,9 +144,13 @@ class RecordingWorker(QThread):
             up = tr // g
             down = fr // g
             mono = audio_data.squeeze()
+            logger.debug(f"Resampling: {fr}Hz -> {tr}Hz (up={up}, down={down}), input shape: {audio_data.shape}")
             y = resample_poly(mono, up, down)
-            return y.reshape(-1, 1)
-        except Exception:
+            result = y.reshape(-1, 1)
+            logger.debug(f"Resample result shape: {result.shape}")
+            return result
+        except Exception as e:
+            logger.warning(f"resample_poly failed ({e}), falling back to linear interpolation")
             try:
                 import numpy as np  # type: ignore
                 mono = audio_data.squeeze()
@@ -154,8 +158,11 @@ class RecordingWorker(QThread):
                 x_old = np.linspace(0, 1, len(mono), endpoint=False)
                 x_new = np.linspace(0, 1, new_len, endpoint=False)
                 y = np.interp(x_new, x_old, mono)
-                return y.reshape(-1, 1)
-            except Exception:
+                result = y.reshape(-1, 1)
+                logger.debug(f"Fallback resample result shape: {result.shape}")
+                return result
+            except Exception as e2:
+                logger.error(f"Both resampling methods failed: {e2}")
                 return audio_data
 
     def run(self):
@@ -457,27 +464,36 @@ class RecordingWorker(QThread):
                 mic_data = self._resample(mic_data, mic_capture_rate, sample_rate_final)
 
             if speaker_chunks:
+                logger.info(f"Processing speaker chunks: {len(speaker_chunks)} chunks")
                 speaker_data = np.concatenate(speaker_chunks, axis=0)
+                logger.info(f"Speaker data shape after concatenate: {speaker_data.shape}, size: {speaker_data.size}")
                 if speaker_data.size == 0:
                     speaker_data = None
 
                 # Resample speaker to final rate if needed
                 if speaker_capture_rate and speaker_capture_rate != sample_rate_final:
+                    logger.info(f"Resampling speaker from {speaker_capture_rate}Hz to {sample_rate_final}Hz")
                     speaker_data = self._resample(speaker_data, speaker_capture_rate, sample_rate_final)
+                    logger.info(f"Speaker data shape after resample: {speaker_data.shape if speaker_data is not None else 'None'}")
 
                 if speaker_data is not None:
                     # Align lengths before mixing
+                    logger.info(f"Aligning audio lengths - Mic: {len(mic_data)}, Speaker: {len(speaker_data)}")
                     max_len = max(len(mic_data), len(speaker_data))
                     if len(mic_data) < max_len:
                         mic_data = np.pad(mic_data, ((0, max_len - len(mic_data)), (0, 0)))
                     if len(speaker_data) < max_len:
                         speaker_data = np.pad(speaker_data, ((0, max_len - len(speaker_data)), (0, 0)))
 
+                    logger.info(f"Mixing audio - Mic shape: {mic_data.shape}, Speaker shape: {speaker_data.shape}")
                     # Mix by averaging to prevent clipping before normalization
                     final_data = (mic_data + speaker_data) / 2.0
+                    logger.info(f"Mixed audio shape: {final_data.shape}")
                 else:
+                    logger.info("Speaker data is None, using mic-only")
                     final_data = mic_data
             else:
+                logger.info("No speaker chunks collected, using mic-only")
                 final_data = mic_data
 
             if final_data is None or final_data.size == 0:
@@ -486,6 +502,7 @@ class RecordingWorker(QThread):
                 return
 
             # Normalize the final mixed audio
+            logger.info(f"Normalizing audio (current shape: {final_data.shape})")
             final_data = self._normalize_audio(final_data, target_rms=0.12)
 
             # Final safety limiting to prevent clipping
@@ -501,6 +518,7 @@ class RecordingWorker(QThread):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"recording_{timestamp}.mp3"
             recorded_path = str(self.output_dir / filename)
+            logger.info(f"Saving recording to: {recorded_path}")
 
             # Save recording as high-quality MP3 (320kbps)
             final_data_int16 = (final_data * 32767).astype(np.int16)
