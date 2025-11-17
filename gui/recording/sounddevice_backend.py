@@ -225,59 +225,41 @@ class SoundDeviceBackend(RecordingBackend):
                 else:
                     logger.info("Windows detected: Skipping Step 1, going directly to WASAPI loopback")
 
-                # 2) Windows or Linux fallback: WASAPI output-only devices
+                # 2) Look for Windows "Stereo Mix" or other loopback input devices
                 if loopback_device is None:
-                    logger.info("Step 2: Looking for WASAPI output devices (for loopback mode)...")
+                    logger.info("Step 2: Looking for Windows Stereo Mix or loopback devices...")
 
-                    # Try to get the default output device
-                    default_output = None
-                    try:
-                        default_output = sd.default.device[1]
-                        if default_output is not None and isinstance(default_output, int) and default_output >= 0:
-                            logger.info(f"System default output device: [{default_output}] {devices[default_output].get('name','')}")
-                    except Exception as e:
-                        logger.debug(f"Could not get default output device: {e}")
+                    # Check for "Stereo Mix" or "What U Hear" (different names on different systems)
+                    stereo_mix_keywords = ['stereo mix', 'what u hear', 'wave out mix', 'rec. playback']
 
-                    wasapi_candidates = []
                     for idx, device in enumerate(devices):
                         if idx == mic_device:
                             continue
                         try:
-                            has_output = device.get('max_output_channels', 0) > 0
+                            device_name_lower = str(device.get('name', '')).lower()
                             has_input = device.get('max_input_channels', 0) > 0
-                            ha_idx = device.get('hostapi', None)
-                            ha_name = ''
-                            try:
-                                if ha_idx is not None:
-                                    ha_name = sd.query_hostapis()[ha_idx]['name'].lower()
-                            except Exception:
-                                ha_name = ''
 
-                            is_wasapi = 'wasapi' in ha_name
-                            logger.debug(f"  [{idx}] {device.get('name','')}: "
-                                       f"out={has_output}, in={has_input}, api={ha_name}, wasapi={is_wasapi}")
+                            # Check if this is a Stereo Mix device
+                            is_stereo_mix = any(kw in device_name_lower for kw in stereo_mix_keywords)
 
-                            if has_output and not has_input and is_wasapi:
-                                wasapi_candidates.append(idx)
-                                is_default = " (DEFAULT)" if idx == default_output else ""
-                                logger.info(f"  Found WASAPI output device: [{idx}] {device.get('name','')}{is_default}")
+                            if is_stereo_mix and has_input:
+                                loopback_device = idx
+                                logger.info(f"✅ Found Stereo Mix device: [{idx}] {device.get('name','')}")
+                                break
                         except Exception as e:
                             logger.debug(f"  Error checking device {idx}: {e}")
                             continue
 
-                    if wasapi_candidates:
-                        # Prefer the default output device if it's in the candidates
-                        if default_output in wasapi_candidates:
-                            loopback_device = default_output
-                            logger.info(f"✅ Selected default WASAPI output for loopback: "
-                                      f"[{loopback_device}] {devices[loopback_device].get('name','')}")
-                        else:
-                            # Use the first WASAPI output device
-                            loopback_device = wasapi_candidates[0]
-                            logger.info(f"✅ Selected WASAPI output for loopback: "
-                                      f"[{loopback_device}] {devices[loopback_device].get('name','')}")
-                    else:
-                        logger.warning("⚠️  No WASAPI output devices found!")
+                # 3) If still no device found, inform user
+                if loopback_device is None:
+                    logger.warning("⚠️  No loopback device found for Windows system audio!")
+                    logger.warning("System audio capture requires one of the following:")
+                    logger.warning("  1. Enable 'Stereo Mix' in Windows Sound settings:")
+                    logger.warning("     - Right-click speaker icon → Sounds → Recording tab")
+                    logger.warning("     - Right-click in empty space → Show Disabled Devices")
+                    logger.warning("     - Right-click 'Stereo Mix' → Enable")
+                    logger.warning("  2. OR install a virtual audio cable (e.g., VB-Cable)")
+                    logger.warning("Recording will continue with microphone only")
             else:
                 logger.info(f"Using specified speaker device: [{loopback_device}]")
 
