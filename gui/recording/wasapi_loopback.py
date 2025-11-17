@@ -14,7 +14,7 @@ import time
 import numpy as np
 from typing import Optional, Callable
 from ctypes import (
-    POINTER, Structure, c_float, c_int16, c_uint8, c_uint16, c_uint32,
+    POINTER, Structure, c_float, c_int16, c_uint8, c_uint16, c_uint32, c_uint64,
     c_int64, c_void_p, HRESULT, byref, cast
 )
 import comtypes
