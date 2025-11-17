@@ -196,29 +196,36 @@ class SoundDeviceBackend(RecordingBackend):
             if loopback_device is None:
                 logger.info("Auto-detecting loopback device for Windows/Linux...")
 
-                # 1) Prefer input-capable devices with loopback/monitor names
-                logger.info("Step 1: Looking for input devices with loopback/monitor names...")
-                for idx, device in enumerate(devices):
-                    if idx == mic_device:
-                        continue
-                    try:
-                        device_name_lower = str(device.get('name', '')).lower()
-                        matches_loopback = any(kw in device_name_lower
-                                             for kw in ['stereo mix', 'loopback', 'monitor',
-                                                       'speakers wave', 'blackhole',
-                                                       'soundflower'])
-                        if device.get('max_input_channels', 0) > 0 and matches_loopback:
-                            loopback_device = idx
-                            logger.info(f"✅ Auto-detected loopback device (monitor/input): "
-                                      f"[{idx}] {device.get('name','')}")
-                            break
-                        elif matches_loopback:
-                            logger.debug(f"  Found loopback name but no input channels: [{idx}] {device.get('name','')}")
-                    except Exception as e:
-                        logger.debug(f"  Error checking device {idx}: {e}")
-                        continue
+                # On Windows, prefer WASAPI loopback over input monitors
+                # On Linux, check for PulseAudio monitors first
+                is_windows = platform == 'windows'
 
-                # 2) Fallback: WASAPI output-only devices
+                if not is_windows:
+                    # 1) On Linux: Prefer input-capable devices with loopback/monitor names
+                    logger.info("Step 1: Looking for input devices with loopback/monitor names...")
+                    for idx, device in enumerate(devices):
+                        if idx == mic_device:
+                            continue
+                        try:
+                            device_name_lower = str(device.get('name', '')).lower()
+                            matches_loopback = any(kw in device_name_lower
+                                                 for kw in ['stereo mix', 'loopback', 'monitor',
+                                                           'speakers wave', 'blackhole',
+                                                           'soundflower'])
+                            if device.get('max_input_channels', 0) > 0 and matches_loopback:
+                                loopback_device = idx
+                                logger.info(f"✅ Auto-detected loopback device (monitor/input): "
+                                          f"[{idx}] {device.get('name','')}")
+                                break
+                            elif matches_loopback:
+                                logger.debug(f"  Found loopback name but no input channels: [{idx}] {device.get('name','')}")
+                        except Exception as e:
+                            logger.debug(f"  Error checking device {idx}: {e}")
+                            continue
+                else:
+                    logger.info("Windows detected: Skipping Step 1, going directly to WASAPI loopback")
+
+                # 2) Windows or Linux fallback: WASAPI output-only devices
                 if loopback_device is None:
                     logger.info("Step 2: Looking for WASAPI output devices (for loopback mode)...")
 
