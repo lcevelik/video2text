@@ -31,3 +31,12 @@ pyaudioop>=0.5.0
 # If not installed on macOS, app will fall back to SoundDevice backend
 # which REQUIRES BlackHole 2ch: https://github.com/ExistentialAudio/BlackHole
 
+# Windows WASAPI Loopback support (Windows Vista+ RECOMMENDED)
+# For native system audio capture WITHOUT Stereo Mix or virtual cables!
+# Uncomment these lines on Windows to enable WASAPI loopback:
+# comtypes>=1.4.0
+# pycaw>=20240210
+#
+# If not installed on Windows, app will fall back to looking for Stereo Mix
+# which may need to be manually enabled in Windows Sound settings
+
