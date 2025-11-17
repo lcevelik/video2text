@@ -21,9 +21,13 @@ pyaudioop>=0.5.0
 # Install with: pip install rnnoise
 # rnnoise>=0.1.0
 
-# Optional: macOS ScreenCaptureKit support (macOS 12.3+)
-# For native system audio capture without BlackHole
-# Install with: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation
+# macOS ScreenCaptureKit support (macOS 12.3+ RECOMMENDED)
+# For native system audio capture WITHOUT BlackHole!
+# Uncomment these lines on macOS to enable native system audio:
 # pyobjc-framework-ScreenCaptureKit>=9.0
 # pyobjc-framework-AVFoundation>=9.0
+# pyobjc-framework-Cocoa>=9.0
+#
+# If not installed on macOS, app will fall back to SoundDevice backend
+# which REQUIRES BlackHole 2ch: https://github.com/ExistentialAudio/BlackHole
 
