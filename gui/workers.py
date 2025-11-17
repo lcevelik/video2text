@@ -93,13 +93,17 @@ class RecordingWorker(QThread):
         # Auto-select backend based on platform
         platform = get_platform()
 
-        if platform == 'macos' and HAS_SCREENCAPTUREKIT:
-            try:
-                # Try ScreenCaptureKit first on macOS
-                logger.info("Auto-selecting ScreenCaptureKit backend for macOS")
-                return ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
-            except Exception as e:
-                logger.warning(f"ScreenCaptureKit unavailable ({e}), falling back to SoundDevice")
+        # NOTE: ScreenCaptureKit auto-selection disabled until full implementation is complete
+        # The partial implementation can cause segfaults on macOS
+        # To use ScreenCaptureKit, explicitly set backend="screencapturekit"
+
+        # if platform == 'macos' and HAS_SCREENCAPTUREKIT:
+        #     try:
+        #         # Try ScreenCaptureKit first on macOS
+        #         logger.info("Auto-selecting ScreenCaptureKit backend for macOS")
+        #         return ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
+        #     except Exception as e:
+        #         logger.warning(f"ScreenCaptureKit unavailable ({e}), falling back to SoundDevice")
 
         # Default to SoundDevice backend (cross-platform)
         logger.info(f"Using SoundDevice backend for {platform}")
