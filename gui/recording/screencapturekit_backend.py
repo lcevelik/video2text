@@ -27,7 +27,6 @@ try:
     from Cocoa import NSApplication
     import AVFoundation
     import ScreenCaptureKit as SCKit
-    import struct
 
     HAS_SCREENCAPTUREKIT = True
 
@@ -69,16 +68,41 @@ try:
                     return
 
                 # Get audio stream basic description
+                # Note: This returns a pointer to the ASBD struct
                 asbd_ptr = AVFoundation.CMAudioFormatDescriptionGetStreamBasicDescription(format_desc)
                 if asbd_ptr is None:
                     logger.warning("No audio stream basic description")
                     return
 
-                # Update sample rate and channels from the stream
-                asbd = asbd_ptr[0]
+                # Extract sample rate and channel count from the ASBD
+                # The ASBD is a C struct, access fields using attribute names
                 if self.sample_rate == 48000:  # First time only
-                    self.sample_rate = int(asbd.mSampleRate)
-                    self.channels = int(asbd.mChannelsPerFrame)
+                    try:
+                        # Try to access as struct
+                        self.sample_rate = int(asbd_ptr.mSampleRate)
+                        self.channels = int(asbd_ptr.mChannelsPerFrame)
+                    except AttributeError:
+                        # If that fails, ASBD might be accessed differently in PyObjC
+                        # Extract basic format information from format description instead
+                        try:
+                            # Get audio format list (alternative method)
+                            audio_format_list = AVFoundation.CMAudioFormatDescriptionGetFormatList(format_desc)
+                            if audio_format_list:
+                                # Use first format
+                                first_format = audio_format_list[0]
+                                self.sample_rate = int(first_format.mSampleRate)
+                                self.channels = int(first_format.mChannelsPerFrame)
+                            else:
+                                # Fall back to 48kHz stereo (standard for system audio)
+                                logger.warning("Could not extract ASBD, using defaults: 48kHz, 2 channels")
+                                self.sample_rate = 48000
+                                self.channels = 2
+                        except:
+                            # Last resort: use defaults
+                            logger.warning("Failed to get audio format, using defaults: 48kHz, 2 channels")
+                            self.sample_rate = 48000
+                            self.channels = 2
+
                     logger.info(f"ScreenCaptureKit audio: {self.sample_rate}Hz, {self.channels} channels")
 
                 # Get audio buffer from sample buffer
@@ -86,37 +110,35 @@ try:
                 if block_buffer is None:
                     return
 
-                # Get buffer size
-                length_at_offset_out = objc.allocate_buffer(8)
-                total_length_out = objc.allocate_buffer(8)
-                data_pointer_out = objc.allocate_buffer(8)
+                # Get the raw audio data from CMBlockBuffer
+                # ScreenCaptureKit provides Float32 PCM audio data
+                try:
+                    # Get buffer length
+                    buffer_length = AVFoundation.CMBlockBufferGetDataLength(block_buffer)
+                    if buffer_length == 0:
+                        return
 
-                status = AVFoundation.CMBlockBufferGetDataPointer(
-                    block_buffer,
-                    0,  # offset
-                    length_at_offset_out,
-                    total_length_out,
-                    data_pointer_out
-                )
+                    # Allocate buffer to copy data into
+                    buffer = objc.allocate_buffer(buffer_length)
 
-                if status != 0:
-                    logger.warning(f"CMBlockBufferGetDataPointer failed with status {status}")
+                    # Copy data from block buffer
+                    status = AVFoundation.CMBlockBufferCopyDataBytes(
+                        block_buffer,
+                        0,  # offsetToData
+                        buffer_length,  # dataLength
+                        buffer  # destination
+                    )
+
+                    if status != 0:
+                        logger.warning(f"CMBlockBufferCopyDataBytes failed with status {status}")
+                        return
+
+                    # Convert to numpy array (Float32 PCM)
+                    audio_data = np.frombuffer(buffer, dtype=np.float32, count=buffer_length // 4)
+
+                except Exception as e:
+                    logger.debug(f"Failed to extract audio buffer: {e}")
                     return
-
-                # Extract the actual values
-                data_length = struct.unpack('Q', total_length_out)[0]
-
-                if data_length == 0:
-                    return
-
-                # Get the raw audio data
-                # ScreenCaptureKit typically outputs Float32 PCM audio
-                audio_bytes = objc.context.objc_object_at(data_pointer_out, data_length)
-
-                # Convert to numpy array
-                # Float32 = 4 bytes per sample
-                num_samples = data_length // 4
-                audio_data = np.frombuffer(bytes(audio_bytes), dtype=np.float32)
 
                 # Handle stereo -> mono conversion
                 if self.channels == 2 and len(audio_data) >= 2:
