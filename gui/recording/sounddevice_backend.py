@@ -49,6 +49,7 @@ class SoundDeviceBackend(RecordingBackend):
         self.mic_sample_rate = None
         self.speaker_sample_rate = None
         self.record_start_time = None
+        self.wasapi_capture = None  # For Windows WASAPI loopback
 
     def start_recording(self) -> None:
         """Start recording microphone and system audio."""
@@ -78,12 +79,38 @@ class SoundDeviceBackend(RecordingBackend):
         mic_device = self._find_microphone_device(devices)
         self._open_microphone_stream(mic_device, devices)
 
-        # Find and open system audio / loopback device
-        loopback_device = self._find_loopback_device(devices, mic_device)
-        if loopback_device is not None:
-            self._open_loopback_stream(loopback_device, devices)
+        # Handle system audio capture based on platform
+        from gui.utils import get_platform
+        platform = get_platform()
+
+        if platform == 'windows':
+            # On Windows, try WASAPI loopback first, then fall back to Stereo Mix
+            logger.info("=== Windows Detected: Trying WASAPI Loopback ===")
+            wasapi_success = False
+            try:
+                self._start_wasapi_loopback()
+                wasapi_success = True
+            except ImportError as e:
+                logger.warning(f"⚠️  WASAPI loopback not available: {e}")
+                logger.info("Falling back to Stereo Mix detection...")
+            except Exception as e:
+                logger.error(f"❌ Failed to start WASAPI loopback: {e}", exc_info=True)
+                logger.info("Falling back to Stereo Mix detection...")
+
+            # If WASAPI failed, try to find Stereo Mix or other loopback device
+            if not wasapi_success:
+                loopback_device = self._find_loopback_device(devices, mic_device)
+                if loopback_device is not None:
+                    self._open_loopback_stream(loopback_device, devices)
+                else:
+                    logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
         else:
-            logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
+            # On macOS/Linux, use traditional loopback/monitor devices
+            loopback_device = self._find_loopback_device(devices, mic_device)
+            if loopback_device is not None:
+                self._open_loopback_stream(loopback_device, devices)
+            else:
+                logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
 
         self.is_recording = True
         self.record_start_time = time.time()
@@ -386,6 +413,51 @@ class SoundDeviceBackend(RecordingBackend):
             logger.error(f"❌ Failed to open loopback stream on device {loopback_device}: {e}", exc_info=True)
             logger.warning("Recording will continue with microphone only")
 
+    def _start_wasapi_loopback(self) -> None:
+        """
+        Start WASAPI loopback capture for Windows system audio.
+
+        This uses direct Windows COM APIs to capture the audio stream going to
+        the default output device (speakers/headphones) without requiring
+        Stereo Mix or virtual audio cables.
+        """
+        logger.info("Initializing WASAPI loopback capture...")
+
+        try:
+            from .wasapi_loopback import WASAPILoopbackCapture
+        except ImportError as e:
+            logger.error(f"Failed to import WASAPI loopback module: {e}")
+            logger.error("Install required package: pip install pycaw")
+            raise
+
+        def wasapi_callback(indata, frames, time_info, status):
+            """Callback for WASAPI captured audio."""
+            if status:
+                logger.warning(f"WASAPI callback status: {status}")
+            if self.is_recording and indata is not None:
+                # Downmix to mono if stereo
+                if len(indata.shape) > 1 and indata.shape[1] > 1:
+                    mono_data = np.mean(indata, axis=1, keepdims=True)
+                else:
+                    mono_data = indata.reshape(-1, 1)
+
+                self.speaker_chunks.append(mono_data.copy())
+
+                if len(self.speaker_chunks) <= 3:
+                    logger.info(f"📥 WASAPI chunk #{len(self.speaker_chunks)} captured: "
+                              f"{mono_data.shape}, "
+                              f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
+
+        # Create and start WASAPI capture
+        self.wasapi_capture = WASAPILoopbackCapture(callback=wasapi_callback)
+        self.wasapi_capture.start()
+
+        # Store sample rate
+        self.speaker_sample_rate = self.wasapi_capture.get_sample_rate()
+
+        logger.info(f"✅ WASAPI loopback started: {self.speaker_sample_rate}Hz, "
+                   f"{self.wasapi_capture.get_channels()}ch")
+
     def stop_recording(self) -> RecordingResult:
         """Stop recording and return collected audio."""
         import sounddevice as sd
@@ -406,6 +478,16 @@ class SoundDeviceBackend(RecordingBackend):
         if self.speaker_stream:
             self.speaker_stream.stop()
             self.speaker_stream.close()
+
+        # Stop WASAPI capture if running
+        if self.wasapi_capture:
+            try:
+                wasapi_data = self.wasapi_capture.stop()
+                # WASAPI capture handles its own chunks via callback,
+                # so we don't need to process wasapi_data here
+                logger.info(f"WASAPI capture stopped, data shape: {wasapi_data.shape if wasapi_data.size > 0 else 'empty'}")
+            except Exception as e:
+                logger.error(f"Error stopping WASAPI capture: {e}", exc_info=True)
 
         # Process microphone data
         if not self.mic_chunks:
@@ -465,5 +547,12 @@ class SoundDeviceBackend(RecordingBackend):
             try:
                 self.speaker_stream.stop()
                 self.speaker_stream.close()
+            except:
+                pass
+
+        if self.wasapi_capture:
+            try:
+                self.wasapi_capture.stop()
+                self.wasapi_capture.cleanup()
             except:
                 pass
