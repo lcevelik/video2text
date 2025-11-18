@@ -188,42 +188,26 @@ class WASAPILoopbackCapture:
             )
 
             # Get default audio output device (speakers/headphones)
-            device_ptr = POINTER(IMMDevice)()
-            hr = self.device_enumerator.GetDefaultAudioEndpoint(
+            # With comtypes, out parameters are returned, not passed
+            self.device = self.device_enumerator.GetDefaultAudioEndpoint(
                 eRender,  # Output device
-                eConsole,  # Console role
-                byref(device_ptr)
+                eConsole   # Console role
             )
-
-            if hr != 0:
-                raise RuntimeError(f"Failed to get default audio endpoint: HRESULT {hr:#x}")
-
-            self.device = cast(device_ptr, POINTER(IMMDevice))
             logger.info("Got default audio output device")
 
             # Activate audio client
-            audio_client_ptr = c_void_p()
-            hr = self.device.Activate(
-                byref(IID_IAudioClient),
+            # comtypes returns the interface pointer directly
+            audio_client_ptr = self.device.Activate(
+                IID_IAudioClient,
                 comtypes.CLSCTX_ALL,
-                None,
-                byref(audio_client_ptr)
+                None
             )
-
-            if hr != 0:
-                raise RuntimeError(f"Failed to activate audio client: HRESULT {hr:#x}")
-
             self.audio_client = cast(audio_client_ptr, POINTER(IAudioClient))
             logger.info("Audio client activated")
 
             # Get the mix format
-            wave_format_ptr = POINTER(WAVEFORMATEX)()
-            hr = self.audio_client.GetMixFormat(byref(wave_format_ptr))
-
-            if hr != 0:
-                raise RuntimeError(f"Failed to get mix format: HRESULT {hr:#x}")
-
-            self.wave_format = wave_format_ptr
+            # comtypes returns the pointer directly
+            self.wave_format = self.audio_client.GetMixFormat()
 
             # Log audio format details
             self.sample_rate = self.wave_format.contents.nSamplesPerSec
@@ -235,7 +219,8 @@ class WASAPILoopbackCapture:
             # Initialize audio client in loopback mode
             buffer_duration = 10000000  # 1 second in 100-nanosecond units
 
-            hr = self.audio_client.Initialize(
+            # comtypes raises exception on error, no need to check HRESULT
+            self.audio_client.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,
                 AUDCLNT_STREAMFLAGS_LOOPBACK,
                 buffer_duration,
@@ -244,29 +229,17 @@ class WASAPILoopbackCapture:
                 None  # Audio session GUID
             )
 
-            if hr != 0:
-                raise RuntimeError(f"Failed to initialize audio client: HRESULT {hr:#x}")
-
             logger.info("Audio client initialized in loopback mode")
 
             # Get the capture client
-            capture_client_ptr = c_void_p()
-            hr = self.audio_client.GetService(
-                byref(IID_IAudioCaptureClient),
-                byref(capture_client_ptr)
-            )
-
-            if hr != 0:
-                raise RuntimeError(f"Failed to get capture client: HRESULT {hr:#x}")
-
+            # comtypes returns the interface pointer directly
+            capture_client_ptr = self.audio_client.GetService(IID_IAudioCaptureClient)
             self.capture_client = cast(capture_client_ptr, POINTER(IAudioCaptureClient))
             logger.info("Capture client obtained")
 
             # Start the audio client
-            hr = self.audio_client.Start()
-            if hr != 0:
-                raise RuntimeError(f"Failed to start audio client: HRESULT {hr:#x}")
-
+            # comtypes raises exception on error
+            self.audio_client.Start()
             logger.info("Audio client started")
 
             # Start capture thread
@@ -289,61 +262,43 @@ class WASAPILoopbackCapture:
             while self.is_capturing:
                 try:
                     # Get next packet size
-                    packet_length = c_uint32()
-                    hr = self.capture_client.GetNextPacketSize(byref(packet_length))
+                    # comtypes returns the value directly
+                    packet_length = self.capture_client.GetNextPacketSize()
 
-                    if hr != 0:
-                        logger.error(f"GetNextPacketSize failed: HRESULT {hr:#x}")
-                        break
-
-                    while packet_length.value > 0:
+                    while packet_length > 0:
                         # Get the buffer
-                        data_pointer = c_void_p()
-                        num_frames = c_uint32()
-                        flags = c_uint32()
-                        device_position = c_uint64()
-                        qpc_position = c_uint64()
+                        # comtypes returns all out parameters as a tuple
+                        data_pointer, num_frames, flags, device_position, qpc_position = \
+                            self.capture_client.GetBuffer()
 
-                        hr = self.capture_client.GetBuffer(
-                            byref(data_pointer),
-                            byref(num_frames),
-                            byref(flags),
-                            byref(device_position),
-                            byref(qpc_position)
-                        )
-
-                        if hr != 0:
-                            logger.error(f"GetBuffer failed: HRESULT {hr:#x}")
-                            break
-
-                        if num_frames.value > 0:
+                        if num_frames > 0:
                             # Convert pointer to numpy array based on format
-                            total_samples = num_frames.value * self.channels
+                            total_samples = num_frames * self.channels
 
                             if self.wave_format.contents.wBitsPerSample == 32:
                                 # Float32 format - most common for WASAPI
-                                buffer = (c_float * total_samples).from_address(data_pointer.value)
+                                buffer = (c_float * total_samples).from_address(data_pointer)
                                 audio_data = np.frombuffer(buffer, dtype=np.float32).copy()
                             elif self.wave_format.contents.wBitsPerSample == 16:
                                 # Int16 format - convert to float32
-                                buffer = (c_int16 * total_samples).from_address(data_pointer.value)
+                                buffer = (c_int16 * total_samples).from_address(data_pointer)
                                 audio_data = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
                             else:
                                 # Unsupported format - log and skip
                                 logger.warning(f"Unsupported bit depth: {self.wave_format.contents.wBitsPerSample}")
-                                self.capture_client.ReleaseBuffer(num_frames.value)
-                                hr = self.capture_client.GetNextPacketSize(byref(packet_length))
+                                self.capture_client.ReleaseBuffer(num_frames)
+                                packet_length = self.capture_client.GetNextPacketSize()
                                 continue
 
                             # Reshape to (frames, channels)
                             try:
-                                audio_data = audio_data.reshape(num_frames.value, self.channels)
+                                audio_data = audio_data.reshape(num_frames, self.channels)
                             except ValueError as e:
                                 logger.error(f"Failed to reshape audio data: {e}")
-                                logger.error(f"  Expected: ({num_frames.value}, {self.channels})")
+                                logger.error(f"  Expected: ({num_frames}, {self.channels})")
                                 logger.error(f"  Got: {audio_data.shape}")
-                                self.capture_client.ReleaseBuffer(num_frames.value)
-                                hr = self.capture_client.GetNextPacketSize(byref(packet_length))
+                                self.capture_client.ReleaseBuffer(num_frames)
+                                packet_length = self.capture_client.GetNextPacketSize()
                                 continue
 
                             # Store chunk
@@ -351,7 +306,7 @@ class WASAPILoopbackCapture:
 
                             # Call callback if provided
                             if self.callback:
-                                self.callback(audio_data, num_frames.value, None, None)
+                                self.callback(audio_data, num_frames, None, None)
 
                             # Log first few chunks for debugging
                             if len(self.audio_chunks) <= 3:
@@ -361,14 +316,11 @@ class WASAPILoopbackCapture:
                                           f"max={audio_data.max():.6f}")
 
                         # Release the buffer
-                        hr = self.capture_client.ReleaseBuffer(num_frames.value)
-                        if hr != 0:
-                            logger.error(f"ReleaseBuffer failed: HRESULT {hr:#x}")
+                        # comtypes raises exception on error
+                        self.capture_client.ReleaseBuffer(num_frames)
 
                         # Get next packet size
-                        hr = self.capture_client.GetNextPacketSize(byref(packet_length))
-                        if hr != 0:
-                            break
+                        packet_length = self.capture_client.GetNextPacketSize()
 
                     # Small delay to prevent CPU spinning
                     time.sleep(0.01)
