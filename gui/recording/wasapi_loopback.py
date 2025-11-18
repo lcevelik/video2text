@@ -14,11 +14,11 @@ import time
 import numpy as np
 from typing import Optional, Callable
 from ctypes import (
-    POINTER, Structure, c_float, c_int16, c_uint8, c_uint16, c_uint32, c_uint64,
-    c_int64, c_void_p, HRESULT, byref, cast
+    POINTER, Structure, c_float, c_int16, c_uint16, c_uint32, c_uint64,
+    c_int64, c_void_p, byref, cast
 )
 import comtypes
-from comtypes import GUID, COMMETHOD, IUnknown
+from comtypes import GUID, COMMETHOD, IUnknown, HRESULT
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,14 @@ class WASAPILoopbackCapture:
 
         try:
             # Initialize COM
-            comtypes.CoInitialize()
+            try:
+                comtypes.CoInitialize()
+            except OSError as e:
+                # COM may already be initialized in this thread, which is fine
+                logger.debug(f"COM initialization note: {e}")
+            except Exception as e:
+                logger.error(f"Failed to initialize COM: {e}")
+                raise
 
             # Create device enumerator
             self.device_enumerator = comtypes.CoCreateInstance(
@@ -329,7 +336,15 @@ class WASAPILoopbackCapture:
                                 continue
 
                             # Reshape to (frames, channels)
-                            audio_data = audio_data.reshape(num_frames.value, self.channels)
+                            try:
+                                audio_data = audio_data.reshape(num_frames.value, self.channels)
+                            except ValueError as e:
+                                logger.error(f"Failed to reshape audio data: {e}")
+                                logger.error(f"  Expected: ({num_frames.value}, {self.channels})")
+                                logger.error(f"  Got: {audio_data.shape}")
+                                self.capture_client.ReleaseBuffer(num_frames.value)
+                                hr = self.capture_client.GetNextPacketSize(byref(packet_length))
+                                continue
 
                             # Store chunk
                             self.audio_chunks.append(audio_data.copy())
