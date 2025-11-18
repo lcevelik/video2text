@@ -29,21 +29,51 @@ class AudioExtractor:
     
     def __init__(self):
         """Initialize the AudioExtractor."""
+        self.ffmpeg_path = self._get_ffmpeg_path()
         self._check_ffmpeg()
+
+    def _get_ffmpeg_path(self):
+        import sys
+        import os
+        exe_dir = os.path.dirname(sys.executable)
+        ffmpeg_path = os.path.join(exe_dir, 'ffmpeg.exe')
+        logger.debug(f"Checking for ffmpeg.exe in executable directory: {exe_dir}")
+        if os.path.exists(ffmpeg_path):
+            logger.debug(f"Found ffmpeg.exe at: {ffmpeg_path}")
+            return ffmpeg_path
+        logger.debug("ffmpeg.exe not found in executable directory, falling back to PATH")
+        return 'ffmpeg'  # Fallback to PATH if not found
     
     def _check_ffmpeg(self):
         """Check if ffmpeg is installed and accessible."""
         try:
-            subprocess.run(
-                ['ffmpeg', '-version'],
+            logger.info(f"Trying to run ffmpeg at path: {self.ffmpeg_path}")
+            logger.debug(f"Running command: {[self.ffmpeg_path, '-version']}")
+            result = subprocess.run(
+                [self.ffmpeg_path, '-version'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True
             )
-            logger.info("ffmpeg is available")
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            logger.info(f"ffmpeg is available at {self.ffmpeg_path}")
+            logger.debug(f"ffmpeg stdout: {result.stdout.decode('utf-8', errors='ignore')}")
+            logger.debug(f"ffmpeg stderr: {result.stderr.decode('utf-8', errors='ignore')}")
+        except PermissionError as e:
+            logger.error(f"PermissionError when running ffmpeg: {e}")
+            logger.error(f"ffmpeg path: {self.ffmpeg_path}")
+            logger.error(f"Current working directory: {os.getcwd()}")
+            logger.error(f"Executable directory: {os.path.dirname(os.path.abspath(__file__))}")
             raise RuntimeError(
-                "ffmpeg is not installed or not in PATH. "
+                f"PermissionError: ffmpeg is not accessible at {self.ffmpeg_path}. "
+                "Check file permissions and antivirus settings."
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.error(f"Error when running ffmpeg: {e}")
+            logger.error(f"ffmpeg path: {self.ffmpeg_path}")
+            logger.error(f"Current working directory: {os.getcwd()}")
+            logger.error(f"Executable directory: {os.path.dirname(os.path.abspath(__file__))}")
+            raise RuntimeError(
+                f"ffmpeg is not installed or not accessible at {self.ffmpeg_path}. "
                 "Please install ffmpeg: https://ffmpeg.org/download.html"
             )
     
@@ -100,12 +130,10 @@ class AudioExtractor:
             FileNotFoundError: If file doesn't exist
         """
         media_path = Path(media_path)
-        
         if not media_path.exists():
+            logger.error(f"Media file not found: {media_path}")
             raise FileNotFoundError(f"Media file not found: {media_path}")
-        
         try:
-            # Use ffprobe to get media duration (works for both video and audio)
             cmd = [
                 'ffprobe',
                 '-v', 'error',
@@ -113,7 +141,7 @@ class AudioExtractor:
                 '-of', 'default=noprint_wrappers=1:nokey=1',
                 str(media_path)
             ]
-            
+            logger.debug(f"Running ffprobe command: {cmd}")
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -121,14 +149,15 @@ class AudioExtractor:
                 check=True,
                 text=True
             )
-            
+            logger.debug(f"ffprobe stdout: {result.stdout}")
+            logger.debug(f"ffprobe stderr: {result.stderr}")
             duration = float(result.stdout.strip())
             file_type = "audio" if self.is_audio_file(media_path) else "video"
             logger.info(f"{file_type.capitalize()} duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
             return duration
-            
         except (subprocess.CalledProcessError, ValueError) as e:
             logger.warning(f"Could not determine media duration: {e}")
+            logger.debug(f"ffprobe command failed or output invalid for file: {media_path}")
             return None
     
     def get_video_duration(self, video_path):
@@ -165,21 +194,21 @@ class AudioExtractor:
             RuntimeError: If extraction/conversion fails
         """
         media_path = Path(media_path)
-
         if not media_path.exists():
+            logger.error(f"Media file not found: {media_path}")
             raise FileNotFoundError(f"Media file not found: {media_path}")
-
         if not self.is_supported_format(media_path):
+            logger.error(f"Unsupported media format: {media_path.suffix}")
+            logger.error(f"Supported video formats: {', '.join(sorted(self.SUPPORTED_VIDEO_FORMATS))}")
+            logger.error(f"Supported audio formats: {', '.join(sorted(self.SUPPORTED_AUDIO_FORMATS))}")
             raise ValueError(
                 f"Unsupported media format: {media_path.suffix}. "
                 f"Supported video formats: {', '.join(sorted(self.SUPPORTED_VIDEO_FORMATS))}. "
                 f"Supported audio formats: {', '.join(sorted(self.SUPPORTED_AUDIO_FORMATS))}"
             )
-
         # If it's already a WAV file, check if we can use it directly
         # For now, we'll always convert to ensure optimal format (16kHz mono)
         # This ensures consistency and optimal Whisper performance
-
         # Generate output path if not provided
         if output_path is None:
             temp_dir = tempfile.gettempdir()
@@ -191,7 +220,7 @@ class AudioExtractor:
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path = str(output_path)
-
+        logger.debug(f"Output audio path: {output_path}")
         if self.is_audio_file(media_path):
             logger.info(f"Converting audio file {media_path} to optimal format for Whisper")
             action_present = "Converting"
@@ -200,10 +229,8 @@ class AudioExtractor:
             logger.info(f"Extracting audio from video {media_path} to {output_path}")
             action_present = "Extracting"
             action_past = "extracted"
-
         if progress_callback:
             progress_callback(f"{action_present} audio...", 5)
-
         # Use ffmpeg to extract/convert audio
         # -i: input file
         # -vn: disable video (for video files)
@@ -213,49 +240,49 @@ class AudioExtractor:
         # -y: overwrite output file if exists
         # -progress: output progress information
         try:
-            cmd = ['ffmpeg', '-i', str(media_path)]
-
+            cmd = [self.ffmpeg_path, '-i', str(media_path)]
+            logger.debug(f"Initial ffmpeg command: {cmd}")
             # Only add -vn for video files
             if self.is_video_file(media_path):
                 cmd.append('-vn')  # No video
-
+                logger.debug("Added '-vn' to ffmpeg command for video file")
             # Add audio processing options
+            codec = 'pcm_s16le' if audio_format == 'wav' else 'libmp3lame'
             cmd.extend([
-                '-acodec', 'pcm_s16le' if audio_format == 'wav' else 'libmp3lame',
+                '-acodec', codec,
                 '-ar', '16000',  # Sample rate (Whisper works best with 16kHz)
                 '-ac', '1',  # Mono audio
                 '-y',  # Overwrite output
                 output_path
             ])
-
+            logger.debug(f"Final ffmpeg command: {cmd}")
             # OPTIMIZED: Show progress during extraction (though ffmpeg progress parsing
             # would require async processing, so we'll just show intermediate updates)
             if progress_callback:
                 progress_callback(f"{action_present} audio... Processing", 15)
-
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True
             )
-
+            logger.debug(f"ffmpeg stdout: {result.stdout.decode('utf-8', errors='ignore')}")
+            logger.debug(f"ffmpeg stderr: {result.stderr.decode('utf-8', errors='ignore')}")
             if progress_callback:
                 progress_callback(f"{action_present} audio... Finalizing", 25)
-
             if not os.path.exists(output_path):
+                logger.error(f"Audio processing completed but output file not found: {output_path}")
                 raise RuntimeError("Audio processing completed but output file not found")
-
             logger.info(f"Audio {action_past} successfully to {output_path}")
-
             if progress_callback:
                 progress_callback(f"Audio {action_past} successfully", 30)
-
             return output_path
-
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode('utf-8', errors='ignore')
             logger.error(f"ffmpeg error: {error_msg}")
+            logger.error(f"ffmpeg command: {cmd}")
+            logger.error(f"Current working directory: {os.getcwd()}")
+            logger.error(f"Executable directory: {os.path.dirname(os.path.abspath(__file__))}")
             action = "convert" if self.is_audio_file(media_path) else "extract"
             raise RuntimeError(f"Failed to {action} audio: {error_msg}")
     
@@ -268,8 +295,11 @@ class AudioExtractor:
         """
         try:
             if os.path.exists(file_path):
+                logger.debug(f"Attempting to delete temporary file: {file_path}")
                 os.remove(file_path)
                 logger.info(f"Cleaned up temporary file: {file_path}")
+            else:
+                logger.debug(f"Temporary file not found for cleanup: {file_path}")
         except Exception as e:
             logger.warning(f"Failed to cleanup file {file_path}: {e}")
 

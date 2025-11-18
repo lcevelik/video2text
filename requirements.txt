@@ -13,8 +13,8 @@ PySide6>=6.6.0
 librosa>=0.10.0
 soundfile>=0.12.0
 
-# Python 3.13 removed stdlib 'audioop'. pyaudioop provides compatibility used by pydub.
-pyaudioop>=0.5.0
+# PyAudio for audio capture (compatible with Python 3.11+)
+pyaudio>=0.2.14
 
 # Optional: AI-powered noise suppression (RNNoise filter)
 # If not installed, falls back to spectral subtraction
@@ -33,9 +33,8 @@ pyaudioop>=0.5.0
 
 # Windows WASAPI Loopback support (Windows Vista+ RECOMMENDED)
 # For native system audio capture WITHOUT Stereo Mix or virtual cables!
-# Uncomment this line on Windows to enable WASAPI loopback:
-# comtypes>=1.4.0
+comtypes>=1.4.0
 #
-# If not installed on Windows, app will fall back to looking for Stereo Mix
-# which may need to be manually enabled in Windows Sound settings
+
+torchvision>=0.16.0
 
