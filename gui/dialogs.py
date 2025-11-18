@@ -237,10 +237,6 @@ class MultiLanguageChoiceDialog(QDialog):
         title.setStyleSheet("font-size:16px; font-weight:bold;")
         layout.addWidget(title)
 
-        desc = QLabel("Choose 'Yes' if speakers switch languages (e.g., English ↔ Spanish). Choose 'No' for a single language to use the faster mode.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("font-size:13px; color:#555;")
-        layout.addWidget(desc)
 
         # Language selection area (hidden until user chooses multi-language)
         self.lang_select_widget = QWidget()
@@ -270,8 +266,8 @@ class MultiLanguageChoiceDialog(QDialog):
         layout.addWidget(self.lang_select_widget)
 
         btn_row = QHBoxLayout()
-        self.yes_btn = QPushButton("Yes – Multi-language")
-        self.no_btn = QPushButton("No – Single language")
+        self.yes_btn = QPushButton("Multi-Language")
+        self.no_btn = QPushButton("Single-Language")
         self.yes_btn.setCursor(Qt.PointingHandCursor)
         self.no_btn.setCursor(Qt.PointingHandCursor)
         self.yes_btn.setStyleSheet("background:#2196F3; color:white; padding:10px; border-radius:6px; font-weight:bold;")
