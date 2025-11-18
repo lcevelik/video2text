@@ -59,17 +59,8 @@ class WAVEFORMATEX(Structure):
 
 
 # ===== COM Interfaces =====
-class IMMDeviceEnumerator(IUnknown):
-    _iid_ = IID_IMMDeviceEnumerator
-    _methods_ = [
-        COMMETHOD([], HRESULT, 'EnumAudioEndpoints'),
-        COMMETHOD([], HRESULT, 'GetDefaultAudioEndpoint',
-                  (['in'], c_uint32, 'dataFlow'),
-                  (['in'], c_uint32, 'role'),
-                  (['out'], POINTER(POINTER(IUnknown)), 'ppDevice')),
-    ]
-
-
+# Note: IMMDevice must be defined before IMMDeviceEnumerator
+# because GetDefaultAudioEndpoint returns a POINTER(IMMDevice)
 class IMMDevice(IUnknown):
     _iid_ = IID_IMMDevice
     _methods_ = [
@@ -82,6 +73,17 @@ class IMMDevice(IUnknown):
         COMMETHOD([], HRESULT, 'GetId',
                   (['out'], POINTER(c_void_p), 'ppstrId')),
         COMMETHOD([], HRESULT, 'GetState'),
+    ]
+
+
+class IMMDeviceEnumerator(IUnknown):
+    _iid_ = IID_IMMDeviceEnumerator
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'EnumAudioEndpoints'),
+        COMMETHOD([], HRESULT, 'GetDefaultAudioEndpoint',
+                  (['in'], c_uint32, 'dataFlow'),
+                  (['in'], c_uint32, 'role'),
+                  (['out'], POINTER(POINTER(IMMDevice)), 'ppDevice')),
     ]
 
 
