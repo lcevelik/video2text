@@ -22,24 +22,24 @@ from PySide6.QtCore import Qt, QTimer, QEvent  # type: ignore
 from PySide6.QtGui import QPalette  # type: ignore
 
 from gui.theme import Theme
-from gui.widgets import ModernButton, Card, DropZone
-from gui.workers import RecordingWorker, TranscriptionWorker
+from gui.widgets import ModernButton, Card, DropZone, VUMeter, ModernTabBar, CollapsibleSidebar
+from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help
 from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
 
-class Video2TextQt(QMainWindow):
+class FonixFlowQt(QMainWindow):
     """Modern Qt-based main window."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Video2Text - Whisper Transcription")
+        self.setWindowTitle("FonixFlow - Whisper Transcription")
         self.setMinimumSize(1000, 700)
 
         # Config file location
-        self.config_file = Path.home() / ".video2text_config.json"
+        self.config_file = Path.home() / ".fonixflow_config.json"
 
         # Load settings
         self.settings = self.load_settings()
@@ -71,6 +71,10 @@ class Video2TextQt(QMainWindow):
         # Removed eager Whisper model preloading: models now load on-demand
         # when transcription actually starts (single-language loads 1 model;
         # multi-language path path loads detection+transcription models lazily).
+
+        # Start audio preview worker for VU meters
+        self.audio_preview_worker = None
+        self.start_audio_preview()
 
     # Early stub to guarantee existence even if later method definition changes order
     def cancel_transcription(self):
@@ -219,9 +223,59 @@ class Video2TextQt(QMainWindow):
             }}
         """)
 
-        # Update sidebar if it exists
+        # Update sidebar if it exists (old)
         if hasattr(self, 'basic_sidebar'):
             self.update_sidebar_theme(self.basic_sidebar)
+
+        # Update ModernTabBar theme
+        if hasattr(self, 'tab_bar'):
+            self.tab_bar.update_theme(self.is_dark_mode)
+
+        # Update CollapsibleSidebar theme
+        if hasattr(self, 'collapsible_sidebar'):
+            self.collapsible_sidebar.update_theme(self.is_dark_mode)
+
+        # Update settings sidebar theme
+        if hasattr(self, 'settings_sidebar'):
+            self.settings_sidebar.update_theme(self.is_dark_mode)
+
+            # Update theme section button
+            if hasattr(self, 'theme_section_btn'):
+                self.theme_section_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: transparent;
+                        color: {Theme.get('text_secondary', self.is_dark_mode)};
+                        border: none;
+                        border-radius: 6px;
+                        padding: 6px 12px;
+                        text-align: left;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                    }}
+                """)
+
+            # Update theme option buttons
+            for btn in [getattr(self, 'theme_auto_btn', None),
+                       getattr(self, 'theme_light_btn', None),
+                       getattr(self, 'theme_dark_btn', None)]:
+                if btn:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background-color: transparent;
+                            color: {Theme.get('text_primary', self.is_dark_mode)};
+                            border: none;
+                            border-radius: 6px;
+                            padding: 8px 12px 8px 24px;
+                            text-align: left;
+                            font-size: 13px;
+                        }}
+                        QPushButton:hover {{
+                            background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                        }}
+                    """)
 
         # Update DropZone theme
         if hasattr(self, 'drop_zone'):
@@ -327,69 +381,57 @@ class Video2TextQt(QMainWindow):
         """)
 
     def setup_ui(self):
-        """Setup the main UI."""
+        """Setup the main UI with modern navigation."""
         central = QWidget()
         self.setCentralWidget(central)
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        # Main vertical layout
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # Header
-        header = self.create_header()
-        layout.addWidget(header)
+        # Top bar with hamburger menu
+        top_bar = self.create_top_bar()
+        main_layout.addWidget(top_bar)
 
-        # Main content - just the basic mode (no mode switching)
-        basic_mode = self.create_basic_mode()
-        layout.addWidget(basic_mode, 1)
+        # Modern tab bar
+        self.tab_bar = ModernTabBar(
+            tabs=[
+                ("🎙️", "Record", 0),
+                ("📁", "Upload", 1),
+                ("📄", "Transcript", 2)
+            ],
+            is_dark_mode=self.is_dark_mode
+        )
+        self.tab_bar.tab_changed.connect(self.on_tab_changed)
+        main_layout.addWidget(self.tab_bar)
+
+        # Content area with sidebar + tabs
+        content_area = self.create_content_area()
+        main_layout.addWidget(content_area, 1)
 
         # Status bar
         self.statusBar().showMessage("Ready")
         self.statusBar().setStyleSheet("background-color: #F5F5F5; color: #666; padding: 5px;")
 
-        central.setLayout(layout)
+    def create_top_bar(self):
+        """Create top bar with title."""
+        top_bar = QWidget()
+        layout = QHBoxLayout(top_bar)
+        layout.setContentsMargins(15, 10, 15, 10)
 
-        # Apply global style
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #F5F5F5;
-            }
-            QLabel {
-                color: #333;
-            }
+        # App title
+        title = QLabel("FonixFlow")
+        title.setStyleSheet(f"""
+            font-size: 18px;
+            font-weight: bold;
+            color: {Theme.get('text_primary', self.is_dark_mode)};
         """)
-
-    def create_header(self):
-        """Create application header with hamburger menu."""
-        header = QWidget()
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(title)
 
         layout.addStretch()
 
-        # Hamburger menu button
-        self.menu_btn = QPushButton("☰")
-        self.menu_btn.setMinimumWidth(50)
-        self.menu_btn.setMinimumHeight(40)
-        self.menu_btn.setStyleSheet(f"""
-            QPushButton {{
-                font-size: 24px;
-                border: none;
-                background-color: transparent;
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                padding: 5px;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                border-radius: 8px;
-            }}
-        """)
-        self.menu_btn.setCursor(Qt.PointingHandCursor)
-        self.menu_btn.clicked.connect(self.show_menu)
-        layout.addWidget(self.menu_btn)
-
-        header.setLayout(layout)
-        return header
+        return top_bar
 
     def show_menu(self):
         """Show hamburger menu with settings."""
@@ -499,8 +541,8 @@ class Video2TextQt(QMainWindow):
 
         return card
 
-    def create_basic_mode(self):
-        """Create basic mode interface with sidebar navigation."""
+    def create_content_area(self):
+        """Create content area with collapsible sidebar and tab stack."""
         # State for recording
         self.is_recording = False
         self.recording_start_time = None
@@ -516,9 +558,13 @@ class Video2TextQt(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Sidebar
-        self.basic_sidebar = self.create_sidebar()
-        main_layout.addWidget(self.basic_sidebar)
+        # Left collapsible sidebar with actions
+        self.collapsible_sidebar = CollapsibleSidebar(self.is_dark_mode)
+        self.collapsible_sidebar.add_action("🔄", "New Transcription", self.clear_for_new_transcription)
+        self.collapsible_sidebar.add_separator()
+        self.collapsible_sidebar.add_action("📂", "Change Recordings Folder", self.change_recordings_directory)
+        self.collapsible_sidebar.add_action("🗂️", "Open Recordings Folder", self.open_recordings_folder)
+        main_layout.addWidget(self.collapsible_sidebar)
 
         # Tab content stack - order: Record, Upload, Transcript
         self.basic_tab_stack = QStackedWidget()
@@ -527,10 +573,112 @@ class Video2TextQt(QMainWindow):
         self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())  # Index 2
         main_layout.addWidget(self.basic_tab_stack, 1)
 
-        # Connect sidebar to tab switching
-        self.basic_sidebar.currentRowChanged.connect(self.basic_tab_stack.setCurrentIndex)
+        # Right collapsible sidebar with settings
+        self.settings_sidebar = self.create_settings_sidebar()
+        main_layout.addWidget(self.settings_sidebar)
 
         return container
+
+    def on_tab_changed(self, index):
+        """Handle tab switching."""
+        # Direct switch - animations with windowOpacity don't work well with QStackedWidget
+        self.basic_tab_stack.setCurrentIndex(index)
+        logger.info(f"Switched to tab index {index}")
+
+    def create_settings_sidebar(self):
+        """Create right sidebar with settings."""
+        from PySide6.QtWidgets import QPushButton
+        sidebar = CollapsibleSidebar(self.is_dark_mode, side='right')
+
+        # Settings header
+        settings_label = QLabel("⚙️ Settings")
+        settings_label.setStyleSheet(f"""
+            font-size: 14px;
+            font-weight: bold;
+            color: {Theme.get('text_primary', self.is_dark_mode)};
+            padding: 8px 12px;
+        """)
+        sidebar.content_layout.insertWidget(0, settings_label)
+
+        sidebar.add_separator()
+
+        # Theme section header (clickable to expand/collapse)
+        self.theme_section_expanded = True
+        self.theme_section_btn = QPushButton("▼ 🎨 Theme")
+        self.theme_section_btn.setCursor(Qt.PointingHandCursor)
+        self.theme_section_btn.setMinimumHeight(36)
+        self.theme_section_btn.clicked.connect(self.toggle_theme_section)
+        self.theme_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_secondary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.theme_section_btn)
+
+        # Theme options container
+        self.theme_options_widget = QWidget()
+        theme_options_layout = QVBoxLayout(self.theme_options_widget)
+        theme_options_layout.setContentsMargins(0, 0, 0, 0)
+        theme_options_layout.setSpacing(2)
+
+        # Create theme option buttons
+        self.theme_auto_btn = self.create_theme_option_btn("🔄", "Auto", "auto")
+        self.theme_light_btn = self.create_theme_option_btn("☀️", "Light", "light")
+        self.theme_dark_btn = self.create_theme_option_btn("🌙", "Dark", "dark")
+
+        theme_options_layout.addWidget(self.theme_auto_btn)
+        theme_options_layout.addWidget(self.theme_light_btn)
+        theme_options_layout.addWidget(self.theme_dark_btn)
+
+        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.theme_options_widget)
+
+        return sidebar
+
+    def create_theme_option_btn(self, icon, label, mode):
+        """Create a theme option button."""
+        from PySide6.QtWidgets import QPushButton
+        btn = QPushButton(f"  {icon} {label}")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setMinimumHeight(36)
+        btn.clicked.connect(lambda: self.set_theme_mode(mode))
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px 8px 24px;
+                text-align: left;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        return btn
+
+    def toggle_theme_section(self):
+        """Toggle theme section visibility."""
+        self.theme_section_expanded = not self.theme_section_expanded
+
+        if self.theme_section_expanded:
+            self.theme_section_btn.setText("▼ 🎨 Theme")
+            self.theme_options_widget.show()
+        else:
+            self.theme_section_btn.setText("▶ 🎨 Theme")
+            self.theme_options_widget.hide()
+
+        logger.info(f"Theme section {'expanded' if self.theme_section_expanded else 'collapsed'}")
 
     def create_sidebar(self):
         """Create sidebar navigation widget."""
@@ -624,7 +772,19 @@ class Video2TextQt(QMainWindow):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
-        layout.addStretch(1)
+        # VU Meters (horizontal, stacked vertically)
+        vu_container = QWidget()
+        vu_layout = QVBoxLayout(vu_container)
+        vu_layout.setSpacing(10)
+        vu_layout.setContentsMargins(20, 10, 20, 10)
+
+        self.mic_vu_meter = VUMeter(label="Microphone")
+        self.speaker_vu_meter = VUMeter(label="Speaker")
+        vu_layout.addWidget(self.mic_vu_meter)
+        vu_layout.addWidget(self.speaker_vu_meter)
+
+        layout.addWidget(vu_container)
+        layout.addSpacing(10)
 
         # Record toggle button
         button_container = QWidget()
@@ -936,6 +1096,9 @@ class Video2TextQt(QMainWindow):
 
         logger.info(f"Started basic mode recording (mic: default, speaker: default/system)")
 
+        # Stop audio preview worker to avoid conflicts
+        self.stop_audio_preview()
+
         # Start actual recording in QThread worker with default devices
         self.recording_worker = RecordingWorker(
             output_dir=self.settings["recordings_dir"],
@@ -945,6 +1108,7 @@ class Video2TextQt(QMainWindow):
         )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
+        self.recording_worker.audio_levels_update.connect(self.update_audio_levels)
         self.recording_worker.start()
 
     def stop_basic_recording(self):
@@ -986,9 +1150,27 @@ class Video2TextQt(QMainWindow):
             secs = elapsed % 60
             self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
 
+    def start_audio_preview(self):
+        """Start the audio preview worker for continuous VU meter updates."""
+        if self.audio_preview_worker is None or not self.audio_preview_worker.isRunning():
+            self.audio_preview_worker = AudioPreviewWorker(parent=self)
+            self.audio_preview_worker.audio_levels_update.connect(self.update_audio_levels)
+            self.audio_preview_worker.start()
+            logger.info("Audio preview worker started for VU meters")
+
+    def stop_audio_preview(self):
+        """Stop the audio preview worker."""
+        if self.audio_preview_worker and self.audio_preview_worker.isRunning():
+            self.audio_preview_worker.stop()
+            self.audio_preview_worker.wait()
+            logger.info("Audio preview worker stopped")
+
     def update_audio_levels(self, mic_level, speaker_level):
-        """No-op. VU meters removed."""
-        pass
+        """Update VU meters with current audio levels."""
+        if hasattr(self, 'mic_vu_meter'):
+            self.mic_vu_meter.set_level(mic_level)
+        if hasattr(self, 'speaker_vu_meter'):
+            self.speaker_vu_meter.set_level(speaker_level)
 
     def on_recording_complete(self, recorded_path, duration):
         """Slot called when recording completes successfully (thread-safe)."""
@@ -1009,6 +1191,9 @@ class Video2TextQt(QMainWindow):
         if hasattr(self, 'transcribe_recording_btn'):
             self.transcribe_recording_btn.show()
 
+        # Restart audio preview worker for VU meters
+        self.start_audio_preview()
+
     def on_recording_error(self, error_message):
         """Slot called when recording encounters an error (thread-safe)."""
         self.statusBar().showMessage(error_message)
@@ -1025,6 +1210,9 @@ class Video2TextQt(QMainWindow):
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
         self.recording_duration_label.hide()
+
+        # Restart audio preview worker for VU meters
+        self.start_audio_preview()
 
     def change_recordings_directory(self):
         """Open dialog to change recordings directory."""
