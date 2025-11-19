@@ -4,6 +4,9 @@
 echo "========================================"
 echo "Video2Text - Modern Qt Interface"
 echo "========================================"
+echo "========================================"
+echo "FonixFlow - Modern Qt Interface"
+echo "========================================"
 echo ""
 
 # Check if Python is available

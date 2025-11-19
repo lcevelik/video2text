@@ -1,5 +1,5 @@
 """
-Main window for the Video2Text Qt GUI.
+Main window for the FonixFlow Qt GUI.
 """
 
 import sys
@@ -30,16 +30,16 @@ from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
 
-class Video2TextQt(QMainWindow):
+class FonixFlowQt(QMainWindow):
     """Modern Qt-based main window."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Video2Text - Whisper Transcription")
+        self.setWindowTitle("FonixFlow - Whisper Transcription")
         self.setMinimumSize(1000, 700)
 
         # Config file location
-        self.config_file = Path.home() / ".video2text_config.json"
+        self.config_file = Path.home() / ".fonixflow_config.json"
 
         # Load settings
         self.settings = self.load_settings()
@@ -103,7 +103,7 @@ class Video2TextQt(QMainWindow):
     def load_settings(self):
         """Load settings from config file."""
         default_settings = {
-            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
+            "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
             "theme_mode": "auto"  # auto, light, dark
         }
 
@@ -1175,7 +1175,7 @@ class Video2TextQt(QMainWindow):
         return False
 
     def save_transcription(self):
-        """Save current transcription (Video2TextQt scope)."""
+        """Save current transcription (FonixFlowQt scope)."""
         if not getattr(self, 'transcription_result', None):
             QMessageBox.warning(self, "No Transcription", "Please transcribe a file first.")
             return

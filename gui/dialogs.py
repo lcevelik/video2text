@@ -127,7 +127,7 @@ class RecordingDialog(QDialog):
 
         # Start actual recording in QThread worker
         # Get recordings directory from parent window
-        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "Video2Text" / "Recordings")
+        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "FonixFlow" / "Recordings")
         self.worker = RecordingWorker(recordings_dir, self)
         self.worker.recording_complete.connect(self.on_recording_complete)
         self.worker.recording_error.connect(self.on_recording_error)
