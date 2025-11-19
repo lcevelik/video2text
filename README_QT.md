@@ -1,8 +1,10 @@
 # FonixFlow - Modern Qt Interface
+![FonixFlow Logo](assets/fonixflow_logo.png)
 
 ## 🎨 Ultra-Minimal, Professional GUI
 
-This is the **modern Qt-based interface** for FonixFlow, built with PySide6 for a polished, professional appearance across all platforms. Features **ultra-minimal design** with sidebar navigation and **auto theme detection**.
+This is the **modern Qt-based interface** for FonixFlow, built with PySide6 for a polished, professional appearance across all platforms. Features **ultra-minimal design** with sidebar navigation, auto theme detection, and a branded top bar with the FonixFlow logo.
+Auto-Navigation - Switches to transcript tab automatically after transcription completes
 
 ---
 
@@ -34,6 +36,11 @@ This is the **modern Qt-based interface** for FonixFlow, built with PySide6 for 
 
 ## 🚀 Quick Start
 
+### **New Features**
+- FonixFlow logo in top bar
+- Auto-jump to transcript tab after transcription
+- Improved modularity and refactoring for maintainability
+
 ### **Windows**
 ```bash
 run_qt.bat
@@ -51,7 +58,7 @@ chmod +x run_qt.sh
 pip install PySide6>=6.6.0
 
 # Run the Qt GUI
-python gui_qt.py
+python fonixflow_qt.py
 ```
 
 ---

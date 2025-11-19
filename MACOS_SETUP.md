@@ -221,3 +221,6 @@ pip uninstall pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation py
 ---
 
 **Recommendation**: Use ScreenCaptureKit (Option 1) for the best experience! It's the cleanest, most reliable solution for macOS users.
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

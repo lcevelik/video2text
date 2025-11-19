@@ -185,3 +185,7 @@ This refactoring establishes a solid foundation for a more maintainable and prof
 
 *Generated: 2025-11-18*
 *Refactoring by: Claude Code*
+**Latest update:**
+- FonixFlow logo added to top bar
+- Auto-jump to transcript tab after transcription
+- Full rebranding from Video2Text to FonixFlow

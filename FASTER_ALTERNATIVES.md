@@ -389,3 +389,6 @@ python -c "from transformers import pipeline; pipeline('automatic-speech-recogni
 **Key takeaway**: These alternatives don't change accuracy - they just make Whisper run faster using optimized inference engines (Hugging Face Transformers + FlashAttention instead of PyTorch).
 
 Enjoy your blazing-fast transcriptions! 🚀
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

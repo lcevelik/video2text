@@ -224,3 +224,7 @@ This refactoring successfully breaks down large, monolithic files into smaller, 
 - gui/main_window.py: 1,450 → ~600 lines (~59% reduction)
 - Dead code removed: 2,110 lines
 - **Net improvement: ~2,045 line reduction in large files + 1,220 new modular lines**
+**Latest update:**
+- FonixFlow logo added to top bar
+- Auto-jump to transcript tab after transcription
+- Full rebranding from Video2Text to FonixFlow

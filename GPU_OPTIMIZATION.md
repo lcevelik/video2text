@@ -302,3 +302,6 @@ print(f"MPS available: {torch.backends.mps.is_available()}")
 ```
 
 If both are False, you're on CPU (still works, just slower).
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

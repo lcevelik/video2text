@@ -230,3 +230,6 @@ Your multi-language transcriptions are now:
 **Version**: 4.0.0
 **Date**: 2025-11-16
 **Branch**: `claude/optimize-multilang-performance-01ShfCQFgqXUDvxjVGLBwtBi`
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

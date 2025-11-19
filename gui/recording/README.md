@@ -1,6 +1,7 @@
 # Recording Module Architecture
 
 Modular, pluggable audio recording system with platform-specific backends.
+**Now with improved modularity and auto-navigation!**
 
 ## Architecture Overview
 
@@ -12,10 +13,13 @@ gui/recording/
 ├── sounddevice_backend.py         # Cross-platform backend (BlackHole/WASAPI/PulseAudio)
 └── screencapturekit_backend.py    # macOS native backend (12.3+)
 ```
+Recent changes:
+- Modular refactoring for maintainability
+- Auto-jump to transcript tab after recording and transcription
 
 ## Backends
 
-### SoundDeviceBackend (Default, Cross-Platform)
+**Status**: ✅ Fully implemented and tested (auto-jump to transcript tab after recording)
 **Status**: ✅ Fully implemented and tested
 
 **Platform Support**:

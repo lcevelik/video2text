@@ -343,3 +343,6 @@ python test_devices.py > devices.txt 2>&1
 
 **Last Updated**: 2025-11-17
 **Bug Fix Version**: 1.0
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

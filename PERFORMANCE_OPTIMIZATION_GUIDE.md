@@ -430,3 +430,6 @@ Your multi-language transcriptions will now be:
 4. **Streaming**: Segments transcribed as soon as detected (no waiting!)
 
 **Enjoy your blazing-fast transcriptions!** 🚀
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

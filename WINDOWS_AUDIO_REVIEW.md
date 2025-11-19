@@ -251,3 +251,6 @@ If the code still doesn't work after this fix, check:
 ---
 
 **Bottom Line:** The code was broken due to a simple import error. It should now work correctly on Windows. Please test using the standalone test script.
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

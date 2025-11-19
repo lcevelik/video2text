@@ -305,3 +305,6 @@ With the new logging, you'll see **exactly** which case you're hitting!
 **Commit**: `f546541` - Fix indentation bug and add comprehensive recording diagnostics
 **Branch**: `claude/fix-recording-devices-015tfwmeyP4dJLNBsitJ5Vky`
 **Date**: 2025-11-17
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab

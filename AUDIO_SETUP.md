@@ -256,3 +256,6 @@ snd-aloop
 ---
 
 For more help, click the **"❓ Setup Guide"** button in the app for platform-specific instructions.
+**Latest update:**
+- Rebranded to FonixFlow
+- UI improvements: logo in top bar, auto-jump to transcript tab
