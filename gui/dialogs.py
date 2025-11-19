@@ -111,6 +111,9 @@ class RecordingDialog(QDialog):
         self.timer.timeout.connect(self.update_duration)
 
     def start_recording(self):
+        with open("debug_dialog_button_click.txt", "a") as f:
+            import datetime
+            f.write(f"{datetime.datetime.now()}: DIALOG BUTTON CLICKED!\n")
         # Check device availability first
         if not self.check_audio_devices():
             # Show helpful message with retry option
@@ -127,7 +130,7 @@ class RecordingDialog(QDialog):
 
         # Start actual recording in QThread worker
         # Get recordings directory from parent window
-        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "Video2Text" / "Recordings")
+        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "FonixFlow" / "Recordings")
         self.worker = RecordingWorker(recordings_dir, self)
         self.worker.recording_complete.connect(self.on_recording_complete)
         self.worker.recording_error.connect(self.on_recording_error)

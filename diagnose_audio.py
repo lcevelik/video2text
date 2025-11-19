@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive audio diagnostics for Video2Text recording.
+Comprehensive audio diagnostics for FonixFlow recording.
 Run this script to debug recording issues and identify the right devices.
 """
 import sys
@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 def main():
     print("=" * 70)
-    print("🎙️  VIDEO2TEXT AUDIO DIAGNOSTICS")
+    print("🎙️  FONIXFLOW AUDIO DIAGNOSTICS")
     print("=" * 70)
     print()
 
@@ -118,7 +118,7 @@ def main():
 
     # Step 4: Use get_audio_devices
     print()
-    print("Step 4: Using Video2Text device categorization...")
+    print("Step 4: Using FonixFlow device categorization...")
     print("-" * 70)
 
     try:

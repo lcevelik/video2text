@@ -1,5 +1,5 @@
 """
-Modern Qt-based GUI for Video2Text
+Modern Qt-based GUI for FonixFlow
 
 A beautiful, user-friendly interface built with PySide6/Qt.
 Features modern design, smooth animations, and excellent cross-platform support.
@@ -12,7 +12,7 @@ import logging
 
 from PySide6.QtWidgets import QApplication  # type: ignore
 
-from gui.main_window import Video2TextQt
+from gui.main_window import FonixFlowQt
 
 # Configure logging to ensure output is visible
 logging.basicConfig(
@@ -29,10 +29,10 @@ def main():
     app.setStyle("Fusion")  # Modern cross-platform style
 
     # Set application metadata
-    app.setApplicationName("Video2Text")
-    app.setOrganizationName("Video2Text")
+    app.setApplicationName("FonixFlow")
+    app.setOrganizationName("FonixFlow")
 
-    window = Video2TextQt()
+    window = FonixFlowQt()
     window.show()
 
     sys.exit(app.exec())

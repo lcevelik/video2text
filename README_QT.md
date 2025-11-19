@@ -1,8 +1,8 @@
-# Video2Text - Modern Qt Interface
+# FonixFlow - Modern Qt Interface
 
 ## 🎨 Ultra-Minimal, Professional GUI
 
-This is the **modern Qt-based interface** for Video2Text, built with PySide6 for a polished, professional appearance across all platforms. Features **ultra-minimal design** with sidebar navigation and **auto theme detection**.
+This is the **modern Qt-based interface** for FonixFlow, built with PySide6 for a polished, professional appearance across all platforms. Features **ultra-minimal design** with sidebar navigation and **auto theme detection**.
 
 ---
 

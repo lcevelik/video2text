@@ -72,7 +72,7 @@ outputs = pipe(
 print(outputs["text"])
 ```
 
-### Integration with video2text
+### Integration with fonixflow
 
 You can use `insanely-fast-whisper` as a standalone tool and feed the results back:
 
@@ -231,16 +231,16 @@ mlx_whisper audio.mp3 --model mlx-community/whisper-large-v3-turbo
 
 ---
 
-## 🎯 Recommendation for video2text
+## 🎯 Recommendation for fonixflow
 
 For your multi-language Czech/English and Spanish/English videos:
 
 ### Option 1: Use insanely-fast-whisper as External Tool (BEST)
 
 **Workflow**:
-1. Extract audio with video2text
+1. Extract audio with fonixflow
 2. Run insanely-fast-whisper CLI
-3. Parse JSON output back into video2text
+3. Parse JSON output back into fonixflow
 
 **Pros**:
 - 12-20x faster overall
@@ -266,7 +266,7 @@ If your videos have multiple speakers and you need to know who said what:
 pip install whisperx
 ```
 
-Then modify video2text to use WhisperX API instead of OpenAI Whisper.
+Then modify fonixflow to use WhisperX API instead of OpenAI Whisper.
 
 ### Option 3: Use MLX Whisper (Apple Silicon Only)
 

@@ -2,7 +2,7 @@
 # Modern Qt GUI Launcher for Linux/macOS
 
 echo "========================================"
-echo "Video2Text - Modern Qt Interface"
+echo "FonixFlow - Modern Qt Interface"
 echo "========================================"
 echo ""
 

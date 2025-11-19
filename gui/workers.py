@@ -1,3 +1,44 @@
+from PySide6.QtCore import QThread, Signal
+class AudioPreviewWorker(QThread):
+    """Background worker to stream live audio levels for VU meters."""
+    audio_levels_update = Signal(float, float)  # (mic_level, speaker_level)
+
+    def __init__(self, mic_device=None, speaker_device=None, parent=None):
+        super().__init__(parent)
+        self.mic_device = mic_device
+        self.speaker_device = speaker_device
+        self.is_running = True
+        self.backend = None
+
+    def stop(self):
+        self.is_running = False
+        if self.backend:
+            self.backend.is_recording = False
+
+    def run(self):
+        from gui.recording import SoundDeviceBackend
+        import sounddevice as sd
+        import numpy as np
+        self.backend = SoundDeviceBackend(self.mic_device, self.speaker_device)
+        self.backend.start_recording()
+        last_mic_level = 0.0
+        last_speaker_level = 0.0
+        while self.is_running:
+            mic_level = 0.0
+            if self.backend.mic_chunks:
+                mic_chunk = self.backend.mic_chunks[-1]
+                mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+            speaker_level = 0.0
+            if self.backend.speaker_chunks:
+                speaker_chunk = self.backend.speaker_chunks[-1]
+                speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+            if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
+                self.audio_levels_update.emit(mic_level, speaker_level)
+                last_mic_level = mic_level
+                last_speaker_level = speaker_level
+            sd.sleep(50)
+        if self.backend:
+            self.backend.cleanup()
 """
 Qt worker threads for background processing - Refactored with modular backends.
 """
@@ -35,6 +76,7 @@ class RecordingWorker(QThread):
     recording_complete = Signal(str, float)  # (file_path, duration)
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
+    audio_levels_update = Signal(float, float)  # (mic_level, speaker_level)
 
     def __init__(self, output_dir: str,
                  mic_device: Optional[int] = None,
@@ -119,10 +161,30 @@ class RecordingWorker(QThread):
             # Start recording
             self.backend.start_recording()
 
-            # Record while active
+            # Record while active, emit audio levels
             import sounddevice as sd
+            last_mic_level = 0.0
+            last_speaker_level = 0.0
             while self.is_recording:
-                sd.sleep(100)
+                # Calculate mic level
+                mic_level = 0.0
+                if self.backend.mic_chunks:
+                    mic_chunk = self.backend.mic_chunks[-1]
+                    mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                # Calculate speaker level
+                speaker_level = 0.0
+                if self.backend.speaker_chunks:
+                    speaker_chunk = self.backend.speaker_chunks[-1]
+                    speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                # Debug logging for chunk sizes and levels
+                logger.info(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
+                # Only emit if changed
+                if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
+                    logger.info(f"VU DEBUG: Emitting levels mic={mic_level:.3f}, speaker={speaker_level:.3f}")
+                    self.audio_levels_update.emit(mic_level, speaker_level)
+                    last_mic_level = mic_level
+                    last_speaker_level = speaker_level
+                sd.sleep(50)
 
             # Stop and collect results
             result = self.backend.stop_recording()

@@ -56,7 +56,7 @@ def main():
         app = QApplication(sys.argv)
 
     # Output directory
-    output_dir = Path.home() / "Video2Text" / "Recordings" / "Debug"
+    output_dir = Path.home() / "FonixFlow" / "Recordings" / "Debug"
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"\nOutput directory: {output_dir}")
 

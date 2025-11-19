@@ -2,7 +2,7 @@
 Settings Manager Module
 
 This module handles configuration file loading, saving, and settings management
-for the Video2Text application.
+for the FonixFlow application.
 """
 
 import json
@@ -21,9 +21,9 @@ class SettingsManager:
         Initialize the settings manager.
 
         Args:
-            config_file: Path to config file (defaults to ~/.video2text_config.json)
+            config_file: Path to config file (defaults to ~/.fonixflow_config.json)
         """
-        self.config_file = config_file or (Path.home() / ".video2text_config.json")
+        self.config_file = config_file or (Path.home() / ".fonixflow_config.json")
         self.settings = self.load_settings()
 
     def get_default_settings(self) -> Dict[str, Any]:
@@ -34,7 +34,7 @@ class SettingsManager:
             Dictionary with default settings
         """
         return {
-            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
+            "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
             "theme_mode": "auto"  # auto, light, dark
         }
 

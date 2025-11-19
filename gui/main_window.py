@@ -239,6 +239,24 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'settings_sidebar'):
             self.settings_sidebar.update_theme(self.is_dark_mode)
 
+            # Update settings section button
+            if hasattr(self, 'settings_section_btn'):
+                self.settings_section_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: transparent;
+                        color: {Theme.get('text_primary', self.is_dark_mode)};
+                        border: none;
+                        border-radius: 6px;
+                        padding: 8px 12px;
+                        text-align: left;
+                        font-size: 14px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                    }}
+                """)
+
             # Update theme section button
             if hasattr(self, 'theme_section_btn'):
                 self.theme_section_btn.setStyleSheet(f"""
@@ -247,7 +265,7 @@ class FonixFlowQt(QMainWindow):
                         color: {Theme.get('text_secondary', self.is_dark_mode)};
                         border: none;
                         border-radius: 6px;
-                        padding: 6px 12px;
+                        padding: 6px 12px 6px 16px;
                         text-align: left;
                         font-size: 13px;
                         font-weight: 600;
@@ -268,7 +286,7 @@ class FonixFlowQt(QMainWindow):
                             color: {Theme.get('text_primary', self.is_dark_mode)};
                             border: none;
                             border-radius: 6px;
-                            padding: 8px 12px 8px 24px;
+                            padding: 8px 12px 8px 32px;
                             text-align: left;
                             font-size: 13px;
                         }}
@@ -416,9 +434,20 @@ class FonixFlowQt(QMainWindow):
 
     def create_top_bar(self):
         """Create top bar with title."""
+        from PySide6.QtGui import QPixmap
         top_bar = QWidget()
         layout = QHBoxLayout(top_bar)
         layout.setContentsMargins(15, 10, 15, 10)
+
+        # Logo
+        logo_label = QLabel()
+        logo_path = os.path.join(os.path.dirname(__file__), '../assets/fonixflow_logo.png')
+        pixmap = QPixmap(logo_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_label.setPixmap(pixmap)
+            logo_label.setFixedSize(52, 52)
+        layout.addWidget(logo_label)
 
         # App title
         title = QLabel("FonixFlow")
@@ -590,21 +619,38 @@ class FonixFlowQt(QMainWindow):
         from PySide6.QtWidgets import QPushButton
         sidebar = CollapsibleSidebar(self.is_dark_mode, side='right')
 
-        # Settings header
-        settings_label = QLabel("⚙️ Settings")
-        settings_label.setStyleSheet(f"""
-            font-size: 14px;
-            font-weight: bold;
-            color: {Theme.get('text_primary', self.is_dark_mode)};
-            padding: 8px 12px;
+        # Settings section button (clickable to expand/collapse)
+        self.settings_section_expanded = True
+        self.settings_section_btn = QPushButton("▼ ⚙️ Settings")
+        self.settings_section_btn.setCursor(Qt.PointingHandCursor)
+        self.settings_section_btn.setMinimumHeight(40)
+        self.settings_section_btn.clicked.connect(self.toggle_settings_section)
+        self.settings_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                text-align: left;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
         """)
-        sidebar.content_layout.insertWidget(0, settings_label)
+        sidebar.content_layout.insertWidget(0, self.settings_section_btn)
 
-        sidebar.add_separator()
+        # Settings content container
+        self.settings_content_widget = QWidget()
+        settings_content_layout = QVBoxLayout(self.settings_content_widget)
+        settings_content_layout.setContentsMargins(0, 0, 0, 0)
+        settings_content_layout.setSpacing(2)
 
-        # Theme section header (clickable to expand/collapse)
+        # Theme section header (clickable to expand/collapse) - nested under Settings
         self.theme_section_expanded = True
-        self.theme_section_btn = QPushButton("▼ 🎨 Theme")
+        self.theme_section_btn = QPushButton("  ▼ 🎨 Theme")  # Indented with spaces
         self.theme_section_btn.setCursor(Qt.PointingHandCursor)
         self.theme_section_btn.setMinimumHeight(36)
         self.theme_section_btn.clicked.connect(self.toggle_theme_section)
@@ -614,7 +660,7 @@ class FonixFlowQt(QMainWindow):
                 color: {Theme.get('text_secondary', self.is_dark_mode)};
                 border: none;
                 border-radius: 6px;
-                padding: 6px 12px;
+                padding: 6px 12px 6px 16px;
                 text-align: left;
                 font-size: 13px;
                 font-weight: 600;
@@ -623,28 +669,30 @@ class FonixFlowQt(QMainWindow):
                 background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
             }}
         """)
-        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.theme_section_btn)
+        settings_content_layout.addWidget(self.theme_section_btn)
 
-        # Theme options container
+        # Theme options container - nested under Theme
         self.theme_options_widget = QWidget()
         theme_options_layout = QVBoxLayout(self.theme_options_widget)
         theme_options_layout.setContentsMargins(0, 0, 0, 0)
         theme_options_layout.setSpacing(2)
 
-        # Create theme option buttons
-        self.theme_auto_btn = self.create_theme_option_btn("🔄", "Auto", "auto")
-        self.theme_light_btn = self.create_theme_option_btn("☀️", "Light", "light")
-        self.theme_dark_btn = self.create_theme_option_btn("🌙", "Dark", "dark")
+        # Create theme option buttons (further indented)
+        self.theme_auto_btn = self.create_theme_option_btn("🔄", "Auto", "auto", indent=32)
+        self.theme_light_btn = self.create_theme_option_btn("☀️", "Light", "light", indent=32)
+        self.theme_dark_btn = self.create_theme_option_btn("🌙", "Dark", "dark", indent=32)
 
         theme_options_layout.addWidget(self.theme_auto_btn)
         theme_options_layout.addWidget(self.theme_light_btn)
         theme_options_layout.addWidget(self.theme_dark_btn)
 
-        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.theme_options_widget)
+        settings_content_layout.addWidget(self.theme_options_widget)
+
+        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_content_widget)
 
         return sidebar
 
-    def create_theme_option_btn(self, icon, label, mode):
+    def create_theme_option_btn(self, icon, label, mode, indent=24):
         """Create a theme option button."""
         from PySide6.QtWidgets import QPushButton
         btn = QPushButton(f"  {icon} {label}")
@@ -657,7 +705,7 @@ class FonixFlowQt(QMainWindow):
                 color: {Theme.get('text_primary', self.is_dark_mode)};
                 border: none;
                 border-radius: 6px;
-                padding: 8px 12px 8px 24px;
+                padding: 8px 12px 8px {indent}px;
                 text-align: left;
                 font-size: 13px;
             }}
@@ -667,15 +715,28 @@ class FonixFlowQt(QMainWindow):
         """)
         return btn
 
+    def toggle_settings_section(self):
+        """Toggle settings section visibility."""
+        self.settings_section_expanded = not self.settings_section_expanded
+
+        if self.settings_section_expanded:
+            self.settings_section_btn.setText("▼ ⚙️ Settings")
+            self.settings_content_widget.show()
+        else:
+            self.settings_section_btn.setText("▶ ⚙️ Settings")
+            self.settings_content_widget.hide()
+
+        logger.info(f"Settings section {'expanded' if self.settings_section_expanded else 'collapsed'}")
+
     def toggle_theme_section(self):
         """Toggle theme section visibility."""
         self.theme_section_expanded = not self.theme_section_expanded
 
         if self.theme_section_expanded:
-            self.theme_section_btn.setText("▼ 🎨 Theme")
+            self.theme_section_btn.setText("  ▼ 🎨 Theme")
             self.theme_options_widget.show()
         else:
-            self.theme_section_btn.setText("▶ 🎨 Theme")
+            self.theme_section_btn.setText("  ▶ 🎨 Theme")
             self.theme_options_widget.hide()
 
         logger.info(f"Theme section {'expanded' if self.theme_section_expanded else 'collapsed'}")
@@ -1516,13 +1577,14 @@ class FonixFlowQt(QMainWindow):
                 self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
             else:
                 self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
-        # Navigate to transcript tab
-        if hasattr(self, 'basic_sidebar') and hasattr(self, 'basic_tab_stack'):
+        # Navigate to transcript tab (auto-jump after transcription completes)
+        if hasattr(self, 'tab_bar') and hasattr(self, 'basic_tab_stack'):
             try:
-                self.basic_sidebar.setCurrentRow(2)
+                self.tab_bar.set_current_index(2)  # Index 2 is the Transcript tab
                 self.basic_tab_stack.setCurrentIndex(2)
-            except Exception:
-                pass
+                logger.info("Auto-jumped to transcript tab after transcription completion")
+            except Exception as e:
+                logger.warning(f"Could not auto-jump to transcript tab: {e}")
         # Progress bars
         if hasattr(self, 'basic_upload_progress_label'):
             self.basic_upload_progress_label.setText(f"✅ Complete! {lang_info}")

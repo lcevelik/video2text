@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(git log:*)",
+      "Bash(find:*)",
+      "Bash(done)",
+      "Bash(python -m pylint:*)",
+      "Bash(python -c \"import sys; sys.path.insert(0, ''''..''''); from main_window import *\")",
+      "Bash(python fonixflow_qt.py:*)",
+      "Bash(tee:*)",
+      "Bash(taskkill:*)",
+      "Bash(cat:*)",
+      "Bash(git checkout:*)",
+      "Bash(exit 0)",
+      "Bash(git stash:*)",
+      "Bash(nul)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRedesign menu system with modern navigation\n\n- Replace old sidebar with horizontal top tab bar (ModernTabBar)\n- Add left collapsible sidebar with quick actions\n- Add right collapsible sidebar with hierarchical settings\n  - Settings > Theme (collapsible section)\n  - Theme options: Auto, Light, Dark\n- Implement proper arrow directions for left/right sidebars\n- Hide sidebar content when collapsed for cleaner UI\n- Remove hamburger menu in favor of dedicated settings sidebar\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

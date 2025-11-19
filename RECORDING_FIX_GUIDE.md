@@ -109,7 +109,7 @@ pactl load-module module-loopback
 
 ### Step 1: Run Diagnostics
 ```bash
-cd /path/to/video2text
+cd /path/to/fonixflow
 python diagnose_audio.py
 ```
 
@@ -312,7 +312,7 @@ Run through this checklist:
    - App tries to pick the best one
    - If first doesn't work, try others from dropdown
 
-4. **Recording folder**: Default is `~/Video2Text/Recordings/`
+4. **Recording folder**: Default is `~/FonixFlow/Recordings/`
    - Change in app: Menu (☰) → Settings → Change Recording Directory
 
 5. **Sample rate issues**: If you get "Could not open microphone" errors

@@ -192,8 +192,8 @@ try:
 
                         # Also check as Int16 to see if format is wrong
                         int16_data = np.frombuffer(buffer, dtype=np.int16, count=buffer_length // 2)
-                        logger.info(f"   [DEBUG] If interpreted as Int16: min={int16_data.min()}, max={int16_data.max()}, mean={int16_data.mean():.2f}")
-                        logger.info(f"   [DEBUG] First 10 as Int16: {int16_data[:10].tolist()}")
+                        logger.debug(f"   If interpreted as Int16: min={int16_data.min()}, max={int16_data.max()}, mean={int16_data.mean():.2f}")
+                        logger.debug(f"   First 10 as Int16: {int16_data[:10].tolist()}")
 
                         nan_count = np.isnan(audio_data).sum()
                         inf_count = np.isinf(audio_data).sum()

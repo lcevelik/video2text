@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive recording test for Video2Text.
+Comprehensive recording test for FonixFlow.
 Tests microphone, system audio, and combined recording.
 """
 import sys
@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 
 def test_recording():
     print("=" * 70)
-    print("🎙️  VIDEO2TEXT RECORDING TEST")
+    print("🎙️  FONIXFLOW RECORDING TEST")
     print("=" * 70)
     print()
 
@@ -81,7 +81,7 @@ def test_recording():
     print("-" * 70)
 
     # Create output directory
-    output_dir = Path.home() / "Video2Text" / "Recordings" / "Tests"
+    output_dir = Path.home() / "FonixFlow" / "Recordings" / "Tests"
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {output_dir}\n")
 

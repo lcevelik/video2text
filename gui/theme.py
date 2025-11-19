@@ -7,13 +7,13 @@ class Theme:
     """Theme colors for light and dark modes."""
 
     LIGHT = {
-        'bg_primary': '#FFFFFF',
-        'bg_secondary': '#F5F5F5',
-        'bg_tertiary': '#FAFAFA',
-        'text_primary': '#333333',
-        'text_secondary': '#555555',
-        'text_disabled': '#999999',
-        'border': '#E0E0E0',
+        'bg_primary': '#C0C0C0',      # 50% reduced brightness from white
+        'bg_secondary': '#B0B0B0',    # Darker gray
+        'bg_tertiary': '#C8C8C8',     # Slightly lighter for hover
+        'text_primary': '#000000',    # Pure black for best contrast
+        'text_secondary': '#303030',
+        'text_disabled': '#707070',
+        'border': '#A0A0A0',          # Darker border
         'accent': '#2196F3',
         'accent_hover': '#1976D2',
         'success': '#4CAF50',
@@ -21,18 +21,18 @@ class Theme:
         'error': '#F44336',
         'warning': '#FF9800',
         'info': '#2196F3',
-        'card_bg': '#FFFFFF',
-        'card_border': '#E0E0E0',
-        'input_bg': '#FAFAFA',
-        'button_bg': '#FFFFFF',
-        'button_text': '#333333',
-        'dropzone_bg': '#FAFAFA',
-        'dropzone_border': '#E0E0E0',
-        'dropzone_hover_bg': '#E3F2FD',
+        'card_bg': '#C0C0C0',         # 50% reduced brightness
+        'card_border': '#A0A0A0',     # Darker border
+        'input_bg': '#C8C8C8',        # Slightly lighter for inputs
+        'button_bg': '#C8C8C8',       # Slightly lighter for buttons
+        'button_text': '#000000',
+        'dropzone_bg': '#C8C8C8',     # Slightly lighter
+        'dropzone_border': '#A0A0A0',
+        'dropzone_hover_bg': '#B3D9F2',  # Adjusted hover color
         'dropzone_hover_border': '#2196F3',
-        'selected_bg': '#E8F5E9',
+        'selected_bg': '#B8E6BD',     # Adjusted selection color
         'selected_border': '#4CAF50',
-        'selected_text': '#2E7D32',
+        'selected_text': '#1B5E20',   # Darker green for contrast
     }
 
     DARK = {

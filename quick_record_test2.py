@@ -97,7 +97,7 @@ def configure_ffmpeg_in_process():
 def main():
     app = QApplication(sys.argv)
 
-    out_dir = Path.home() / "Video2Text" / "Recordings"
+    out_dir = Path.home() / "FonixFlow" / "Recordings"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     configure_ffmpeg_in_process()

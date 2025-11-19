@@ -2,7 +2,7 @@
 REM Modern Qt GUI Launcher for Windows
 
 echo ========================================
-echo Video2Text - Modern Qt Interface
+echo FonixFlow - Modern Qt Interface
 echo ========================================
 echo.
 

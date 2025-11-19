@@ -1,10 +1,10 @@
 # Audio Setup Guide - Cross-Platform
 
-This guide helps you set up audio recording for Video2Text on macOS, Windows, and Linux.
+This guide helps you set up audio recording for FonixFlow on macOS, Windows, and Linux.
 
 ## Quick Start
 
-Video2Text can record:
+FonixFlow can record:
 - **🎤 Microphone** - Your voice
 - **🔊 System Audio** - YouTube videos, music, video calls, etc.
 
@@ -19,7 +19,7 @@ Both sources are captured simultaneously and mixed together for optimal transcri
 **Grant Microphone Permissions:**
 1. Open **System Settings** (or **System Preferences** on older macOS)
 2. Go to **Privacy & Security** → **Microphone**
-3. Enable permission for Video2Text or your Terminal app
+3. Enable permission for FonixFlow or your Terminal app
 4. Restart the app and click "🔄 Refresh Devices"
 
 ### System Audio Capture (YouTube, Music, etc.)
@@ -36,7 +36,7 @@ brew install blackhole-2ch
 **Manual Download:**
 1. Visit: https://github.com/ExistentialAudio/BlackHole
 2. Download and install BlackHole 2ch
-3. Restart Video2Text
+3. Restart FonixFlow
 4. Click "🔄 Refresh Devices"
 5. Select "BlackHole 2ch" as Speaker/System device
 
@@ -44,7 +44,7 @@ brew install blackhole-2ch
 
 1. Visit: https://github.com/mattingalls/Soundflower
 2. Download and install Soundflower
-3. Restart Video2Text
+3. Restart FonixFlow
 4. Select "Soundflower (2ch)" as Speaker/System device
 
 ---
@@ -56,7 +56,7 @@ brew install blackhole-2ch
 **Grant Microphone Permissions:**
 1. Open **Settings** → **Privacy** → **Microphone**
 2. Enable "Allow apps to access your microphone"
-3. Enable permission for Video2Text
+3. Enable permission for FonixFlow
 4. Click "🔄 Refresh Devices" in the app
 
 ### System Audio Capture (YouTube, Music, etc.)
@@ -69,14 +69,14 @@ brew install blackhole-2ch
 4. Right-click in empty space
 5. Check **"Show Disabled Devices"**
 6. Right-click **"Stereo Mix"** and select **"Enable"**
-7. Click "🔄 Refresh Devices" in Video2Text
+7. Click "🔄 Refresh Devices" in FonixFlow
 8. Select "Stereo Mix" as Speaker/System device
 
 #### Method 2: Virtual Audio Cable (if Stereo Mix unavailable)
 
 1. Download **VB-Audio Virtual Cable**: https://vb-audio.com/Cable/
 2. Install the software
-3. Restart Video2Text
+3. Restart FonixFlow
 4. Click "🔄 Refresh Devices"
 5. Select "CABLE Output" as Speaker/System device
 
@@ -139,7 +139,7 @@ snd-aloop
 
 **macOS:**
 - Check System Settings → Privacy & Security → Microphone
-- Ensure permission is granted for Video2Text or Terminal
+- Ensure permission is granted for FonixFlow or Terminal
 - Try unplugging/replugging USB microphones
 
 **Windows:**
@@ -188,7 +188,7 @@ snd-aloop
 **Windows:**
 - Verify Stereo Mix or Virtual Cable is enabled
 - Set it as default recording device temporarily
-- Ensure it's selected in Video2Text dropdowns
+- Ensure it's selected in FonixFlow dropdowns
 
 **Linux:**
 - Ensure monitor device is selected (ends with `.monitor`)

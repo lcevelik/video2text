@@ -229,7 +229,7 @@ The optimizations are **completely transparent**. Just:
    pip install librosa soundfile
    ```
 
-2. **Use Video2Text normally**:
+2. **Use FonixFlow normally**:
    - Launch the GUI: `python gui_qt.py`
    - Select your video
    - Choose Czech + English (or any language pair)

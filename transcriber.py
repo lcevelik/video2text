@@ -120,13 +120,13 @@ class Transcriber:
         Returns:
             str: Device name ('cuda', 'mps', or 'cpu')
         """
-        # Allow override: VIDEO2TEXT_DEVICE=cpu|cuda|mps
-        forced = os.environ.get('VIDEO2TEXT_DEVICE', '').strip().lower()
+        # Allow override: FONIXFLOW_DEVICE=cpu|cuda|mps
+        forced = os.environ.get('FONIXFLOW_DEVICE', '').strip().lower()
         if forced in ('cpu', 'cuda', 'mps'):
             if forced == 'cuda' and not torch.cuda.is_available():
-                logger.warning("VIDEO2TEXT_DEVICE=cuda set, but torch.cuda.is_available() is False")
+                logger.warning("FONIXFLOW_DEVICE=cuda set, but torch.cuda.is_available() is False")
             elif forced == 'mps' and not torch.backends.mps.is_available():
-                logger.warning("VIDEO2TEXT_DEVICE=mps set, but torch.backends.mps.is_available() is False")
+                logger.warning("FONIXFLOW_DEVICE=mps set, but torch.backends.mps.is_available() is False")
             else:
                 if forced == 'cuda':
                     try:
