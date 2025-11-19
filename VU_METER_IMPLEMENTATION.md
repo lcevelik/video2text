@@ -25,13 +25,19 @@ Already existed in the codebase with full implementation:
 ### 2. Audio Level Monitor (`gui/workers.py` - AudioLevelMonitor class)
 New lightweight monitoring worker that runs continuously:
 - **Purpose**: Provides real-time audio level preview before recording starts
-- **Operation**: Opens microphone stream and calculates RMS levels every 100ms
+- **Operation**: Opens microphone and speaker streams, calculates RMS levels every 100ms
+- **Monitoring Sources**:
+  - **Microphone**: Always monitored
+  - **Speaker/System Audio**: Best-effort monitoring using:
+    - Windows: WASAPI loopback (preferred) or Stereo Mix
+    - macOS: BlackHole 2ch
+    - Linux: PulseAudio monitors
 - **Lifecycle**:
   - Starts automatically when recording dialog opens
   - Pauses when recording starts (recording worker takes over)
   - Resumes when recording stops
   - Stops when dialog closes
-- **Minimal overhead**: Only monitors microphone (no file I/O or processing)
+- **Minimal overhead**: No file I/O, no recording, just real-time level calculation
 
 ### 3. Audio Level Calculation
 
@@ -66,10 +72,10 @@ level = min(1.0, rms / 0.3)
 ### 4. Signal Flow
 
 #### Before/After Recording (Monitoring Mode):
-1. **AudioLevelMonitor** (10Hz callbacks) → Calculate RMS → Store in `mic_level`
+1. **AudioLevelMonitor** (10Hz callbacks) → Calculate RMS for mic & speaker → Store in `mic_level`/`speaker_level`
 2. **AudioLevelMonitor** (10Hz polling) → Emit `audio_level` signal
 3. **RecordingDialog** (Qt slot) → Receive signal → Call `vu_meter.set_level()`
-4. **VU Meter Widget** → Render gradient bar
+4. **VU Meter Widget** → Render gradient bar (both mic and speaker meters active)
 
 #### During Recording:
 1. **Audio Backend** (10Hz callbacks) → Calculate RMS → Store in `mic_level`/`speaker_level`
@@ -90,14 +96,19 @@ This will open a window with two VU meters showing simulated audio levels with d
 ### Integration Test
 1. Launch the application: `python gui_qt.py`
 2. Click "🎤 Audio Recording"
-3. **VU meters are immediately visible** and monitoring your microphone
-4. Speak into the microphone - you should see the mic meter respond **before** starting recording
+3. **Both VU meters are immediately visible** and monitoring audio
+4. **Before recording**:
+   - Speak into the microphone → mic meter responds
+   - Play audio on your system → speaker meter responds (if loopback device available)
 5. Click "🔴 Start Recording"
-6. The VU meters continue to show real-time audio levels during recording
-7. Speak into the microphone - mic meter should respond
-8. Play audio on your system - speaker meter should respond
-9. Click "⏹️ Stop Recording"
-10. VU meters continue to monitor your microphone for the next recording
+6. **During recording**: The VU meters continue to show real-time audio levels
+7. Click "⏹️ Stop Recording"
+8. **After recording**: VU meters continue monitoring for the next recording
+
+**Note**: Speaker monitoring requires a loopback device:
+- Windows: WASAPI loopback (automatic) or Stereo Mix (needs enabling)
+- macOS: BlackHole 2ch (needs installation)
+- Linux: PulseAudio monitor (usually available)
 
 ## Color Ranges
 - **Green** (0-60%): Safe audio level
