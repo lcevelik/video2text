@@ -532,7 +532,7 @@ class FonixFlowQt(QMainWindow):
 
         return container
 
-    def create_sidebar(self):
+    def create_basic_record_tab(self):
         """Create sidebar navigation widget."""
         sidebar = QListWidget()
         sidebar.setMaximumWidth(180)
@@ -562,14 +562,33 @@ class FonixFlowQt(QMainWindow):
                 background-color: {Theme.get('accent', self.is_dark_mode)};
                 color: white;
             }}
-        """)
-
-        # Create sidebar items
-        record_item = QListWidgetItem("🎙️ Record")
-        upload_item = QListWidgetItem("📁 Upload")
+        # Start audio level monitor for live input (safe lifecycle)
+        from gui.workers import AudioLevelMonitor
+        self.audio_level_monitor = None
+        self._start_audio_level_monitor()
         transcript_item = QListWidgetItem("📄 Transcript")
 
         sidebar.addItem(record_item)  # Index 0
+            def _start_audio_level_monitor(self):
+                """Start AudioLevelMonitor thread if not already running."""
+                if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
+                    if self.audio_level_monitor.isRunning():
+                        return
+                from gui.workers import AudioLevelMonitor
+                self.audio_level_monitor = AudioLevelMonitor()
+                self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
+                self.audio_level_monitor.start()
+
+            def _stop_audio_level_monitor(self):
+                """Stop and clean up AudioLevelMonitor thread."""
+                if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
+                    try:
+                        self.audio_level_monitor.stop()
+                        self.audio_level_monitor.quit()
+                        self.audio_level_monitor.wait(1000)
+                    except Exception:
+                        pass
+                    self.audio_level_monitor = None
         sidebar.addItem(upload_item)  # Index 1
         sidebar.addItem(transcript_item)  # Index 2
 
@@ -577,33 +596,6 @@ class FonixFlowQt(QMainWindow):
         sidebar.setCurrentRow(0)
 
         return sidebar
-
-    def _start_audio_level_monitor(self):
-        """Start AudioLevelMonitor thread if not already running."""
-        if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
-            if self.audio_level_monitor.isRunning():
-                return
-        from gui.workers import AudioLevelMonitor
-        self.audio_level_monitor = AudioLevelMonitor()
-        self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
-        self.audio_level_monitor.start()
-
-    def _stop_audio_level_monitor(self):
-        """Stop and clean up AudioLevelMonitor thread."""
-        if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
-            try:
-                self.audio_level_monitor.stop()
-                self.audio_level_monitor.quit()
-                self.audio_level_monitor.wait(1000)
-            except Exception:
-                pass
-            self.audio_level_monitor = None
-
-    def _update_vu_meters(self, mic_level, speaker_level):
-        """Update VU meters with live audio levels."""
-        if hasattr(self, 'mic_vu_meter') and hasattr(self, 'speaker_vu_meter'):
-            self.mic_vu_meter.set_level(mic_level)
-            self.speaker_vu_meter.set_level(speaker_level)
 
     def create_basic_upload_tab(self):
         """Create Upload tab for Basic mode."""
@@ -689,6 +681,11 @@ class FonixFlowQt(QMainWindow):
 
         layout.addWidget(button_container)
         layout.addSpacing(10)
+    def _update_vu_meters(self, mic_level, speaker_level):
+        """Update VU meters with live audio levels."""
+        if hasattr(self, 'mic_vu_meter') and hasattr(self, 'speaker_vu_meter'):
+            self.mic_vu_meter.set_level(mic_level)
+            self.speaker_vu_meter.set_level(speaker_level)
 
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
@@ -812,3 +809,14 @@ class FonixFlowQt(QMainWindow):
     def refresh_audio_devices(self):
         """No-op. Device selection removed."""
         pass
+
+    def update_recording_duration(self):
+        """Update recording duration display."""
+        if hasattr(self, 'recording_start_time') and self.recording_start_time:
+            import time
+            elapsed = int(time.time() - self.recording_start_time)
+            mins = elapsed // 60
+            secs = elapsed % 60
+            if hasattr(self, 'recording_duration_label'):
+                self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
+
