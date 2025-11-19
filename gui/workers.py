@@ -22,6 +22,127 @@ from gui.recording import (
 logger = logging.getLogger(__name__)
 
 
+class AudioLevelMonitor(QThread):
+    """
+    Qt worker thread for monitoring audio levels without recording.
+
+    This provides real-time audio level visualization before recording starts,
+    allowing users to check their microphone and speaker levels.
+    """
+
+    # Signal for audio level updates (mic_level, speaker_level)
+    audio_level = Signal(float, float)
+
+    def __init__(self, mic_device: Optional[int] = None,
+                 speaker_device: Optional[int] = None,
+                 parent=None):
+        """
+        Initialize audio level monitor.
+
+        Args:
+            mic_device: Device index for microphone (None = auto-detect)
+            speaker_device: Device index for system audio (None = auto-detect)
+            parent: Parent QObject
+        """
+        super().__init__(parent)
+        self.mic_device = mic_device
+        self.speaker_device = speaker_device
+        self.is_monitoring = False
+        self.mic_level = 0.0
+        self.speaker_level = 0.0
+        self.mic_stream = None
+        self.speaker_stream = None
+
+    def stop(self):
+        """Stop monitoring."""
+        self.is_monitoring = False
+
+    def run(self):
+        """Execute monitoring in background thread."""
+        import sounddevice as sd
+
+        try:
+            self.is_monitoring = True
+            devices = sd.query_devices()
+
+            # Find microphone device
+            mic_device = self.mic_device
+            if mic_device is None:
+                try:
+                    default_input = sd.default.device[0]
+                    if default_input is not None and default_input >= 0:
+                        if devices[default_input]['max_input_channels'] > 0:
+                            mic_device = default_input
+                except:
+                    pass
+
+                if mic_device is None:
+                    for idx, device in enumerate(devices):
+                        if device['max_input_channels'] > 0:
+                            device_name_lower = device['name'].lower()
+                            if not any(kw in device_name_lower
+                                     for kw in ['stereo mix', 'loopback', 'monitor']):
+                                mic_device = idx
+                                break
+
+            if mic_device is None:
+                logger.warning("No microphone found for monitoring")
+                return
+
+            # Microphone callback
+            def mic_callback(indata, frames, time_info, status):
+                if status:
+                    logger.debug(f"Monitor mic callback status: {status}")
+                if self.is_monitoring:
+                    # Calculate RMS level
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.mic_level = min(1.0, rms / 0.3)
+
+            # Try to open microphone stream
+            mic_info = devices[mic_device]
+            mic_rate = int(mic_info.get('default_samplerate', 0) or 48000)
+            candidate_rates = [r for r in [mic_rate, 48000, 44100, 16000] if r > 0]
+
+            for rate in candidate_rates:
+                try:
+                    self.mic_stream = sd.InputStream(
+                        device=mic_device,
+                        samplerate=int(rate),
+                        channels=1,
+                        callback=mic_callback
+                    )
+                    self.mic_stream.start()
+                    logger.info(f"Audio monitor started: mic device {mic_device}, rate {rate}Hz")
+                    break
+                except Exception as e:
+                    logger.debug(f"Failed to open monitor mic at {rate}Hz: {e}")
+
+            if self.mic_stream is None:
+                logger.warning("Could not open microphone for monitoring")
+                return
+
+            # Optionally monitor speaker/system audio (best-effort)
+            # This is more complex, so we'll skip it for now or implement later
+            # For simplicity, we'll just monitor the mic
+
+            # Monitor loop - emit levels every 100ms
+            while self.is_monitoring:
+                sd.sleep(100)
+                self.audio_level.emit(self.mic_level, self.speaker_level)
+
+        except Exception as e:
+            logger.error(f"Audio monitor error: {e}", exc_info=True)
+
+        finally:
+            # Clean up
+            if self.mic_stream:
+                try:
+                    self.mic_stream.stop()
+                    self.mic_stream.close()
+                except:
+                    pass
+
+
 class RecordingWorker(QThread):
     """
     Qt worker thread for audio recording with pluggable backends.

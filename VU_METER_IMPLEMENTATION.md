@@ -3,6 +3,8 @@
 ## Overview
 Implemented a real-time VU (Volume Unit) meter visualization for audio recording, similar to Zoom's audio level indicator. The VU meters display audio levels using vertical bars with a smooth green-to-red gradient.
 
+**Key Feature**: VU meters are **always visible and active** - they start monitoring audio levels as soon as the recording dialog opens, allowing users to check their microphone levels before starting a recording.
+
 ## Visual Design
 - **Style**: Horizontal bar meter with gradient
 - **Colors**: Green → Yellow → Orange → Red (matches Zoom's design)
@@ -20,7 +22,18 @@ Already existed in the codebase with full implementation:
 - Automatic peak detection and decay
 - Smooth gradient rendering using Qt's QLinearGradient
 
-### 2. Audio Level Calculation
+### 2. Audio Level Monitor (`gui/workers.py` - AudioLevelMonitor class)
+New lightweight monitoring worker that runs continuously:
+- **Purpose**: Provides real-time audio level preview before recording starts
+- **Operation**: Opens microphone stream and calculates RMS levels every 100ms
+- **Lifecycle**:
+  - Starts automatically when recording dialog opens
+  - Pauses when recording starts (recording worker takes over)
+  - Resumes when recording stops
+  - Stops when dialog closes
+- **Minimal overhead**: Only monitors microphone (no file I/O or processing)
+
+### 3. Audio Level Calculation
 
 #### Modified Files:
 1. **`gui/recording/base.py`**
@@ -50,7 +63,15 @@ rms = np.sqrt(np.mean(audio_data**2))
 level = min(1.0, rms / 0.3)
 ```
 
-### 3. Signal Flow
+### 4. Signal Flow
+
+#### Before/After Recording (Monitoring Mode):
+1. **AudioLevelMonitor** (10Hz callbacks) → Calculate RMS → Store in `mic_level`
+2. **AudioLevelMonitor** (10Hz polling) → Emit `audio_level` signal
+3. **RecordingDialog** (Qt slot) → Receive signal → Call `vu_meter.set_level()`
+4. **VU Meter Widget** → Render gradient bar
+
+#### During Recording:
 1. **Audio Backend** (10Hz callbacks) → Calculate RMS → Store in `mic_level`/`speaker_level`
 2. **RecordingWorker** (10Hz polling) → Call `backend.get_audio_levels()` → Emit `audio_level` signal
 3. **RecordingDialog** (Qt slot) → Receive signal → Call `vu_meter.set_level()`
@@ -69,10 +90,14 @@ This will open a window with two VU meters showing simulated audio levels with d
 ### Integration Test
 1. Launch the application: `python gui_qt.py`
 2. Click "🎤 Audio Recording"
-3. Click "🔴 Start Recording"
-4. The VU meters should appear and show real-time audio levels
-5. Speak into the microphone - mic meter should respond
-6. Play audio on your system - speaker meter should respond
+3. **VU meters are immediately visible** and monitoring your microphone
+4. Speak into the microphone - you should see the mic meter respond **before** starting recording
+5. Click "🔴 Start Recording"
+6. The VU meters continue to show real-time audio levels during recording
+7. Speak into the microphone - mic meter should respond
+8. Play audio on your system - speaker meter should respond
+9. Click "⏹️ Stop Recording"
+10. VU meters continue to monitor your microphone for the next recording
 
 ## Color Ranges
 - **Green** (0-60%): Safe audio level
