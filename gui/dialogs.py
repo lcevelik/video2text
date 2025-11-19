@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 
 from gui.widgets import ModernButton, Card
-from gui.workers import RecordingWorker
+from gui.workers import RecordingWorker, AudioLevelMonitor
 from gui.utils import check_audio_input_devices
 from gui.vu_meter import VUMeter
 
@@ -32,8 +32,10 @@ class RecordingDialog(QDialog):
         self.start_time = None
         self.recorded_path = None
         self.worker = None  # QThread worker for recording
+        self.monitor = None  # QThread worker for audio level monitoring
 
         self.setup_ui()
+        self.start_monitoring()  # Start monitoring audio levels immediately
 
     def setup_ui(self):
         layout = QVBoxLayout()
@@ -70,7 +72,7 @@ class RecordingDialog(QDialog):
         vu_meters_layout.addWidget(self.mic_vu_meter)
         vu_meters_layout.addWidget(self.speaker_vu_meter)
 
-        self.vu_meters_widget.hide()
+        # VU meters are now always visible for live monitoring
         layout.addWidget(self.vu_meters_widget)
 
         # User-selected language mode (None until chosen via dialog)
@@ -110,12 +112,45 @@ class RecordingDialog(QDialog):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_duration)
 
+    def start_monitoring(self):
+        """Start audio level monitoring (runs before and after recording)."""
+        if self.monitor is not None:
+            # Already monitoring
+            return
+
+        try:
+            self.monitor = AudioLevelMonitor(parent=self)
+            self.monitor.audio_level.connect(self.update_audio_levels)
+            self.monitor.start()
+            logger.info("Audio level monitoring started")
+        except Exception as e:
+            logger.warning(f"Failed to start audio monitoring: {e}")
+
+    def stop_monitoring(self):
+        """Stop audio level monitoring."""
+        if self.monitor:
+            self.monitor.stop()
+            self.monitor.wait(1000)  # Wait up to 1 second for thread to finish
+            self.monitor = None
+            logger.info("Audio level monitoring stopped")
+
+    def closeEvent(self, event):
+        """Handle dialog close - clean up monitoring."""
+        self.stop_monitoring()
+        if self.worker:
+            self.worker.stop()
+            self.worker.wait(2000)
+        super().closeEvent(event)
+
     def start_recording(self):
         # Check device availability first
         if not self.check_audio_devices():
             # Show helpful message with retry option
             self.show_no_device_dialog()
             return
+
+        # Stop monitoring while recording (recording worker will provide levels)
+        self.stop_monitoring()
 
         self.recording = True
         self.start_time = time.time()
@@ -134,8 +169,7 @@ class RecordingDialog(QDialog):
         self.worker.audio_level.connect(self.update_audio_levels)
         self.worker.start()
 
-        # Show VU meters
-        self.vu_meters_widget.show()
+        # Reset VU meters for new recording
         self.mic_vu_meter.reset()
         self.speaker_vu_meter.reset()
 
@@ -152,8 +186,8 @@ class RecordingDialog(QDialog):
         self.stop_btn.setEnabled(False)
         self.timer.stop()
 
-        # Hide VU meters
-        self.vu_meters_widget.hide()
+        # Resume monitoring after recording stops
+        self.start_monitoring()
 
     def update_duration(self):
         if self.start_time:

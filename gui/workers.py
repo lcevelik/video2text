@@ -22,6 +22,242 @@ from gui.recording import (
 logger = logging.getLogger(__name__)
 
 
+class AudioLevelMonitor(QThread):
+    """
+    Qt worker thread for monitoring audio levels without recording.
+
+    This provides real-time audio level visualization before recording starts,
+    allowing users to check their microphone and speaker levels.
+    """
+
+    # Signal for audio level updates (mic_level, speaker_level)
+    audio_level = Signal(float, float)
+
+    def __init__(self, mic_device: Optional[int] = None,
+                 speaker_device: Optional[int] = None,
+                 parent=None):
+        """
+        Initialize audio level monitor.
+
+        Args:
+            mic_device: Device index for microphone (None = auto-detect)
+            speaker_device: Device index for system audio (None = auto-detect)
+            parent: Parent QObject
+        """
+        super().__init__(parent)
+        self.mic_device = mic_device
+        self.speaker_device = speaker_device
+        self.is_monitoring = False
+        self.mic_level = 0.0
+        self.speaker_level = 0.0
+        self.mic_stream = None
+        self.speaker_stream = None
+
+    def stop(self):
+        """Stop monitoring."""
+        self.is_monitoring = False
+
+    def _start_speaker_monitoring(self, devices, mic_device: int):
+        """
+        Start monitoring speaker/system audio levels (best-effort).
+
+        Args:
+            devices: List of audio devices
+            mic_device: Index of microphone device (to avoid using same device)
+        """
+        import sounddevice as sd
+        from gui.utils import get_platform
+
+        try:
+            platform = get_platform()
+            loopback_device = None
+
+            # On Windows, try WASAPI loopback first
+            if platform == 'windows':
+                try:
+                    from gui.recording.wasapi_loopback import WASAPILoopbackCapture
+
+                    def wasapi_callback(indata, frames, time_info, status):
+                        if status:
+                            logger.debug(f"Monitor WASAPI callback status: {status}")
+                        if self.is_monitoring and indata is not None:
+                            # Downmix to mono if stereo
+                            if len(indata.shape) > 1 and indata.shape[1] > 1:
+                                mono_data = np.mean(indata, axis=1)
+                            else:
+                                mono_data = indata.flatten()
+
+                            # Calculate RMS level
+                            rms = np.sqrt(np.mean(mono_data**2))
+                            self.speaker_level = min(1.0, rms / 0.3)
+
+                    # Try to start WASAPI capture for monitoring
+                    self.speaker_stream = WASAPILoopbackCapture(callback=wasapi_callback)
+                    self.speaker_stream.start()
+                    logger.info("Audio monitor: WASAPI loopback started")
+                    return  # Success!
+
+                except ImportError:
+                    logger.debug("WASAPI not available, falling back to Stereo Mix")
+                except Exception as e:
+                    logger.debug(f"WASAPI loopback failed: {e}, trying Stereo Mix")
+
+            # Find loopback device based on platform
+            if platform == 'macos':
+                # Look for BlackHole on macOS
+                for idx, device in enumerate(devices):
+                    if 'blackhole 2ch' in device.get('name', '').lower():
+                        loopback_device = idx
+                        break
+            else:
+                # Windows/Linux: look for loopback devices
+                for idx, device in enumerate(devices):
+                    if idx == mic_device:
+                        continue
+                    device_name_lower = str(device.get('name', '')).lower()
+                    matches_loopback = any(kw in device_name_lower
+                                         for kw in ['stereo mix', 'loopback', 'monitor',
+                                                   'speakers wave', 'what u hear'])
+                    if device.get('max_input_channels', 0) > 0 and matches_loopback:
+                        loopback_device = idx
+                        break
+
+            if loopback_device is None:
+                logger.debug("No loopback device found for speaker monitoring")
+                return
+
+            # Speaker callback
+            def speaker_callback(indata, frames, time_info, status):
+                if status:
+                    logger.debug(f"Monitor speaker callback status: {status}")
+                if self.is_monitoring:
+                    # Downmix to mono if stereo
+                    if len(indata.shape) > 1 and indata.shape[1] > 1:
+                        mono_data = np.mean(indata, axis=1)
+                    else:
+                        mono_data = indata.flatten()
+
+                    # Calculate RMS level
+                    rms = np.sqrt(np.mean(mono_data**2))
+                    self.speaker_level = min(1.0, rms / 0.3)
+
+            # Try to open speaker stream
+            speaker_info = devices[loopback_device]
+            speaker_channels = min(speaker_info['max_input_channels'], 2)
+            speaker_rate = int(speaker_info.get('default_samplerate', 0) or 48000)
+
+            self.speaker_stream = sd.InputStream(
+                device=loopback_device,
+                samplerate=speaker_rate,
+                channels=speaker_channels,
+                callback=speaker_callback
+            )
+            self.speaker_stream.start()
+            logger.info(f"Audio monitor: speaker device {loopback_device} started")
+
+        except Exception as e:
+            logger.debug(f"Could not start speaker monitoring: {e}")
+            # Not critical - mic monitoring is more important
+
+    def run(self):
+        """Execute monitoring in background thread."""
+        import sounddevice as sd
+
+        try:
+            self.is_monitoring = True
+            devices = sd.query_devices()
+
+            # Find microphone device
+            mic_device = self.mic_device
+            if mic_device is None:
+                try:
+                    default_input = sd.default.device[0]
+                    if default_input is not None and default_input >= 0:
+                        if devices[default_input]['max_input_channels'] > 0:
+                            mic_device = default_input
+                except:
+                    pass
+
+                if mic_device is None:
+                    for idx, device in enumerate(devices):
+                        if device['max_input_channels'] > 0:
+                            device_name_lower = device['name'].lower()
+                            if not any(kw in device_name_lower
+                                     for kw in ['stereo mix', 'loopback', 'monitor']):
+                                mic_device = idx
+                                break
+
+            if mic_device is None:
+                logger.warning("No microphone found for monitoring")
+                return
+
+            # Microphone callback
+            def mic_callback(indata, frames, time_info, status):
+                if status:
+                    logger.debug(f"Monitor mic callback status: {status}")
+                if self.is_monitoring:
+                    # Calculate RMS level
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.mic_level = min(1.0, rms / 0.3)
+
+            # Try to open microphone stream
+            mic_info = devices[mic_device]
+            mic_rate = int(mic_info.get('default_samplerate', 0) or 48000)
+            candidate_rates = [r for r in [mic_rate, 48000, 44100, 16000] if r > 0]
+
+            for rate in candidate_rates:
+                try:
+                    self.mic_stream = sd.InputStream(
+                        device=mic_device,
+                        samplerate=int(rate),
+                        channels=1,
+                        callback=mic_callback
+                    )
+                    self.mic_stream.start()
+                    logger.info(f"Audio monitor started: mic device {mic_device}, rate {rate}Hz")
+                    break
+                except Exception as e:
+                    logger.debug(f"Failed to open monitor mic at {rate}Hz: {e}")
+
+            if self.mic_stream is None:
+                logger.warning("Could not open microphone for monitoring")
+                return
+
+            # Monitor speaker/system audio (best-effort)
+            self._start_speaker_monitoring(devices, mic_device)
+
+            # Monitor loop - emit levels every 100ms
+            while self.is_monitoring:
+                sd.sleep(100)
+                self.audio_level.emit(self.mic_level, self.speaker_level)
+
+        except Exception as e:
+            logger.error(f"Audio monitor error: {e}", exc_info=True)
+
+        finally:
+            # Clean up
+            if self.mic_stream:
+                try:
+                    self.mic_stream.stop()
+                    self.mic_stream.close()
+                except:
+                    pass
+
+            if self.speaker_stream:
+                try:
+                    # Check if it's a WASAPI stream or regular sounddevice stream
+                    if hasattr(self.speaker_stream, 'cleanup'):
+                        # WASAPI stream
+                        self.speaker_stream.stop()
+                        self.speaker_stream.cleanup()
+                    else:
+                        # Regular sounddevice stream
+                        self.speaker_stream.stop()
+                        self.speaker_stream.close()
+                except:
+                    pass
+
+
 class RecordingWorker(QThread):
     """
     Qt worker thread for audio recording with pluggable backends.
@@ -35,6 +271,7 @@ class RecordingWorker(QThread):
     recording_complete = Signal(str, float)  # (file_path, duration)
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
+    audio_level = Signal(float, float)  # (mic_level, speaker_level) 0.0-1.0
 
     def __init__(self, output_dir: str,
                  mic_device: Optional[int] = None,
@@ -119,10 +356,17 @@ class RecordingWorker(QThread):
             # Start recording
             self.backend.start_recording()
 
-            # Record while active
+            # Record while active and emit audio levels
             import sounddevice as sd
             while self.is_recording:
                 sd.sleep(100)
+
+                # Get and emit audio levels for VU meters
+                try:
+                    mic_level, speaker_level = self.backend.get_audio_levels()
+                    self.audio_level.emit(mic_level, speaker_level)
+                except Exception as e:
+                    logger.debug(f"Failed to get audio levels: {e}")
 
             # Stop and collect results
             result = self.backend.stop_recording()

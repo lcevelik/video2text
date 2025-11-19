@@ -157,6 +157,11 @@ class SoundDeviceBackend(RecordingBackend):
                 self.mic_chunks.append(indata.copy())
                 self.mic_callback_count += 1
 
+                # Calculate RMS level for VU meter
+                rms = np.sqrt(np.mean(indata**2))
+                # Normalize to 0-1 range (assuming max RMS of ~0.3 for typical speech)
+                self.mic_level = min(1.0, rms / 0.3)
+
         # Get device info and try sample rates
         mic_info = devices[mic_device]
         mic_capture_rate = int(mic_info.get('default_samplerate', 0) or 0)
@@ -318,6 +323,11 @@ class SoundDeviceBackend(RecordingBackend):
                     logger.info(f"📥 Speaker chunk #{len(self.speaker_chunks)} captured: {mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
+                # Calculate RMS level for VU meter
+                rms = np.sqrt(np.mean(mono_data**2))
+                # Normalize to 0-1 range
+                self.speaker_level = min(1.0, rms / 0.3)
+
         try:
             # Resolve device for Windows "follow system"
             target_device = loopback_device
@@ -447,6 +457,11 @@ class SoundDeviceBackend(RecordingBackend):
                     logger.info(f"📥 WASAPI chunk #{len(self.speaker_chunks)} captured: "
                               f"{mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
+
+                # Calculate RMS level for VU meter
+                rms = np.sqrt(np.mean(mono_data**2))
+                # Normalize to 0-1 range
+                self.speaker_level = min(1.0, rms / 0.3)
 
         # Create and start WASAPI capture
         self.wasapi_capture = WASAPILoopbackCapture(callback=wasapi_callback)
