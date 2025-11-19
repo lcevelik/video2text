@@ -157,8 +157,7 @@ In the app:
 2. Select your devices from dropdowns:
    - 🎤 **Microphone**: Pick your mic (or "Default Microphone")
    - 🔊 **Speaker/System**: Pick system audio device (Stereo Mix, BlackHole, etc.)
-3. Watch the VU meters to verify audio levels
-4. Click **"Start Recording"**
+3. Click **"Start Recording"**
 
 ---
 
@@ -225,7 +224,7 @@ pactl load-module module-loopback
 
 ### Issue 3: "Recording is silent"
 **Check:**
-1. Are the VU meters moving? If not:
+1. Verify audio is being captured:
    - Wrong device selected
    - Device is muted
    - Nothing is playing (for system audio)
@@ -239,8 +238,7 @@ pactl load-module module-loopback
 1. Run `python diagnose_audio.py`
 2. Look at the "SYSTEM AUDIO DEVICES" section
 3. Try each device listed (top one is usually best)
-4. Play YouTube/music and watch VU meters
-5. If VU meter for 🔊 moves → correct device!
+4. Play YouTube/music and test recording to verify correct device
 
 ### Issue 5: "Audio quality is poor"
 **Solutions:**
@@ -286,7 +284,6 @@ Run through this checklist:
 - [ ] At least 1 microphone detected
 - [ ] At least 1 system audio device detected (for YouTube/meetings)
 - [ ] `python test_recording_complete.py` completes successfully
-- [ ] VU meters show levels when audio is playing
 - [ ] Recorded files have audible audio
 
 ---
@@ -303,19 +300,14 @@ Run through this checklist:
 
 1. **Test before important recordings**: Run `test_recording_complete.py` to verify everything works
 
-2. **Watch the VU meters**: They show real-time levels
-   - 🎤 Mic should move when you speak
-   - 🔊 System should move when audio plays
-   - If meters don't move → wrong device or muted
-
-3. **Try multiple system audio devices**: The "best" device varies by system
+2. **Try multiple system audio devices**: The "best" device varies by system
    - App tries to pick the best one
    - If first doesn't work, try others from dropdown
 
-4. **Recording folder**: Default is `~/Video2Text/Recordings/`
+3. **Recording folder**: Default is `~/Video2Text/Recordings/`
    - Change in app: Menu (☰) → Settings → Change Recording Directory
 
-5. **Sample rate issues**: If you get "Could not open microphone" errors
+4. **Sample rate issues**: If you get "Could not open microphone" errors
    - Go to Windows Sound Settings → Device Properties → Advanced
    - Change format to 48000 Hz or 44100 Hz
 

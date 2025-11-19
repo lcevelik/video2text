@@ -578,26 +578,6 @@ class FonixFlowQt(QMainWindow):
 
         return sidebar
 
-    def _start_audio_level_monitor(self):
-        """Start AudioLevelMonitor thread if not already running."""
-        if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
-            if self.audio_level_monitor.isRunning():
-                return
-        from gui.workers import AudioLevelMonitor
-        self.audio_level_monitor = AudioLevelMonitor()
-        self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
-        self.audio_level_monitor.start()
-
-    def _stop_audio_level_monitor(self):
-        """Stop and clean up AudioLevelMonitor thread."""
-        if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
-            try:
-                self.audio_level_monitor.stop()
-                self.audio_level_monitor.quit()
-                self.audio_level_monitor.wait(1000)
-            except Exception:
-                pass
-            self.audio_level_monitor = None
 
     def create_basic_upload_tab(self):
         """Create Upload tab for Basic mode."""
@@ -644,29 +624,6 @@ class FonixFlowQt(QMainWindow):
         info_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
-
-
-        # VU Meters (always visible for monitoring)
-        from gui.vu_meter import VUMeter
-        vu_meters_label = QLabel("🎚️ Audio Level Monitoring")
-        vu_meters_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #555;")
-        layout.addWidget(vu_meters_label)
-
-        self.mic_vu_meter = VUMeter("🎤 Microphone")
-        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
-        vu_meters_container = QWidget()
-        vu_meters_layout = QVBoxLayout(vu_meters_container)
-        vu_meters_layout.setSpacing(10)
-        vu_meters_layout.setContentsMargins(5, 5, 5, 5)
-        vu_meters_layout.addWidget(self.mic_vu_meter)
-        vu_meters_layout.addWidget(self.speaker_vu_meter)
-        layout.addWidget(vu_meters_container)
-
-        # Start audio level monitor for live input
-        from gui.workers import AudioLevelMonitor
-        self.audio_level_monitor = AudioLevelMonitor()
-        self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
-        self.audio_level_monitor.start()
 
         layout.addStretch(1)
 
@@ -728,12 +685,6 @@ class FonixFlowQt(QMainWindow):
         layout.addStretch(2)
         widget.setLayout(layout)
         return widget
-
-    def _update_vu_meters(self, mic_level, speaker_level):
-        """Update VU meters with live audio levels."""
-        if hasattr(self, 'mic_vu_meter') and hasattr(self, 'speaker_vu_meter'):
-            self.mic_vu_meter.set_level(mic_level)
-            self.speaker_vu_meter.set_level(speaker_level)
 
     def create_basic_transcript_tab(self):
         """Create Transcript tab for Basic mode."""

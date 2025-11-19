@@ -223,15 +223,6 @@ Mic chunks collected: 234                        ← Good!
 2. If False, this indicates worker.stop() called too quickly
 3. Try recording for longer (5+ seconds)
 
-### Issue: VU Meters Don't Move
-
-**Cause**: No audio level data reaching the UI
-
-**Check**:
-1. Do the debug logs show callbacks > 0?
-2. If yes: UI issue, recording might still work
-3. If no: Device issue, recording won't work
-
 ---
 
 ## 📁 Test Files

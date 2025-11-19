@@ -157,7 +157,7 @@ class SoundDeviceBackend(RecordingBackend):
                 self.mic_chunks.append(indata.copy())
                 self.mic_callback_count += 1
 
-                # Calculate RMS level for VU meter
+                # Calculate RMS level
                 rms = np.sqrt(np.mean(indata**2))
                 # Normalize to 0-1 range (assuming max RMS of ~0.3 for typical speech)
                 self.mic_level = min(1.0, rms / 0.3)
@@ -323,7 +323,7 @@ class SoundDeviceBackend(RecordingBackend):
                     logger.info(f"📥 Speaker chunk #{len(self.speaker_chunks)} captured: {mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
-                # Calculate RMS level for VU meter
+                # Calculate RMS level
                 rms = np.sqrt(np.mean(mono_data**2))
                 # Normalize to 0-1 range
                 self.speaker_level = min(1.0, rms / 0.3)
@@ -458,7 +458,7 @@ class SoundDeviceBackend(RecordingBackend):
                               f"{mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
-                # Calculate RMS level for VU meter
+                # Calculate RMS level
                 rms = np.sqrt(np.mean(mono_data**2))
                 # Normalize to 0-1 range
                 self.speaker_level = min(1.0, rms / 0.3)

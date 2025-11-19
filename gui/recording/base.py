@@ -73,7 +73,7 @@ class RecordingBackend(ABC):
 
     def get_audio_levels(self) -> tuple:
         """
-        Get current audio levels for VU meters.
+        Get current audio levels.
 
         Returns:
             Tuple of (mic_level, speaker_level) where each is 0.0-1.0

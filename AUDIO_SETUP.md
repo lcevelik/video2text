@@ -167,16 +167,6 @@ snd-aloop
 - Load loopback module for PulseAudio: `pactl load-module module-loopback`
 - Check for monitor devices: `pactl list sources | grep monitor`
 
-### VU Meters Not Moving
-
-1. Click **"🔍 Test Audio Levels"**
-2. Speak into microphone - mic meter should bounce
-3. Play YouTube video - speaker meter should bounce
-4. If neither moves:
-   - Check device selection in dropdowns
-   - Verify devices in system sound settings
-   - Click "🔄 Refresh Devices"
-
 ### Recording Works But No System Audio
 
 **macOS:**
@@ -197,12 +187,6 @@ snd-aloop
 ---
 
 ## Features
-
-### Audio Level Testing
-- Click **"🔍 Test Audio Levels"** before recording
-- VU meters show real-time audio from both sources
-- Green → Yellow → Orange → Red colors indicate level
-- Speak and play audio to verify capture
 
 ### Device Selection
 - Choose specific microphone from dropdown
@@ -231,10 +215,7 @@ snd-aloop
 - Grant permissions when prompted
 
 **Audio Quality:**
-- Test levels before recording important content
-- Ensure VU meters show green/yellow during test
-- Red indicates too loud (will be compressed)
-- Barely moving indicates too quiet (will be boosted)
+- Test audio before recording important content
 
 **YouTube/System Audio Not Working:**
 - Most common issue: loopback device not installed/enabled

@@ -241,7 +241,7 @@ try:
                     if len(self.audio_chunks) <= 5:
                         logger.info(f"💾 Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
 
-                    # Calculate RMS level for VU meter
+                    # Calculate RMS level
                     rms = np.sqrt(np.mean(audio_data**2))
                     # Normalize to 0-1 range
                     self.speaker_level = min(1.0, rms / 0.3)
@@ -354,7 +354,7 @@ try:
                     self.mic_chunks.append(indata.copy())
                     self.mic_callback_count += 1
 
-                    # Calculate RMS level for VU meter
+                    # Calculate RMS level
                     rms = np.sqrt(np.mean(indata**2))
                     # Normalize to 0-1 range (assuming max RMS of ~0.3 for typical speech)
                     self.mic_level = min(1.0, rms / 0.3)
@@ -573,7 +573,7 @@ try:
 
         def get_audio_levels(self) -> tuple:
             """
-            Get current audio levels for VU meters.
+            Get current audio levels.
 
             Returns:
                 Tuple of (mic_level, speaker_level) where each is 0.0-1.0
