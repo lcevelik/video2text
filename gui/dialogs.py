@@ -61,10 +61,18 @@ class RecordingDialog(QDialog):
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
 
-        # VU Meters (shown during recording)
+        # Audio Level Meters label
+        meters_label = QLabel("🎚️ Audio Level Monitoring")
+        meters_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #555;")
+        layout.addWidget(meters_label)
+
+        # VU Meters (always visible for monitoring)
         self.vu_meters_widget = QWidget()
+        self.vu_meters_widget.setMinimumHeight(80)  # Ensure widget has height
+        self.vu_meters_widget.setStyleSheet("QWidget { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 5px; }")
         vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
         vu_meters_layout.setSpacing(10)
+        vu_meters_layout.setContentsMargins(5, 5, 5, 5)
 
         self.mic_vu_meter = VUMeter("🎤 Microphone")
         self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
@@ -73,6 +81,7 @@ class RecordingDialog(QDialog):
         vu_meters_layout.addWidget(self.speaker_vu_meter)
 
         # VU meters are now always visible for live monitoring
+        self.vu_meters_widget.setVisible(True)  # Explicitly show the widget
         layout.addWidget(self.vu_meters_widget)
 
         # User-selected language mode (None until chosen via dialog)
