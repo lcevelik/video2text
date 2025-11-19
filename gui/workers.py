@@ -35,6 +35,7 @@ class RecordingWorker(QThread):
     recording_complete = Signal(str, float)  # (file_path, duration)
     recording_error = Signal(str)  # error_message
     status_update = Signal(str)  # status_message
+    audio_level = Signal(float, float)  # (mic_level, speaker_level) 0.0-1.0
 
     def __init__(self, output_dir: str,
                  mic_device: Optional[int] = None,
@@ -119,10 +120,17 @@ class RecordingWorker(QThread):
             # Start recording
             self.backend.start_recording()
 
-            # Record while active
+            # Record while active and emit audio levels
             import sounddevice as sd
             while self.is_recording:
                 sd.sleep(100)
+
+                # Get and emit audio levels for VU meters
+                try:
+                    mic_level, speaker_level = self.backend.get_audio_levels()
+                    self.audio_level.emit(mic_level, speaker_level)
+                except Exception as e:
+                    logger.debug(f"Failed to get audio levels: {e}")
 
             # Stop and collect results
             result = self.backend.stop_recording()

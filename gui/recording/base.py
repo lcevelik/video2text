@@ -40,6 +40,8 @@ class RecordingBackend(ABC):
         self.mic_device = mic_device
         self.speaker_device = speaker_device
         self.is_recording = False
+        self.mic_level = 0.0  # Current mic level (0.0-1.0)
+        self.speaker_level = 0.0  # Current speaker level (0.0-1.0)
 
     @abstractmethod
     def start_recording(self) -> None:
@@ -68,6 +70,15 @@ class RecordingBackend(ABC):
     def get_backend_name(self) -> str:
         """Return the name of this backend (e.g., 'sounddevice', 'screencapturekit')."""
         pass
+
+    def get_audio_levels(self) -> tuple:
+        """
+        Get current audio levels for VU meters.
+
+        Returns:
+            Tuple of (mic_level, speaker_level) where each is 0.0-1.0
+        """
+        return (self.mic_level, self.speaker_level)
 
     def cleanup(self) -> None:
         """Clean up resources. Override if needed."""

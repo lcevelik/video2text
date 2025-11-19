@@ -45,6 +45,7 @@ try:
             self.callback_count = 0
             self.format_detected = False  # Flag to detect format only once
             self.is_non_interleaved = False  # Track if audio is planar or interleaved
+            self.speaker_level = 0.0  # Current speaker audio level (0.0-1.0)
             logger.info("AudioCaptureDelegate initialized")
             return self
 
@@ -240,6 +241,11 @@ try:
                     if len(self.audio_chunks) <= 5:
                         logger.info(f"💾 Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
 
+                    # Calculate RMS level for VU meter
+                    rms = np.sqrt(np.mean(audio_data**2))
+                    # Normalize to 0-1 range
+                    self.speaker_level = min(1.0, rms / 0.3)
+
             except Exception as e:
                 logger.error(f"Error processing ScreenCaptureKit audio: {e}", exc_info=True)
 
@@ -347,6 +353,11 @@ try:
                 if self.is_recording:
                     self.mic_chunks.append(indata.copy())
                     self.mic_callback_count += 1
+
+                    # Calculate RMS level for VU meter
+                    rms = np.sqrt(np.mean(indata**2))
+                    # Normalize to 0-1 range (assuming max RMS of ~0.3 for typical speech)
+                    self.mic_level = min(1.0, rms / 0.3)
 
             # Try to open mic stream
             mic_info = devices[mic_device]
@@ -559,6 +570,16 @@ try:
         def get_backend_name(self) -> str:
             """Return backend name."""
             return "screencapturekit"
+
+        def get_audio_levels(self) -> tuple:
+            """
+            Get current audio levels for VU meters.
+
+            Returns:
+                Tuple of (mic_level, speaker_level) where each is 0.0-1.0
+            """
+            speaker_level = self.delegate.speaker_level if self.delegate else 0.0
+            return (self.mic_level, speaker_level)
 
         def cleanup(self) -> None:
             """Clean up resources."""
