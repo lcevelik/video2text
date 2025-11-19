@@ -532,7 +532,7 @@ class FonixFlowQt(QMainWindow):
 
         return container
 
-    def create_sidebar(self):
+    def create_basic_record_tab(self):
         """Create sidebar navigation widget."""
         sidebar = QListWidget()
         sidebar.setMaximumWidth(180)
@@ -562,14 +562,33 @@ class FonixFlowQt(QMainWindow):
                 background-color: {Theme.get('accent', self.is_dark_mode)};
                 color: white;
             }}
-        """)
-
-        # Add tab items - order: Record, Upload, Transcript
-        record_item = QListWidgetItem("🎙️ Record")
-        upload_item = QListWidgetItem("📁 Upload")
+        # Start audio level monitor for live input (safe lifecycle)
+        from gui.workers import AudioLevelMonitor
+        self.audio_level_monitor = None
+        self._start_audio_level_monitor()
         transcript_item = QListWidgetItem("📄 Transcript")
 
         sidebar.addItem(record_item)  # Index 0
+            def _start_audio_level_monitor(self):
+                """Start AudioLevelMonitor thread if not already running."""
+                if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
+                    if self.audio_level_monitor.isRunning():
+                        return
+                from gui.workers import AudioLevelMonitor
+                self.audio_level_monitor = AudioLevelMonitor()
+                self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
+                self.audio_level_monitor.start()
+
+            def _stop_audio_level_monitor(self):
+                """Stop and clean up AudioLevelMonitor thread."""
+                if hasattr(self, 'audio_level_monitor') and self.audio_level_monitor:
+                    try:
+                        self.audio_level_monitor.stop()
+                        self.audio_level_monitor.quit()
+                        self.audio_level_monitor.wait(1000)
+                    except Exception:
+                        pass
+                    self.audio_level_monitor = None
         sidebar.addItem(upload_item)  # Index 1
         sidebar.addItem(transcript_item)  # Index 2
 
@@ -624,6 +643,29 @@ class FonixFlowQt(QMainWindow):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
+
+        # VU Meters (always visible for monitoring)
+        from gui.vu_meter import VUMeter
+        vu_meters_label = QLabel("🎚️ Audio Level Monitoring")
+        vu_meters_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #555;")
+        layout.addWidget(vu_meters_label)
+
+        self.mic_vu_meter = VUMeter("🎤 Microphone")
+        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
+        vu_meters_container = QWidget()
+        vu_meters_layout = QVBoxLayout(vu_meters_container)
+        vu_meters_layout.setSpacing(10)
+        vu_meters_layout.setContentsMargins(5, 5, 5, 5)
+        vu_meters_layout.addWidget(self.mic_vu_meter)
+        vu_meters_layout.addWidget(self.speaker_vu_meter)
+        layout.addWidget(vu_meters_container)
+
+        # Start audio level monitor for live input
+        from gui.workers import AudioLevelMonitor
+        self.audio_level_monitor = AudioLevelMonitor()
+        self.audio_level_monitor.audio_level.connect(self._update_vu_meters)
+        self.audio_level_monitor.start()
+
         layout.addStretch(1)
 
         # Record toggle button
@@ -639,6 +681,11 @@ class FonixFlowQt(QMainWindow):
 
         layout.addWidget(button_container)
         layout.addSpacing(10)
+    def _update_vu_meters(self, mic_level, speaker_level):
+        """Update VU meters with live audio levels."""
+        if hasattr(self, 'mic_vu_meter') and hasattr(self, 'speaker_vu_meter'):
+            self.mic_vu_meter.set_level(mic_level)
+            self.speaker_vu_meter.set_level(speaker_level)
 
         # Recording duration (shown during recording, hidden otherwise)
         self.recording_duration_label = QLabel("Duration: 0:00")
@@ -702,18 +749,13 @@ class FonixFlowQt(QMainWindow):
         # Result text
         self.basic_result_text = QTextEdit()
         self.basic_result_text.setPlaceholderText("Transcription text will appear here...")
-        self.basic_result_text.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {Theme.get('input_bg', self.is_dark_mode)};
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border: 1px solid {Theme.get('border', self.is_dark_mode)};
-                border-radius: 8px;
-                padding: 15px;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 13px;
-                line-height: 1.6;
-            }}
-        """)
+        self.basic_result_text.setStyleSheet(
+            f"QTextEdit {{ background-color: {Theme.get('input_bg', self.is_dark_mode)}; "
+            f"color: {Theme.get('text_primary', self.is_dark_mode)}; "
+            f"border: 1px solid {Theme.get('border', self.is_dark_mode)}; "
+            "border-radius: 8px; padding: 15px; font-family: 'Consolas', 'Monaco', monospace; "
+            "font-size: 13px; line-height: 1.6; }}"
+        )
         layout.addWidget(self.basic_result_text, 1)
 
         # Save button
@@ -764,688 +806,6 @@ class FonixFlowQt(QMainWindow):
         self.statusBar().showMessage(f"File selected: {filename}")
         logger.info(f"Selected file: {file_path}")
 
-    def refresh_audio_devices(self):
-        """No-op. Device selection removed."""
-        pass
-
-    def on_mic_device_changed(self, index):
-        """No-op. Device selection removed."""
-        pass
-
-    def on_speaker_device_changed(self, index):
-        """No-op. Device selection removed."""
-        pass
-
-    def show_audio_setup_guide(self):
-        """Show platform-specific audio setup guide."""
-        current_platform = get_platform()
-        platform_help = get_platform_audio_setup_help()
-
-        platform_names = {
-            'macos': 'macOS',
-            'windows': 'Windows',
-            'linux': 'Linux'
-        }
-
-        platform_display = platform_names.get(current_platform, current_platform.upper())
-
-        # Build help message
-        help_text = f"# Audio Setup Guide for {platform_display}\n\n"
-
-        # Microphone permissions
-        help_text += "## Microphone Setup\n\n"
-        help_text += "\n".join(platform_help.get('permissions', []))
-        help_text += "\n\n"
-
-        # System audio setup
-        help_text += "## System Audio / YouTube Capture Setup\n\n"
-        help_text += "\n".join(platform_help.get('loopback_install', []))
-
-        # Create dialog
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"Audio Setup Guide - {platform_display}")
-        dialog.setMinimumSize(650, 500)
-
-        layout = QVBoxLayout()
-
-        # Title
-        title = QLabel(f"🎙️ Audio Setup Guide for {platform_display}")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
-        layout.addWidget(title)
-
-        # Help text
-        help_display = QTextEdit()
-        help_display.setPlainText(help_text)
-        help_display.setReadOnly(True)
-        help_display.setStyleSheet("""
-            QTextEdit {
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 12px;
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                padding: 10px;
-                line-height: 1.5;
-            }
-        """)
-        layout.addWidget(help_display)
-
-        # Close button
-        close_btn = ModernButton("Close", primary=True)
-        close_btn.clicked.connect(dialog.accept)
-        layout.addWidget(close_btn)
-
-        dialog.setLayout(layout)
-        dialog.exec()
-
-    def toggle_audio_preview(self):
-        """No-op. VU meters and preview removed."""
-        pass
-
-    def restart_audio_preview(self):
-        """No-op. VU meters and preview removed."""
-        pass
-
-    def ensure_audio_preview_running(self):
-        """No-op. VU meters and preview removed."""
-        pass
-
-    def toggle_basic_recording(self):
-        """Toggle recording in Basic Mode (one-button flow)."""
-        if not self.is_recording:
-            # Check device availability first
-            if self.check_audio_devices():
-                self.start_basic_recording()
-            else:
-                # Show helpful message with retry option
-                self.show_no_device_dialog()
-        else:
-            # Stop recording and auto-transcribe
-            self.stop_basic_recording()
-
-    def check_audio_devices(self):
-        """Check if audio input devices are available."""
-        return check_audio_input_devices()  # Use shared utility function
-
-    def show_no_device_dialog(self):
-        """Show dialog when no audio device is found."""
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("No Microphone Found")
-        msg.setText("No audio input device detected!")
-        msg.setInformativeText(
-            "Please:\n"
-            "1. Connect a microphone\n"
-            "2. Check your audio settings\n"
-            "3. Make sure device is enabled\n\n"
-            "Click 'Retry' to check again, or 'Cancel' to go back."
-        )
-        msg.setStandardButtons(QMessageBox.Retry | QMessageBox.Cancel)
-        msg.setDefaultButton(QMessageBox.Retry)
-
-        result = msg.exec()
-
-        if result == QMessageBox.Retry:
-            # User wants to try again - re-check devices
-            logger.info("User requested device detection retry")
-            if self.check_audio_devices():
-                QMessageBox.information(
-                    self,
-                    "Device Found",
-                    "✅ Audio input device detected!\n\nYou can now start recording."
-                )
-                # Automatically start recording
-                self.start_basic_recording()
-            else:
-                # Still no device - show dialog again
-                self.show_no_device_dialog()
-
-    def start_basic_recording(self):
-        """Start recording in Basic Mode."""
-        self.is_recording = True
-        self.recording_start_time = time.time()
-
-        # Update UI
-        self.basic_record_btn.setText("Stop Recording")
-        self.basic_record_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #F44336;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #D32F2F;
-            }
-        """)
-
-        # Disable drop zone and device selection during recording
-        self.drop_zone.setEnabled(False)
-
-        # Show duration label
-        self.recording_duration_label.show()
-        self.recording_timer.start(1000)  # Update every second
-
-        # Update status
-        self.statusBar().showMessage("🔴 Recording from Microphone + Speaker...")
-        self.basic_record_progress_label.setText("Recording in progress...")
-        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)}; font-weight: bold;")
-
-        logger.info(f"Started basic mode recording (mic: default, speaker: default/system)")
-
-        # Start actual recording in QThread worker with default devices
-        self.recording_worker = RecordingWorker(
-            output_dir=self.settings["recordings_dir"],
-            mic_device=None,  # Use default
-            speaker_device=None, # Use default
-            parent=self
-        )
-        self.recording_worker.recording_complete.connect(self.on_recording_complete)
-        self.recording_worker.recording_error.connect(self.on_recording_error)
-        self.recording_worker.start()
-
-    def stop_basic_recording(self):
-        """Stop recording in Basic Mode."""
-        self.is_recording = False
-        self.recording_timer.stop()
-
-        # Stop the worker thread
-        if self.recording_worker:
-            self.recording_worker.stop()
-
-        # Update button
-        self.basic_record_btn.setText("Start Recording")
-        self.basic_record_btn.primary = True
-        self.basic_record_btn.apply_style()
-
-        # Re-enable controls
-        self.drop_zone.setEnabled(True)
-
-        # Hide duration label
-        self.recording_duration_label.hide()
-
-        # Show progress bar for processing
-        self.basic_record_progress_bar.show()
-        self.basic_record_progress_bar.setValue(0)
-
-        # Update status
-        self.statusBar().showMessage("Processing recording...")
-        self.basic_record_progress_label.setText("Processing recording...")
-        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('warning', self.is_dark_mode)};")
-
-        logger.info("Stopped basic mode recording")
-
-    def update_recording_duration(self):
-        """Update recording duration display."""
-        if self.recording_start_time:
-            elapsed = int(time.time() - self.recording_start_time)
-            mins = elapsed // 60
-            secs = elapsed % 60
-            self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
-
-    def update_audio_levels(self, mic_level, speaker_level):
-        """No-op. VU meters removed."""
-        pass
-
-    def on_recording_complete(self, recorded_path, duration):
-        """Slot called when recording completes successfully (thread-safe)."""
-        # Load file and update UI
-        self.video_path = recorded_path
-        # Reset mode for new recording
-        self.multi_language_mode = None
-        self.statusBar().showMessage(f"✅ Recording complete ({duration:.1f}s). File saved.")
-
-        # Re-enable controls
-        self.drop_zone.setEnabled(True)
-
-        # Update progress label
-        self.basic_record_progress_label.setText(f"Recording complete ({duration:.1f}s). Ready for manual transcription.")
-        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('success', self.is_dark_mode)};")
-
-        # Show manual transcribe button
-        if hasattr(self, 'transcribe_recording_btn'):
-            self.transcribe_recording_btn.show()
-
-    def on_recording_error(self, error_message):
-        """Slot called when recording encounters an error (thread-safe)."""
-        self.statusBar().showMessage(error_message)
-        self.drop_zone.setEnabled(True)
-
-        # Update progress label
-        self.basic_record_progress_label.setText(f"Error: {error_message}")
-        self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)};")
-
-        # Reset recording state
-        self.is_recording = False
-        self.recording_timer.stop()
-        self.basic_record_btn.setText("🎤 Start Recording")
-        self.basic_record_btn.primary = True
-        self.basic_record_btn.apply_style()
-        self.recording_duration_label.hide()
-
-    def change_recordings_directory(self):
-        """Open dialog to change recordings directory."""
-        current_dir = self.settings["recordings_dir"]
-        new_dir = QFileDialog.getExistingDirectory(
-            self,
-            "Select Recordings Folder",
-            current_dir,
-            QFileDialog.ShowDirsOnly
-        )
-
-        if new_dir:
-            self.settings["recordings_dir"] = new_dir
-            if hasattr(self, 'recordings_dir_display') and self.recordings_dir_display is not None:
-                try:
-                    self.recordings_dir_display.setText(new_dir)
-                except Exception:
-                    pass
-            self.save_settings()
-            logger.info(f"Recordings directory changed to: {new_dir}")
-            QMessageBox.information(
-                self,
-                "Settings Updated",
-                f"Recordings will now be saved to:\n{new_dir}"
-            )
-
-    def open_recordings_folder(self):
-        """Open the recordings folder in the system file explorer."""
-        recordings_dir = Path(self.settings["recordings_dir"])
-
-        # Create directory if it doesn't exist
-        recordings_dir.mkdir(parents=True, exist_ok=True)
-
-        # Open in file explorer (cross-platform)
-        import subprocess
-        import platform
-
-        try:
-            if platform.system() == "Windows":
-                os.startfile(str(recordings_dir))
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", str(recordings_dir)])
-            else:  # Linux
-                subprocess.run(["xdg-open", str(recordings_dir)])
-
-            logger.info(f"Opened recordings folder: {recordings_dir}")
-        except Exception as e:
-            logger.error(f"Could not open recordings folder: {e}")
-            QMessageBox.warning(
-                self,
-                "Could Not Open Folder",
-                f"Please navigate manually to:\n{recordings_dir}"
-            )
-
-    def show_recording_dialog(self):
-        """Show recording dialog (Advanced Mode only)."""
-        dialog = RecordingDialog(self)
-        if dialog.exec() and dialog.recorded_path:
-            self.load_file(dialog.recorded_path)
-
-    def start_transcription(self):
-        """Start transcription process."""
-        if not self.video_path:
-            QMessageBox.warning(self, "No File", "Please select a file first.")
-            return
-
-        # Disable buttons and clear results
-        self.basic_save_btn.setEnabled(False)
-        self.basic_result_text.clear()
-        self.basic_upload_progress_bar.show()
-        self.basic_upload_progress_bar.setValue(0)
-        self.basic_record_progress_bar.show()
-        self.basic_record_progress_bar.setValue(0)
-        self.cancel_transcription_btn.show()
-        self.cancel_transcription_btn.setEnabled(True)
-        self.transcription_start_time = time.time()
-        if not self.performance_overlay:
-            self.performance_overlay = QLabel("")
-            self.performance_overlay.setStyleSheet("font-size:12px; color:#888; font-family:Consolas;")
-            self.statusBar().addPermanentWidget(self.performance_overlay)
-        self.performance_overlay.setText("Starting…")
-
-        # Determine mode from dialog selection; fallback to checkbox if user toggled manually beforehand
-        if self.multi_language_mode is None:
-            # Prompt now; if canceled, abort
-            if not self.prompt_multi_language_and_transcribe(from_start=True):
-                return
-        multi_mode = self.multi_language_mode
-
-        if multi_mode:
-            model_size = "large"  # Highest accuracy for mixed languages
-            language = None  # Auto-detect
-            detect_language_changes = True
-            # Use global deep scan toggle; if False use heuristic + conditional fallback
-            use_deep_scan = bool(getattr(self, 'enable_deep_scan', False))
-        else:
-            model_size = "base"  # Default to base for single-language (more robust on this audio)
-            language = None  # Still auto-detect primary language
-            detect_language_changes = False
-            use_deep_scan = False
-
-        # Start transcription worker
-        self.statusBar().showMessage("Starting transcription...")
-
-        self.transcription_worker = TranscriptionWorker(
-            self.video_path,
-            model_size=model_size,
-            language=language,
-            detect_language_changes=detect_language_changes,
-            use_deep_scan=use_deep_scan,
-            parent=self
-        )
-        # Pass allowed languages to worker if multi-language
-        if detect_language_changes and hasattr(self, 'allowed_languages'):
-            self.transcription_worker.allowed_languages = self.allowed_languages
-
-        # Connect signals
-        self.transcription_worker.progress_update.connect(self.on_transcription_progress)
-        self.transcription_worker.transcription_complete.connect(self.on_transcription_complete)
-        self.transcription_worker.transcription_error.connect(self.on_transcription_error)
-
-        # Start worker
-        self.transcription_worker.start()
-
-        logger.info(f"Started transcription: {self.video_path}, model={model_size}, language={language}, multi-lang={detect_language_changes}, deep-scan={use_deep_scan}")
-
-    # ---------- Multi-language selection dialog & helper ----------
-    def prompt_multi_language_and_transcribe(self, from_start: bool = False):
-        """Prompt user to choose multi-language vs single-language before transcription.
-
-        Returns True if a selection was made (and transcription started), False if canceled.
-        """
-        if self.video_path is None:
-            return False
-        if self.multi_language_mode is not None and not from_start:
-            # Already chosen for current file
-            self.start_transcription()
-            return True
-        dlg = MultiLanguageChoiceDialog(self)
-        if dlg.exec() == QDialog.Accepted:
-            self.multi_language_mode = dlg.is_multi_language
-            self.allowed_languages = getattr(dlg, 'selected_languages', []) if self.multi_language_mode else []
-            if self.allowed_languages:
-                logger.info(f"User selected languages: {self.allowed_languages}")
-            logger.info(f"Language mode chosen via dialog: multi={self.multi_language_mode}")
-            self.start_transcription()
-            return True
-        return False
-
-    def save_transcription(self):
-        """Save current transcription (FonixFlowQt scope)."""
-        if not getattr(self, 'transcription_result', None):
-            QMessageBox.warning(self, "No Transcription", "Please transcribe a file first.")
-            return
-        default_name = Path(self.video_path).stem if self.video_path else "transcription"
-        file_path, selected_filter = QFileDialog.getSaveFileName(
-            self,
-            "Save Transcription",
-            default_name,
-            "Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)"
-        )
-        if not file_path:
-            return
-        try:
-            ext = Path(file_path).suffix.lower()
-            content = self.transcription_result.get('text', '')
-            if ext == '.srt' or 'SRT' in selected_filter:
-                from transcriber import Transcriber
-                content = Transcriber().format_as_srt(self.transcription_result)
-            elif ext == '.vtt' or 'VTT' in selected_filter:
-                from transcriber import Transcriber
-                srt_content = Transcriber().format_as_srt(self.transcription_result)
-                content = "WEBVTT\n\n" + srt_content.replace(',', '.')
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            self.statusBar().showMessage(f"Saved to: {file_path}")
-            QMessageBox.information(self, "Saved Successfully", f"Transcription saved to:\n{file_path}")
-            logger.info(f"Transcription saved to: {file_path}")
-        except Exception as e:
-            logger.error(f"Failed to save transcription: {e}")
-            QMessageBox.critical(self, "Save Error", f"Failed to save transcription:\n\n{e}")
-
-    def cancel_transcription(self):
-        """User-triggered cancellation for active transcription."""
-        if getattr(self, 'transcription_worker', None):
-            try:
-                self.transcription_worker.cancel()
-            except Exception as e:
-                logger.warning(f"Cancel request failed: {e}")
-            if hasattr(self, 'cancel_transcription_btn'):
-                self.cancel_transcription_btn.setEnabled(False)
-            self.statusBar().showMessage("Cancel requested…")
-
-    # ---------- Progress handling ----------
-    def on_transcription_progress(self, message: str, percentage: int):
-        """Handle progress updates emitted by worker (message, percentage)."""
-        # Update progress bar (basic mode)
-        if hasattr(self, 'basic_upload_progress_bar'):
-            try:
-                self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))))
-            except Exception:
-                pass
-        # Timing / ETA overlay
-        if getattr(self, 'transcription_start_time', None) and percentage > 0:
-            elapsed = time.time() - self.transcription_start_time
-            if percentage < 100:
-                rate = percentage / elapsed if elapsed > 0 else 0
-                eta = (100 - percentage) / rate if rate > 0 else 0
-            else:
-                eta = 0
-            if hasattr(self, 'performance_overlay') and self.performance_overlay is not None:
-                self.performance_overlay.setText(f"{percentage}% | Elapsed {elapsed:.1f}s | ETA {eta:.1f}s")
-        # Status bar
-        try:
-            self.statusBar().showMessage(message)
-        except Exception:
-            pass
-
-    def on_transcription_complete(self, result: dict):
-        """Handle successful transcription completion (worker signal)."""
-        from transcription.enhanced import EnhancedTranscriber
-        self.transcription_result = result
-        text = result.get('text', '')
-        segments = result.get('segments', [])
-        segment_count = len(segments)
-        language = result.get('language', 'unknown')
-        lang_name = EnhancedTranscriber.LANGUAGE_NAMES.get(language, language.upper())
-        language_timeline = result.get('language_timeline', '')
-        language_segments = result.get('language_segments', [])
-        
-        # DEBUG: Log result details
-        logger.info(f"=== TRANSCRIPTION RESULT DEBUG ===")
-        logger.info(f"Text length: {len(text)} characters")
-        logger.info(f"Segments: {segment_count}")
-        logger.info(f"Language segments: {len(language_segments)}")
-        logger.info(f"Has timeline: {bool(language_timeline)}")
-        if language_segments:
-            logger.info(f"First 3 language segments: {language_segments[:3]}")
-        if not text:
-            logger.warning(f"WARNING: text is empty! Checking language_segments...")
-            if language_segments:
-                # Try to reconstruct text from language_segments
-                text = ' '.join(seg.get('text', '') for seg in language_segments)
-                logger.info(f"Reconstructed text from language_segments: {len(text)} characters")
-        logger.info(f"=== END DEBUG ===")
-
-        has_multilang = bool(language_timeline or language_segments)
-        display_text = text
-        if has_multilang and language_timeline:
-            unique_langs = {seg.get('language', 'unknown') for seg in language_segments}
-            lang_names = [EnhancedTranscriber.LANGUAGE_NAMES.get(code, code.upper()) for code in sorted(unique_langs)]
-            timeline_block = ("=" * 60 + "\n🌍 LANGUAGE TIMELINE:\n" + "=" * 60 + "\n\n" + language_timeline)
-            display_text = f"{text}\n\n{timeline_block}"
-            lang_info = f"Languages detected: {', '.join(lang_names)}"
-        else:
-            lang_info = f"Language: {lang_name}"
-        # Update UI widgets
-        if hasattr(self, 'basic_result_text'):
-            logger.info(f"Setting text in UI. Display text length: {len(display_text)}, First 100 chars: {display_text[:100] if display_text else 'EMPTY'}")
-            self.basic_result_text.clear()  # Clear first
-            self.basic_result_text.setPlainText(display_text)
-            logger.info(f"Text set in UI successfully")
-            # Persist debug transcript for inspection (handles dot-only cases)
-            try:
-                debug_path = Path.cwd() / 'transcription_debug.txt'
-                # Collect sample of first 20 segment texts (if available)
-                sample_segments = []
-                for s in segments[:20]:
-                    sample_segments.append(repr(s.get('text','')))
-                with open(debug_path, 'w', encoding='utf-8') as dbg:
-                    dbg.write('=== Transcript Debug Dump ===\n')
-                    dbg.write(f'Total characters: {len(display_text)}\n')
-                    dbg.write(f'Total segments: {segment_count}\n')
-                    dbg.write(f'Language: {lang_name}\n')
-                    dbg.write('--- First 300 characters ---\n')
-                    dbg.write(display_text[:300] + '\n')
-                    dbg.write('--- Segment samples (first 20) ---\n')
-                    for i, seg_txt in enumerate(sample_segments, 1):
-                        dbg.write(f'{i}: {seg_txt}\n')
-                logger.info(f"Wrote transcript debug file to {debug_path}")
-                # Detect if transcript is only punctuation (dot heavy)
-                meaningful_chars = sum(c.isalnum() for c in display_text)
-                if meaningful_chars < max(10, len(display_text) * 0.02):
-                    logger.warning("Transcript appears to be mostly non-meaningful punctuation (dot-only). Possibly silent or low-quality audio.")
-            except Exception as dbg_err:
-                logger.warning(f"Could not write transcript debug file: {dbg_err}")
-        if hasattr(self, 'basic_save_btn'):
-            self.basic_save_btn.setEnabled(True)
-        if hasattr(self, 'cancel_transcription_btn') and self.cancel_transcription_btn:
-            self.cancel_transcription_btn.setEnabled(False)
-            self.cancel_transcription_btn.hide()
-        # Performance overlay
-        if getattr(self, 'transcription_start_time', None) and hasattr(self, 'performance_overlay') and self.performance_overlay:
-            total = time.time() - self.transcription_start_time
-            audio_dur = segments[-1].get('end', 0) if segments else 0
-            rtf = (total / audio_dur) if audio_dur else 0
-            self.performance_overlay.setText(f"Finished in {total:.2f}s (RTF {rtf:.2f})")
-        # Descriptive labels
-        if hasattr(self, 'basic_transcript_desc'):
-            if has_multilang:
-                self.basic_transcript_desc.setText(f"{lang_info} | {segment_count} segments")
-            else:
-                self.basic_transcript_desc.setText(f"Language: {lang_name} | {segment_count} segments")
-        # Navigate to transcript tab
-        if hasattr(self, 'basic_sidebar') and hasattr(self, 'basic_tab_stack'):
-            try:
-                self.basic_sidebar.setCurrentRow(2)
-                self.basic_tab_stack.setCurrentIndex(2)
-            except Exception:
-                pass
-        # Progress bars
-        if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_upload_progress_label.setText(f"✅ Complete! {lang_info}")
-        if hasattr(self, 'basic_upload_progress_bar'):
-            self.basic_upload_progress_bar.setValue(100)
-        if hasattr(self, 'basic_record_progress_label'):
-            self.basic_record_progress_label.setText(f"✅ Complete! {lang_info}")
-        if hasattr(self, 'basic_record_progress_bar'):
-            self.basic_record_progress_bar.setValue(100)
-        # Status
-        try:
-            self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, {lang_info})")
-        except Exception:
-            pass
-        # Logging
-        if has_multilang:
-            logger.info(f"Multi-language transcription complete: {len(language_segments)} language segments detected")
-        logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
-
-        # Clear file field after transcription completes (ready for next file)
-        # Keep the transcript visible but allow user to easily upload a new file
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.clear_file()
-        # Reset video path so user must select new file
-        self.video_path = None
-
-    def on_transcription_error(self, error_message: str):
-        """Handle transcription error (worker signal)."""
-        if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_upload_progress_label.setText(f"❌ Error: {error_message}")
-        if hasattr(self, 'basic_record_progress_label'):
-            self.basic_record_progress_label.setText(f"❌ Error: {error_message}")
-        if hasattr(self, 'cancel_transcription_btn') and self.cancel_transcription_btn:
-            self.cancel_transcription_btn.setEnabled(False)
-            self.cancel_transcription_btn.hide()
-        try:
-            self.statusBar().showMessage("Transcription failed")
-        except Exception:
-            pass
-        try:
-            QMessageBox.critical(self, "Transcription Error", f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details.")
-        except Exception:
-            pass
-        logger.error(f"Transcription failed: {error_message}")
-
-        # Clear file field after error (ready for retry or new file)
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.clear_file()
-        # Reset video path so user must select file again
-        self.video_path = None
-
-    def clear_for_new_transcription(self):
-        """Reset UI to allow starting a new transcription."""
-        # Reset stored result
-        self.transcription_result = None
-        # Clear text areas
-        if hasattr(self, 'basic_result_text'):
-            self.basic_result_text.clear()
-        # Reset progress bars/labels
-        if hasattr(self, 'basic_upload_progress_bar'):
-            self.basic_upload_progress_bar.setValue(0)
-        if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_upload_progress_label.setText("Ready")
-        if hasattr(self, 'basic_record_progress_bar'):
-            self.basic_record_progress_bar.setValue(0)
-        if hasattr(self, 'basic_record_progress_label'):
-            self.basic_record_progress_label.setText("Ready")
-        # Disable save until new result
-        if hasattr(self, 'basic_save_btn'):
-            self.basic_save_btn.setEnabled(False)
-        # Reset overlay
-        if hasattr(self, 'performance_overlay') and self.performance_overlay:
-            self.performance_overlay.setText("")
-        # Clear file field in upload drop zone
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.clear_file()
-        # Reset mode selection for new file
-        self.multi_language_mode = None
-        try:
-            self.statusBar().showMessage("Ready for new transcription")
-        except Exception:
-            pass
-        # Hide manual transcribe button if present
-        if hasattr(self, 'transcribe_recording_btn'):
-            self.transcribe_recording_btn.hide()
-
-    # ---------- Tab activation management ----------
-    def on_basic_tab_changed(self, index: int):
-        """Handle sidebar tab changes."""
-        try:
-            # Switch stacked widget
-            if hasattr(self, 'basic_tab_stack'):
-                self.basic_tab_stack.setCurrentIndex(index)
-        except Exception:
-            pass
-
-        # If recording is ongoing and user navigates away, stop recording gracefully
-        if index != 0 and getattr(self, 'is_recording', False):
-            logger.info("Leaving Record tab while recording; stopping recording")
-            try:
-                self.stop_basic_recording()
-            except Exception as e:
-                logger.warning(f"Failed to stop recording on tab change: {e}")
-        # Update status bar
-        try:
-            tab_names = {0: "Record", 1: "Upload", 2: "Transcript"}
-            self.statusBar().showMessage(f"Switched to {tab_names.get(index, 'Unknown')} tab")
-        except Exception:
-            pass
-
-    # Override refresh_audio_devices to avoid auto preview start when not on Record tab
     def refresh_audio_devices(self):
         """No-op. Device selection removed."""
         pass
