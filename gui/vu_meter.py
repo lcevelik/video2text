@@ -18,8 +18,19 @@ class VUMeter(QWidget):
         self.peak_hold_time = 0
 
         # Minimum size for the widget
-        self.setMinimumHeight(30)
-        self.setMinimumWidth(200)
+        self.setMinimumHeight(40)
+        self.setMinimumWidth(300)
+
+        # Set size policy to expand
+        from PySide6.QtWidgets import QSizePolicy
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        # Set background to make it visible
+        self.setAutoFillBackground(True)
+        from PySide6.QtGui import QPalette
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(250, 250, 250))
+        self.setPalette(palette)
 
         # Timer for peak decay
         self.decay_timer = QTimer()

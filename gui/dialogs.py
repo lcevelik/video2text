@@ -68,8 +68,8 @@ class RecordingDialog(QDialog):
 
         # VU Meters (always visible for monitoring)
         self.vu_meters_widget = QWidget()
-        self.vu_meters_widget.setMinimumHeight(80)  # Ensure widget has height
-        self.vu_meters_widget.setStyleSheet("QWidget { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 5px; }")
+        self.vu_meters_widget.setMinimumHeight(100)  # Ensure widget has height
+        self.vu_meters_widget.setStyleSheet("QWidget { background-color: #e8f5e9; border: 3px solid #4CAF50; border-radius: 4px; padding: 8px; }")
         vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
         vu_meters_layout.setSpacing(10)
         vu_meters_layout.setContentsMargins(5, 5, 5, 5)
@@ -77,12 +77,22 @@ class RecordingDialog(QDialog):
         self.mic_vu_meter = VUMeter("🎤 Microphone")
         self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
 
+        # DEBUG: Set initial test level to make meters visible
+        self.mic_vu_meter.set_level(0.3)
+        self.speaker_vu_meter.set_level(0.2)
+
         vu_meters_layout.addWidget(self.mic_vu_meter)
         vu_meters_layout.addWidget(self.speaker_vu_meter)
 
         # VU meters are now always visible for live monitoring
         self.vu_meters_widget.setVisible(True)  # Explicitly show the widget
+        self.vu_meters_widget.show()  # Double-ensure visibility
         layout.addWidget(self.vu_meters_widget)
+
+        # DEBUG: Log VU meter widget state
+        logger.info(f"VU meters widget created: visible={self.vu_meters_widget.isVisible()}, size={self.vu_meters_widget.size()}")
+        logger.info(f"Mic VU meter: visible={self.mic_vu_meter.isVisible()}, size={self.mic_vu_meter.size()}")
+        logger.info(f"Speaker VU meter: visible={self.speaker_vu_meter.isVisible()}, size={self.speaker_vu_meter.size()}")
 
         # User-selected language mode (None until chosen via dialog)
         self.multi_language_mode = None
