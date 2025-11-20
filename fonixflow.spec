@@ -9,7 +9,7 @@ main_script = 'fonixflow_qt.py'
 app_name = 'FonixFlow'
 
 # Icon file (use PNG for PyInstaller on Windows)
-icon_file = 'assets/fonixflow_icon.png'
+icon_file = 'assets/fonixflow_icon.ico'
 
 # Hidden imports
 hidden_imports = [
@@ -25,6 +25,9 @@ datas = [
     ('assets/fonixflow_logo.png', 'assets'),
     ('assets/fonixflow_icon.png', 'assets'),
     ('assets/fonixflow.png', 'assets'),
+    ('assets/mel_filters.npz', 'whisper/assets'),
+    ('assets/gpt2.tiktoken', 'whisper/assets'),
+    ('assets/multilingual.tiktoken', 'whisper/assets'),
 ]
 a = Analysis([
     main_script
@@ -55,6 +58,6 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     icon=icon_file
 )
