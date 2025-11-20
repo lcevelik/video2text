@@ -9,6 +9,31 @@ import re
 logger = logging.getLogger(__name__)
 
 
+def has_gpu_available() -> bool:
+    """
+    Check if a CUDA-capable GPU is available for acceleration.
+
+    Returns:
+        bool: True if GPU is available, False otherwise
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
+            logger.info(f"GPU detected: {gpu_name} (Count: {gpu_count})")
+            return True
+        else:
+            logger.info("No CUDA-capable GPU detected")
+            return False
+    except ImportError:
+        logger.info("PyTorch not available, assuming no GPU")
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking for GPU: {e}")
+        return False
+
+
 def get_platform():
     """Get the current operating system platform."""
     system = platform.system()

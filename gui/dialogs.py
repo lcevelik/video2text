@@ -77,7 +77,7 @@ class RecordingDialog(QDialog):
         self.multi_language_mode = None
         # Duration
         self.duration_label = QLabel("Duration: 0:00")
-        self.duration_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #2196F3;")
+        self.duration_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #0FD2CC;")
         self.duration_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.duration_label)
 
@@ -233,6 +233,7 @@ class MultiLanguageChoiceDialog(QDialog):
         self.setModal(True)
         self.is_multi_language = False
         self.selected_languages: List[str] = []
+        self.single_language_type = None  # 'english' or 'other'
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout()
@@ -240,8 +241,33 @@ class MultiLanguageChoiceDialog(QDialog):
         title.setStyleSheet("font-size:16px; font-weight:bold;")
         layout.addWidget(title)
 
+        # Single-language selection area (hidden until user chooses single-language)
+        self.single_lang_select_widget = QWidget()
+        self.single_lang_select_layout = QVBoxLayout(self.single_lang_select_widget)
+        self.single_lang_select_widget.setVisible(False)
+        single_lang_label = QLabel("Select language type:")
+        single_lang_label.setStyleSheet("font-weight:bold; margin-top:8px;")
+        self.single_lang_select_layout.addWidget(single_lang_label)
 
-        # Language selection area (hidden until user chooses multi-language)
+        # English checkbox
+        self.english_checkbox = QCheckBox("English (uses optimized .en model)")
+        self.english_checkbox.setChecked(True)
+        self.single_lang_select_layout.addWidget(self.english_checkbox)
+
+        # Other checkbox
+        self.other_checkbox = QCheckBox("Other language (uses multilingual model)")
+        self.single_lang_select_layout.addWidget(self.other_checkbox)
+
+        # Make checkboxes mutually exclusive
+        self.english_checkbox.stateChanged.connect(lambda state: self.other_checkbox.setChecked(False) if state else None)
+        self.other_checkbox.stateChanged.connect(lambda state: self.english_checkbox.setChecked(False) if state else None)
+
+        single_hint = QLabel("Select one language type before confirming.")
+        single_hint.setStyleSheet("font-size:11px; color:#666;")
+        self.single_lang_select_layout.addWidget(single_hint)
+        layout.addWidget(self.single_lang_select_widget)
+
+        # Multi-language selection area (hidden until user chooses multi-language)
         self.lang_select_widget = QWidget()
         self.lang_select_layout = QVBoxLayout(self.lang_select_widget)
         self.lang_select_widget.setVisible(False)
@@ -273,8 +299,38 @@ class MultiLanguageChoiceDialog(QDialog):
         self.no_btn = QPushButton("Single-Language")
         self.yes_btn.setCursor(Qt.PointingHandCursor)
         self.no_btn.setCursor(Qt.PointingHandCursor)
-        self.yes_btn.setStyleSheet("background:#2196F3; color:white; padding:10px; border-radius:6px; font-weight:bold;")
-        self.no_btn.setStyleSheet("background:#4CAF50; color:white; padding:10px; border-radius:6px; font-weight:bold;")
+        self.yes_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0FD2CC;
+                color: white;
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #0CBFB3;
+            }
+            QPushButton:pressed {
+                background-color: #0AA99E;
+            }
+        """)
+        self.no_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
         btn_row.addWidget(self.yes_btn)
         btn_row.addWidget(self.no_btn)
         layout.addLayout(btn_row)
@@ -292,6 +348,7 @@ class MultiLanguageChoiceDialog(QDialog):
         if not self.lang_select_widget.isVisible():
             self.is_multi_language = True
             self.lang_select_widget.setVisible(True)
+            self.single_lang_select_widget.setVisible(False)  # Hide single-language options
             self.yes_btn.setText("Confirm Languages")
             return
         # Confirm selection
@@ -303,8 +360,24 @@ class MultiLanguageChoiceDialog(QDialog):
         self.accept()
 
     def choose_single(self):
-        # Single-language choice; dialog only reports selection back to parent.
-        self.is_multi_language = False
+        # First click reveals language type selection; second confirms
+        if not self.single_lang_select_widget.isVisible():
+            self.is_multi_language = False
+            self.single_lang_select_widget.setVisible(True)
+            self.lang_select_widget.setVisible(False)  # Hide multi-language options
+            self.no_btn.setText("Confirm Selection")
+            return
+        # Confirm selection
+        if not self.english_checkbox.isChecked() and not self.other_checkbox.isChecked():
+            QMessageBox.warning(self, "No Language Type Selected", "Please select either English or Other language.")
+            return
+
+        # Determine which type was selected
+        if self.english_checkbox.isChecked():
+            self.single_language_type = 'english'
+        else:
+            self.single_language_type = 'other'
+
         self.selected_languages = []
         self.accept()
 

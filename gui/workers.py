@@ -300,34 +300,47 @@ class TranscriptionWorker(QThread):
         self.allowed_languages: List[str] = []
 
     def run(self):
-        """Execute transcription in background thread."""
+        """Execute transcription in background thread with cancellation checks."""
         try:
             from audio_extractor import AudioExtractor
             from transcriber import Transcriber
             from transcription.enhanced import EnhancedTranscriber
 
-            # Step 1: Extract audio from video if needed (with progress callback)
-            self.progress_update.emit("Extracting audio...", 10)
+            # Stage 1: Audio extraction (1-2%)
+            self.progress_update.emit("Extracting audio...", 1)
+            if self.cancel_requested:
+                self.transcription_error.emit("Transcription cancelled.")
+                return
 
             extractor = AudioExtractor()
 
             # Define progress callback for audio extraction
             def audio_progress_callback(message, percentage):
-                # Map audio extraction progress (5-30%) to overall progress (10-30%)
-                overall_pct = 10 + int((percentage / 30.0) * 20)
+                overall_pct = 1 + int((percentage / 100.0) * 1)
                 self.progress_update.emit(message, overall_pct)
+                if self.cancel_requested:
+                    raise Exception("Transcription cancelled.")
 
             audio_path = extractor.extract_audio(self.video_path,
                                                 progress_callback=audio_progress_callback)
+            if self.cancel_requested:
+                self.transcription_error.emit("Transcription cancelled.")
+                return
 
             if not audio_path or not Path(audio_path).exists():
                 self.transcription_error.emit("Failed to extract audio from video")
                 return
 
-            self.progress_update.emit(f"Audio extracted successfully", 30)
+            self.progress_update.emit(f"Audio extracted successfully", 2)
+            if self.cancel_requested:
+                self.transcription_error.emit("Transcription cancelled.")
+                return
 
-            # Step 2: Load and run transcription
-            self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 40)
+            # Stage 2: Loading model (2-5%)
+            self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 3)
+            if self.cancel_requested:
+                self.transcription_error.emit("Transcription cancelled.")
+                return
 
             # Use EnhancedTranscriber if language change detection is enabled
             if self.detect_language_changes:
@@ -341,33 +354,79 @@ class TranscriptionWorker(QThread):
                 hasattr(transcriber, 'allowed_languages')):
                 transcriber.allowed_languages = self.allowed_languages
 
+            self.progress_update.emit(f"Model loaded successfully", 5)
+            if self.cancel_requested:
+                self.transcription_error.emit("Transcription cancelled.")
+                return
+
+            # Stage 3: Active transcription (5-98%)
+            import time
+            import threading
+            transcription_start_time = time.time()
+            last_progress_pct = 5
+            progress_lock = threading.Lock()
+            auto_progress_active = True
+
+            # Smooth auto-incrementing progress updater (runs in background)
+            def auto_progress_updater():
+                nonlocal last_progress_pct
+                while auto_progress_active and not self.cancel_requested:
+                    time.sleep(0.5)
+                    with progress_lock:
+                        if last_progress_pct < 98:  # Don't go past 98% automatically
+                            elapsed = time.time() - transcription_start_time
+                            # Smooth time-based progression from 5% to 98%
+                            # Estimate: ~1% every 3 seconds, giving ~5 min for full transcription
+                            estimated_pct = 5 + min(93, int(elapsed / 3))
+                            if estimated_pct > last_progress_pct:
+                                last_progress_pct = estimated_pct
+                                self.progress_update.emit("Transcribing...", estimated_pct)
+
+            # Start auto-progress thread
+            auto_thread = threading.Thread(target=auto_progress_updater, daemon=True)
+            auto_thread.start()
+
             # Define progress callback
             def progress_callback(message):
-                # Support PROGRESS:<pct>:<msg> format for granular updates
-                if message.startswith("PROGRESS:"):
-                    try:
-                        parts = message.split(":", 2)
-                        pct = int(parts[1])
-                        msg = parts[2] if len(parts) > 2 else ""
-                        self.progress_update.emit(msg, max(0, min(100, pct)))
-                        return
-                    except Exception:
+                nonlocal last_progress_pct
+
+                with progress_lock:
+                    # Support PROGRESS:<pct>:<msg> format for granular updates
+                    if message.startswith("PROGRESS:"):
+                        try:
+                            parts = message.split(":", 2)
+                            pct = int(parts[1])
+                            msg = parts[2] if len(parts) > 2 else ""
+                            # Map transcriber progress (0-100) to our range (5-98)
+                            overall_pct = 5 + int((pct / 100.0) * 93)
+                            overall_pct = max(last_progress_pct, min(98, overall_pct))
+                            last_progress_pct = overall_pct
+                            self.progress_update.emit(msg, overall_pct)
+                            return
+                        except Exception:
+                            pass
+
+                    # Estimate progress based on elapsed time if no explicit progress
+                    elapsed = time.time() - transcription_start_time
+                    # Smooth time-based estimation
+                    estimated_pct = 5 + min(93, int(elapsed / 3))
+                    estimated_pct = max(last_progress_pct, estimated_pct)
+                    last_progress_pct = estimated_pct
+
+                    if "Starting" in message:
+                        self.progress_update.emit(message, 5)
+                        last_progress_pct = 5
+                    elif "complete" in message.lower():
+                        # Don't jump to completion yet, let finishing stage handle it
                         pass
-                if "Starting" in message:
-                    self.progress_update.emit(message, 50)
-                elif "complete" in message.lower():
-                    self.progress_update.emit(message, 95)
-                else:
-                    # Default mid-progress bucket
-                    self.progress_update.emit(message, 70)
+                    else:
+                        # Show gradual progress with the message
+                        self.progress_update.emit(message, estimated_pct)
 
             # Transcribe
             if self.detect_language_changes:
                 mode_desc = ("deep scanning (audio chunks)" if self.use_deep_scan
                            else "fast transcript segmentation")
-                self.progress_update.emit(
-                    f"Transcribing with multi-language {mode_desc}...", 60
-                )
                 logger.info(f"Starting transcribe_multilang with "
                           f"allowed_languages={self.allowed_languages}")
 
@@ -386,7 +445,6 @@ class TranscriptionWorker(QThread):
                 logger.info(f"transcribe_multilang returned. Result type: {type(result)}, "
                           f"has 'text': {'text' in result if result else 'None'}")
             else:
-                self.progress_update.emit("Transcribing audio...", 60)
                 logger.info("Starting regular transcribe")
                 result = transcriber.transcribe(
                     audio_path,
@@ -395,6 +453,15 @@ class TranscriptionWorker(QThread):
                 )
                 logger.info(f"transcribe returned. Result type: {type(result)}")
 
+            # Stop auto-progress thread
+            auto_progress_active = False
+
+            # Stage 4: Finishing up (98-99%)
+            self.progress_update.emit("Finishing up...", 98)
+            time.sleep(0.2)  # Brief pause for visual feedback
+            self.progress_update.emit("Finalizing transcription...", 99)
+
+            # Stage 5: Complete (99-100%)
             logger.info(f"About to emit progress 100%")
             self.progress_update.emit("Transcription complete!", 100)
 

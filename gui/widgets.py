@@ -23,7 +23,7 @@ class ModernButton(QPushButton):
         if self.primary:
             self.setStyleSheet("""
                 QPushButton {
-                    background-color: #2196F3;
+                    background-color: #0FD2CC;
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -32,10 +32,10 @@ class ModernButton(QPushButton):
                     font-weight: bold;
                 }
                 QPushButton:hover {
-                    background-color: #1976D2;
+                    background-color: #0CBFB3;
                 }
                 QPushButton:pressed {
-                    background-color: #0D47A1;
+                    background-color: #0AA99E;
                 }
                 QPushButton:disabled {
                     background-color: #BDBDBD;
@@ -52,7 +52,7 @@ class ModernButton(QPushButton):
                     font-size: 14px;
                 }
                 QPushButton:hover {
-                    border-color: #2196F3;
+                    border-color: #0FD2CC;
                     background-color: #F5F5F5;
                 }
                 QPushButton:pressed {
@@ -196,6 +196,8 @@ class VUMeter(QFrame):
         super().__init__(parent)
         self.label_text = label
         self.level = 0.0
+        self.smoothed_level = 0.0  # For smoothing
+        self.smoothing_factor = 0.3  # Lower = smoother but slower response
         self.setMinimumWidth(200)
         self.setMinimumHeight(50)
         self.setMaximumHeight(80)
@@ -232,25 +234,29 @@ class VUMeter(QFrame):
             }
             QProgressBar::chunk {
                 background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00ff00, stop:0.7 #ffff00, stop:1.0 #ff0000);
+                    stop:0 #A5C74C, stop:1.0 #0FD2CC);
                 border-radius: 3px;
             }
         """)
         h_layout.addWidget(self.progress, 1)
 
-        # Level label
+        # Level label - HIDDEN (user requested removal of percentile)
         self.level_label = QLabel("0%")
         self.level_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.level_label.setStyleSheet("font-size: 11px; font-weight: bold; min-width: 40px;")
-        h_layout.addWidget(self.level_label)
+        self.level_label.hide()  # Hide the percentage label
+        # h_layout.addWidget(self.level_label)  # Don't add to layout
 
         layout.addLayout(h_layout)
         self.setLayout(layout)
 
     def set_level(self, level: float):
-        """Set audio level (0.0 to 1.0)."""
+        """Set audio level (0.0 to 1.0) with smoothing."""
         self.level = max(0.0, min(1.0, level))
-        percent = int(self.level * 100)
+        # Apply exponential smoothing for smoother transitions
+        self.smoothed_level = (self.smoothing_factor * self.level +
+                              (1 - self.smoothing_factor) * self.smoothed_level)
+        percent = int(self.smoothed_level * 100)
         self.progress.setValue(percent)
         self.level_label.setText(f"{percent}%")
 

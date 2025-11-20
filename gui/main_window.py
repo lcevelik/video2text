@@ -25,7 +25,7 @@ from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone, VUMeter, ModernTabBar, CollapsibleSidebar
 from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
-from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help
+from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
 from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,14 @@ class FonixFlowQt(QMainWindow):
         self.setWindowTitle("FonixFlow - Whisper Transcription")
         self.setMinimumSize(1000, 700)
 
+        # Set application icon
+        from PySide6.QtGui import QIcon
+        icon_path = os.path.join(os.path.dirname(__file__), '../assets/fonixflow_icon.png')
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+            self.setWindowIcon(app_icon)
+            QApplication.instance().setWindowIcon(app_icon)
+
         # Config file location
         self.config_file = Path.home() / ".fonixflow_config.json"
 
@@ -48,11 +56,12 @@ class FonixFlowQt(QMainWindow):
         self.video_path = None
         self.transcription_result = None
         self.transcription_worker = None  # QThread worker for transcription
-        self.theme_mode = self.settings.get("theme_mode", "auto")  # auto, light, dark
-        self.is_dark_mode = self.get_effective_theme()
+        self.theme_mode = "dark"  # Always dark mode
+        self.is_dark_mode = True  # Always dark mode
 
         self.transcription_start_time = None
         self.performance_overlay = None
+        self.model_name_label = None
 
         self.setup_ui()
         self.apply_theme()
@@ -82,6 +91,9 @@ class FonixFlowQt(QMainWindow):
         if getattr(self, 'transcription_worker', None):
             try:
                 self.transcription_worker.cancel()
+                self.transcription_worker.quit()
+                self.transcription_worker.wait()
+                self.transcription_worker = None
             except Exception as e:
                 logger.warning(f"Cancel request failed: {e}")
         if hasattr(self, 'cancel_transcription_btn'):
@@ -108,7 +120,7 @@ class FonixFlowQt(QMainWindow):
         """Load settings from config file."""
         default_settings = {
             "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
-            "theme_mode": "auto"  # auto, light, dark
+            "theme_mode": "dark"  # Always dark
         }
 
         try:
@@ -154,12 +166,8 @@ class FonixFlowQt(QMainWindow):
 
     def get_effective_theme(self):
         """Get the effective theme based on mode setting."""
-        if self.theme_mode == "auto":
-            return self.detect_system_theme()
-        elif self.theme_mode == "dark":
-            return True
-        else:  # light
-            return False
+        # Always return dark mode
+        return True
 
     def apply_theme(self):
         """Apply the current theme to all UI elements."""
@@ -227,9 +235,9 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'basic_sidebar'):
             self.update_sidebar_theme(self.basic_sidebar)
 
-        # Update ModernTabBar theme
-        if hasattr(self, 'tab_bar'):
-            self.tab_bar.update_theme(self.is_dark_mode)
+        # Update vertical tab bar theme
+        if hasattr(self, 'tab_bar') and hasattr(self, 'update_vertical_tab_styles'):
+            self.update_vertical_tab_styles()
 
         # Update CollapsibleSidebar theme
         if hasattr(self, 'collapsible_sidebar'):
@@ -408,23 +416,11 @@ class FonixFlowQt(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Top bar with hamburger menu
+        # Top bar with logo
         top_bar = self.create_top_bar()
         main_layout.addWidget(top_bar)
 
-        # Modern tab bar
-        self.tab_bar = ModernTabBar(
-            tabs=[
-                ("🎙️", "Record", 0),
-                ("📁", "Upload", 1),
-                ("📄", "Transcript", 2)
-            ],
-            is_dark_mode=self.is_dark_mode
-        )
-        self.tab_bar.tab_changed.connect(self.on_tab_changed)
-        main_layout.addWidget(self.tab_bar)
-
-        # Content area with sidebar + tabs
+        # Content area with sidebar + tabs (tabs moved to right side)
         content_area = self.create_content_area()
         main_layout.addWidget(content_area, 1)
 
@@ -436,29 +432,28 @@ class FonixFlowQt(QMainWindow):
         """Create top bar with title."""
         from PySide6.QtGui import QPixmap
         top_bar = QWidget()
-        layout = QHBoxLayout(top_bar)
-        layout.setContentsMargins(15, 10, 15, 10)
 
-        # Logo
+        # Set background color to match logo background
+        top_bar.setStyleSheet("background-color: #22262F;")
+
+        layout = QHBoxLayout(top_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Logo - scale down to 1/3 of original size
         logo_label = QLabel()
+        logo_label.setAlignment(Qt.AlignCenter)
         logo_path = os.path.join(os.path.dirname(__file__), '../assets/fonixflow_logo.png')
         pixmap = QPixmap(logo_path)
         if not pixmap.isNull():
-            pixmap = pixmap.scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            logo_label.setPixmap(pixmap)
-            logo_label.setFixedSize(52, 52)
+            # Scale logo down to 1/3 of original size
+            scaled_width = pixmap.width() // 3
+            scaled_height = pixmap.height() // 3
+            scaled_pixmap = pixmap.scaled(scaled_width, scaled_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_label.setPixmap(scaled_pixmap)
+            # Adjust top bar height to match scaled logo height
+            top_bar.setMinimumHeight(scaled_height)
+            top_bar.setMaximumHeight(scaled_height)
         layout.addWidget(logo_label)
-
-        # App title
-        title = QLabel("FonixFlow")
-        title.setStyleSheet(f"""
-            font-size: 18px;
-            font-weight: bold;
-            color: {Theme.get('text_primary', self.is_dark_mode)};
-        """)
-        layout.addWidget(title)
-
-        layout.addStretch()
 
         return top_bar
 
@@ -593,6 +588,8 @@ class FonixFlowQt(QMainWindow):
         self.collapsible_sidebar.add_separator()
         self.collapsible_sidebar.add_action("📂", "Change Recordings Folder", self.change_recordings_directory)
         self.collapsible_sidebar.add_action("🗂️", "Open Recordings Folder", self.open_recordings_folder)
+        # Start collapsed by default
+        self.collapsible_sidebar.toggle_collapse()
         main_layout.addWidget(self.collapsible_sidebar)
 
         # Tab content stack - order: Record, Upload, Transcript
@@ -602,15 +599,96 @@ class FonixFlowQt(QMainWindow):
         self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())  # Index 2
         main_layout.addWidget(self.basic_tab_stack, 1)
 
-        # Right collapsible sidebar with settings
-        self.settings_sidebar = self.create_settings_sidebar()
-        main_layout.addWidget(self.settings_sidebar)
+        # Right side - vertical tab bar
+        self.tab_bar = self.create_vertical_tab_bar()
+        main_layout.addWidget(self.tab_bar)
 
         return container
 
+    def create_vertical_tab_bar(self):
+        """Create vertical tab bar on the right side."""
+        from PySide6.QtWidgets import QPushButton
+
+        tab_bar = QWidget()
+        tab_bar.setMinimumWidth(120)
+        tab_bar.setMaximumWidth(120)
+
+        layout = QVBoxLayout(tab_bar)
+        layout.setContentsMargins(10, 20, 10, 20)
+        layout.setSpacing(10)
+
+        # Store current tab index
+        self.current_tab_index = 0
+        self.tab_buttons = []
+
+        # Create tab buttons
+        tabs = [
+            ("🎙️", "Record", 0),
+            ("📁", "Upload", 1),
+            ("📄", "Transcript", 2)
+        ]
+
+        for icon, label, index in tabs:
+            btn = QPushButton(f"{icon}\n{label}")
+            btn.setMinimumHeight(80)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setProperty("tab_index", index)
+            btn.clicked.connect(lambda checked=False, idx=index: self.on_tab_changed(idx))
+            self.tab_buttons.append(btn)
+            layout.addWidget(btn)
+
+        layout.addStretch()
+
+        # Apply theme
+        self.update_vertical_tab_styles()
+
+        return tab_bar
+
+    def update_vertical_tab_styles(self):
+        """Update styling for vertical tab buttons."""
+        for i, btn in enumerate(self.tab_buttons):
+            is_active = (i == self.current_tab_index)
+
+            if is_active:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {Theme.get('accent', self.is_dark_mode)};
+                        color: white;
+                        border: none;
+                        border-radius: 12px;
+                        padding: 15px 10px;
+                        font-size: 13px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {Theme.get('accent', self.is_dark_mode)};
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: transparent;
+                        color: {Theme.get('text_primary', self.is_dark_mode)};
+                        border: 2px solid {Theme.get('border', self.is_dark_mode)};
+                        border-radius: 12px;
+                        padding: 15px 10px;
+                        font-size: 13px;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                        border-color: {Theme.get('accent', self.is_dark_mode)};
+                    }}
+                """)
+
     def on_tab_changed(self, index):
         """Handle tab switching."""
-        # Direct switch - animations with windowOpacity don't work well with QStackedWidget
+        # Update current tab index
+        self.current_tab_index = index
+
+        # Update tab button styles
+        self.update_vertical_tab_styles()
+
+        # Switch content
         self.basic_tab_stack.setCurrentIndex(index)
         logger.info(f"Switched to tab index {index}")
 
@@ -1207,9 +1285,11 @@ class FonixFlowQt(QMainWindow):
         """Update recording duration display."""
         if self.recording_start_time:
             elapsed = int(time.time() - self.recording_start_time)
-            mins = elapsed // 60
+            hours = elapsed // 3600
+            mins = (elapsed % 3600) // 60
             secs = elapsed % 60
-            self.recording_duration_label.setText(f"🔴 Recording: {mins}:{secs:02d}")
+            # Just show time in HH:MM:SS format, no red dot or "Recording" text
+            self.recording_duration_label.setText(f"{hours:02d}:{mins:02d}:{secs:02d}")
 
     def start_audio_preview(self):
         """Start the audio preview worker for continuous VU meter updates."""
@@ -1356,6 +1436,12 @@ class FonixFlowQt(QMainWindow):
             self.statusBar().addPermanentWidget(self.performance_overlay)
         self.performance_overlay.setText("Starting…")
 
+        # Create model name label if not exists
+        if not self.model_name_label:
+            self.model_name_label = QLabel("")
+            self.model_name_label.setStyleSheet("font-size:12px; color:#0FD2CC; font-weight:bold; font-family:Consolas;")
+            self.statusBar().addPermanentWidget(self.model_name_label)
+
         # Determine mode from dialog selection; fallback to checkbox if user toggled manually beforehand
         if self.multi_language_mode is None:
             # Prompt now; if canceled, abort
@@ -1364,16 +1450,41 @@ class FonixFlowQt(QMainWindow):
         multi_mode = self.multi_language_mode
 
         if multi_mode:
-            model_size = "large"  # Highest accuracy for mixed languages
+            # Multi-language mode: Use turbo if GPU available, otherwise large
+            if has_gpu_available():
+                model_size = "turbo"
+                logger.info("GPU detected: Using turbo model for multi-language transcription")
+            else:
+                model_size = "large"
+                logger.info("No GPU detected: Using large model for multi-language transcription")
             language = None  # Auto-detect
             detect_language_changes = True
             # Use global deep scan toggle; if False use heuristic + conditional fallback
             use_deep_scan = bool(getattr(self, 'enable_deep_scan', False))
         else:
-            model_size = "base"  # Default to base for single-language (more robust on this audio)
-            language = None  # Still auto-detect primary language
+            # Single-language mode: Determine model based on language type
+            single_lang_type = getattr(self, 'single_language_type', None)
+            if single_lang_type == 'english':
+                # English: Use optimized .en model (base.en for speed, small.en for better accuracy)
+                model_size = "base.en"
+                language = "en"  # Explicitly set English
+                logger.info("Single-language English: Using base.en model")
+            elif single_lang_type == 'other':
+                # Other languages: Use medium multilingual model
+                model_size = "medium"
+                language = None  # Auto-detect language
+                logger.info("Single-language Other: Using medium multilingual model")
+            else:
+                # Fallback if no selection made (shouldn't happen normally)
+                model_size = "base"
+                language = None
+                logger.warning("No single-language type selected, using base model as fallback")
             detect_language_changes = False
             use_deep_scan = False
+
+        # Update model name display in status bar
+        if self.model_name_label:
+            self.model_name_label.setText(f"Model: {model_size}")
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
@@ -1416,8 +1527,12 @@ class FonixFlowQt(QMainWindow):
         if dlg.exec() == QDialog.Accepted:
             self.multi_language_mode = dlg.is_multi_language
             self.allowed_languages = getattr(dlg, 'selected_languages', []) if self.multi_language_mode else []
+            # Store single-language type selection ('english' or 'other')
+            self.single_language_type = getattr(dlg, 'single_language_type', None)
             if self.allowed_languages:
                 logger.info(f"User selected languages: {self.allowed_languages}")
+            if self.single_language_type:
+                logger.info(f"User selected single-language type: {self.single_language_type}")
             logger.info(f"Language mode chosen via dialog: multi={self.multi_language_mode}")
             self.start_transcription()
             return True
@@ -1468,24 +1583,66 @@ class FonixFlowQt(QMainWindow):
             self.statusBar().showMessage("Cancel requested…")
 
     # ---------- Progress handling ----------
+    def format_time_mmss(self, seconds: float) -> str:
+        """Format time in mm:ss format."""
+        total_secs = int(seconds)
+        mins = total_secs // 60
+        secs = total_secs % 60
+        return f"{mins:02d}:{secs:02d}"
+
+    def update_elapsed_time_display(self):
+        """Update elapsed time display smoothly (called by timer)."""
+        if getattr(self, 'transcription_start_time', None):
+            elapsed = time.time() - self.transcription_start_time
+            current_pct = getattr(self, 'current_progress_pct', 0)
+
+            if current_pct < 100 and current_pct > 0:
+                # Calculate ETA based on current progress rate
+                rate = current_pct / elapsed if elapsed > 0 else 0
+                eta_seconds = (100 - current_pct) / rate if rate > 0 else 0
+                eta_str = self.format_time_mmss(eta_seconds)
+            else:
+                eta_str = "00:00"
+
+            elapsed_str = self.format_time_mmss(elapsed)
+
+            if hasattr(self, 'performance_overlay') and self.performance_overlay is not None:
+                self.performance_overlay.setText(f"{current_pct}% | Elapsed {elapsed_str} | ETA {eta_str}")
+
     def on_transcription_progress(self, message: str, percentage: int):
         """Handle progress updates emitted by worker (message, percentage)."""
-        # Update progress bar (basic mode)
+        # Store current progress percentage for timer updates
+        self.current_progress_pct = percentage
+
+        # Start elapsed time timer if not already running
+        if not hasattr(self, 'elapsed_time_timer'):
+            self.elapsed_time_timer = QTimer(self)
+            self.elapsed_time_timer.timeout.connect(self.update_elapsed_time_display)
+            self.elapsed_time_timer.start(500)  # Update every 500ms for smooth display
+
+        # Update progress bar (basic mode - both upload and record tabs)
         if hasattr(self, 'basic_upload_progress_bar'):
             try:
                 self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))))
             except Exception:
                 pass
-        # Timing / ETA overlay
-        if getattr(self, 'transcription_start_time', None) and percentage > 0:
-            elapsed = time.time() - self.transcription_start_time
-            if percentage < 100:
-                rate = percentage / elapsed if elapsed > 0 else 0
-                eta = (100 - percentage) / rate if rate > 0 else 0
-            else:
-                eta = 0
-            if hasattr(self, 'performance_overlay') and self.performance_overlay is not None:
-                self.performance_overlay.setText(f"{percentage}% | Elapsed {elapsed:.1f}s | ETA {eta:.1f}s")
+
+        if hasattr(self, 'basic_record_progress_bar'):
+            try:
+                self.basic_record_progress_bar.setValue(int(max(0, min(100, percentage))))
+            except Exception:
+                pass
+
+        # Update timing display immediately
+        self.update_elapsed_time_display()
+
+        # Stop timer when complete
+        if percentage >= 100:
+            if hasattr(self, 'elapsed_time_timer'):
+                self.elapsed_time_timer.stop()
+                self.elapsed_time_timer.deleteLater()
+                delattr(self, 'elapsed_time_timer')
+
         # Status bar
         try:
             self.statusBar().showMessage(message)
@@ -1580,8 +1737,7 @@ class FonixFlowQt(QMainWindow):
         # Navigate to transcript tab (auto-jump after transcription completes)
         if hasattr(self, 'tab_bar') and hasattr(self, 'basic_tab_stack'):
             try:
-                self.tab_bar.set_current_index(2)  # Index 2 is the Transcript tab
-                self.basic_tab_stack.setCurrentIndex(2)
+                self.on_tab_changed(2)  # Index 2 is the Transcript tab
                 logger.info("Auto-jumped to transcript tab after transcription completion")
             except Exception as e:
                 logger.warning(f"Could not auto-jump to transcript tab: {e}")
@@ -1637,7 +1793,25 @@ class FonixFlowQt(QMainWindow):
         self.video_path = None
 
     def clear_for_new_transcription(self):
-        """Reset UI to allow starting a new transcription."""
+        """Cancel any active transcription and reset UI for new transcription."""
+        # Cancel active transcription if running
+        self.cancel_transcription()
+        # Stop recording worker if running
+        if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
+            try:
+                self.recording_worker.stop()
+            except Exception:
+                pass
+            self.recording_worker.wait(1500)
+            self.recording_worker = None
+        # Stop audio preview worker if running
+        if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
+            try:
+                self.audio_preview_worker.stop()
+            except Exception:
+                pass
+            self.audio_preview_worker.wait(1500)
+            self.audio_preview_worker = None
         # Reset stored result
         self.transcription_result = None
         # Clear text areas

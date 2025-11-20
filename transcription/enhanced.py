@@ -1708,6 +1708,9 @@ class EnhancedTranscriber(Transcriber):
                 logger.info(f"PASS 2 worker started: Ready to transcribe segments using {transcription_model} model")
 
                 while True:
+                    if self.cancel_requested:
+                        logger.info("PASS 2: Cancellation requested, exiting transcription loop.")
+                        break
                     # Get next segment from queue (blocks until available)
                     segment = segment_queue.get()
 
@@ -1843,6 +1846,9 @@ class EnhancedTranscriber(Transcriber):
         current_segment = None
 
         for chunk_start, chunk_end in chunks:
+            if self.cancel_requested:
+                logger.info("PASS 1: Cancellation requested, exiting chunk processing loop.")
+                break
             try:
                 # Process this chunk with FAST model
                 if use_memory:
