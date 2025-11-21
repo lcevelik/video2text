@@ -238,7 +238,7 @@ class RecordingWorker(QThread):
 
             if final_data is None or final_data.size == 0:
                 logger.error("Final data is empty after processing!")
-                self.recording_error.emit("❌ Recording error: no audio samples captured")
+                self.recording_error.emit("Recording error: no audio samples captured")
                 return
 
             # Normalize the final mixed audio
@@ -252,14 +252,14 @@ class RecordingWorker(QThread):
             recorded_path = self._save_recording(final_data, sample_rate=16000)
             duration = len(final_data) / 16000
 
-            logger.info(f"✅ Recording saved: {recorded_path} ({duration:.1f}s)")
+            logger.info(f"Recording saved: {recorded_path} ({duration:.1f}s)")
 
             # Emit signal to main thread
             self.recording_complete.emit(recorded_path, duration)
 
         except Exception as e:
             logger.error(f"Recording error: {e}", exc_info=True)
-            self.recording_error.emit(f"❌ Recording error: {str(e)}")
+            self.recording_error.emit(f"Recording error: {str(e)}")
 
         finally:
             if self.backend:

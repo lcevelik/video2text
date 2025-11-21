@@ -17,8 +17,16 @@ from gui.widgets import ModernButton, Card
 from gui.workers import RecordingWorker
 from gui.utils import check_audio_input_devices
 from gui.vu_meter import VUMeter
+from gui.icons import get_icon
 
 logger = logging.getLogger(__name__)
+
+# Helper function to set icon with proper sizing
+def set_icon(widget, icon_name, size=29):
+    """Set icon on a widget with proper size."""
+    from PySide6.QtCore import QSize
+    widget.setIcon(get_icon(icon_name))
+    widget.setIconSize(QSize(size, size))
 
 
 class RecordingDialog(QDialog):
@@ -40,7 +48,7 @@ class RecordingDialog(QDialog):
         layout.setSpacing(20)
 
         # Title
-        title = QLabel(self.tr("🎤 Audio Recording"))
+        title = QLabel(self.tr("Audio Recording"))
         title.setStyleSheet("font-size: 20px; font-weight: bold;")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
@@ -48,9 +56,9 @@ class RecordingDialog(QDialog):
         # Info card
         info_card = Card(self.tr("Audio Recording"), is_dark_mode=False)  # Dialog uses light mode
         info_card.content_layout.addWidget(QLabel(self.tr("What will be recorded:")))
-        info_card.content_layout.addWidget(QLabel(self.tr("🎤 Microphone: Your voice and ambient sounds")))
-        info_card.content_layout.addWidget(QLabel(self.tr("🔊 Speaker: System audio, music, video calls")))
-        info_card.content_layout.addWidget(QLabel(self.tr("📝 Both sources mixed into one recording")))
+        info_card.content_layout.addWidget(QLabel(self.tr("Microphone: Your voice and ambient sounds")))
+        info_card.content_layout.addWidget(QLabel(self.tr("Speaker: System audio, music, video calls")))
+        info_card.content_layout.addWidget(QLabel(self.tr("Both sources mixed into one recording")))
         layout.addWidget(info_card)
 
         # Status
@@ -64,8 +72,8 @@ class RecordingDialog(QDialog):
         vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
         vu_meters_layout.setSpacing(10)
 
-        self.mic_vu_meter = VUMeter(self.tr("🎤 Microphone"))
-        self.speaker_vu_meter = VUMeter(self.tr("🔊 Speaker/System"))
+        self.mic_vu_meter = VUMeter(self.tr("Microphone"))
+        self.speaker_vu_meter = VUMeter(self.tr("Speaker/System"))
 
         vu_meters_layout.addWidget(self.mic_vu_meter)
         vu_meters_layout.addWidget(self.speaker_vu_meter)
@@ -83,8 +91,10 @@ class RecordingDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.start_btn = ModernButton(self.tr("🔴 Start Recording"), primary=True)
-        self.stop_btn = ModernButton(self.tr("⏹️ Stop Recording"))
+        self.start_btn = ModernButton(self.tr("Start Recording"), primary=True)
+        set_icon(self.start_btn, 'circle')
+        self.stop_btn = ModernButton(self.tr("Stop Recording"))
+        set_icon(self.stop_btn, 'stop-circle')
         self.stop_btn.setEnabled(False)
         close_btn = ModernButton(self.tr("Close"))
 
@@ -98,7 +108,7 @@ class RecordingDialog(QDialog):
         layout.addLayout(btn_layout)
 
         # Tip
-        tip = QLabel(self.tr("💡 Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured."))
+        tip = QLabel(self.tr("ℹ️ Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured."))
         tip.setStyleSheet("font-size: 11px; color: #999;")
         tip.setAlignment(Qt.AlignCenter)
         layout.addWidget(tip)
@@ -122,7 +132,7 @@ class RecordingDialog(QDialog):
 
         self.recording = True
         self.start_time = time.time()
-        self.status_label.setText("🔴 Recording from Microphone + Speaker...")
+        self.status_label.setText("Recording from Microphone + Speaker...")
         self.status_label.setStyleSheet("font-size: 14px; color: #F44336; font-weight: bold;")
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -149,7 +159,7 @@ class RecordingDialog(QDialog):
         if self.worker:
             self.worker.stop()
 
-        self.status_label.setText(self.tr("⏹️ Stopping recording..."))
+        self.status_label.setText(self.tr("Stopping recording..."))
         self.status_label.setStyleSheet("font-size: 14px; color: #FF9800;")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -210,14 +220,14 @@ class RecordingDialog(QDialog):
     def on_recording_complete(self, recorded_path, duration):
         """Slot called when recording completes successfully (thread-safe)."""
         self.recorded_path = recorded_path
-        self.status_label.setText(f"✅ Recording complete ({duration:.1f}s)")
+        self.status_label.setText(f"Recording complete ({duration:.1f}s)")
         self.status_label.setStyleSheet("font-size: 14px; color: #4CAF50; font-weight: bold;")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
 
     def on_recording_error(self, error_message):
         """Slot called when recording encounters an error (thread-safe)."""
-        self.status_label.setText(f"❌ Error: {error_message}")
+        self.status_label.setText(f"Error: {error_message}")
         self.status_label.setStyleSheet("font-size: 14px; color: #F44336;")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)

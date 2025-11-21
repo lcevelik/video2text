@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 def main():
     print("=" * 70)
-    print("🎙️  FONIXFLOW AUDIO DIAGNOSTICS")
+    print(" FONIXFLOW AUDIO DIAGNOSTICS")
     print("=" * 70)
     print()
 
@@ -24,41 +24,41 @@ def main():
     missing = []
     try:
         import sounddevice as sd
-        print("✅ sounddevice: OK")
+        print("sounddevice: OK")
     except Exception as e:
-        print(f"❌ sounddevice: FAILED - {e}")
+        print(f"sounddevice: FAILED - {e}")
         missing.append("sounddevice")
 
     try:
         import numpy as np
-        print("✅ numpy: OK")
+        print("numpy: OK")
     except Exception as e:
-        print(f"❌ numpy: FAILED - {e}")
+        print(f"numpy: FAILED - {e}")
         missing.append("numpy")
 
     try:
         import scipy
-        print("✅ scipy: OK")
+        print("scipy: OK")
     except Exception as e:
-        print(f"❌ scipy: FAILED - {e}")
+        print(f"scipy: FAILED - {e}")
         missing.append("scipy")
 
     try:
         from pydub import AudioSegment
-        print("✅ pydub: OK")
+        print("pydub: OK")
     except Exception as e:
-        print(f"❌ pydub: FAILED - {e}")
+        print(f"pydub: FAILED - {e}")
         missing.append("pydub")
 
     try:
         from PySide6.QtCore import QThread
-        print("✅ PySide6: OK")
+        print("PySide6: OK")
     except Exception as e:
-        print(f"❌ PySide6: FAILED - {e}")
+        print(f"PySide6: FAILED - {e}")
         missing.append("PySide6")
 
     if missing:
-        print(f"\n⚠️  Missing dependencies: {', '.join(missing)}")
+        print(f"\n Missing dependencies: {', '.join(missing)}")
         print(f"   Install with: pip install {' '.join(missing)}")
         return
 
@@ -69,9 +69,9 @@ def main():
     print("-" * 70)
     try:
         devices = sd.query_devices()
-        print(f"✅ PortAudio: OK ({len(devices)} devices found)")
+        print(f"PortAudio: OK ({len(devices)} devices found)")
     except OSError as e:
-        print(f"❌ PortAudio: NOT FOUND")
+        print(f"PortAudio: NOT FOUND")
         print(f"   Error: {e}")
         print(f"   Install:")
         print(f"     - Windows: Comes with sounddevice")
@@ -79,7 +79,7 @@ def main():
         print(f"     - Linux: sudo apt-get install portaudio19-dev")
         return
     except Exception as e:
-        print(f"❌ PortAudio: ERROR - {e}")
+        print(f"PortAudio: ERROR - {e}")
         return
 
     print()
@@ -104,11 +104,11 @@ def main():
 
         device_type = []
         if input_ch > 0:
-            device_type.append(f"🎤 INPUT ({input_ch}ch)")
+            device_type.append(f"INPUT ({input_ch}ch)")
         if output_ch > 0:
-            device_type.append(f"🔊 OUTPUT ({output_ch}ch)")
+            device_type.append(f"OUTPUT ({output_ch}ch)")
 
-        type_str = " + ".join(device_type) if device_type else "❌ NO CHANNELS"
+        type_str = " + ".join(device_type) if device_type else "NO CHANNELS"
 
         print(f"[{idx:2d}] {name}")
         print(f"      {type_str}")
@@ -126,28 +126,28 @@ def main():
 
         mics, speakers = get_audio_devices()
 
-        print(f"\n📱 MICROPHONES ({len(mics)}):")
+        print(f"\nMICROPHONES ({len(mics)}):")
         if mics:
             for idx, name in mics:
                 print(f"  [{idx:2d}] {name}")
         else:
-            print("  ❌ No microphones found!")
+            print("  No microphones found!")
             print("     Make sure a microphone is connected and enabled")
 
-        print(f"\n🔊 SYSTEM AUDIO DEVICES ({len(speakers)}):")
+        print(f"\nSYSTEM AUDIO DEVICES ({len(speakers)}):")
         print("   (These capture what you hear - for YouTube, meetings, etc.)")
         if speakers:
             for idx, name in speakers:
                 print(f"  [{idx:2d}] {name}")
         else:
-            print("  ❌ No system audio devices found!")
+            print("  No system audio devices found!")
             print("     You need to enable a loopback device:")
             print("       Windows: Enable 'Stereo Mix' in Sound Settings")
             print("       macOS: Install BlackHole (brew install blackhole-2ch)")
             print("       Linux: Load loopback module (pactl load-module module-loopback)")
 
     except Exception as e:
-        print(f"❌ Error using get_audio_devices: {e}")
+        print(f"Error using get_audio_devices: {e}")
         import traceback
         traceback.print_exc()
 
@@ -159,7 +159,7 @@ def main():
     print("-" * 70)
 
     if mics and speakers:
-        print("✅ READY TO RECORD!")
+        print("READY TO RECORD!")
         print(f"\n   For MICROPHONE recording:")
         print(f"     • Use device: [{mics[0][0]}] {mics[0][1]}")
         print(f"\n   For SYSTEM AUDIO (YouTube/meetings):")
@@ -168,18 +168,18 @@ def main():
         print(f"     • Microphone: [{mics[0][0]}] {mics[0][1]}")
         print(f"     • System Audio: [{speakers[0][0]}] {speakers[0][1]}")
     elif mics:
-        print("⚠️  PARTIAL SETUP")
-        print(f"\n   ✅ Microphone available: [{mics[0][0]}] {mics[0][1]}")
-        print(f"   ❌ No system audio device found")
+        print(" PARTIAL SETUP")
+        print(f"\n   Microphone available: [{mics[0][0]}] {mics[0][1]}")
+        print(f"   No system audio device found")
         print(f"\n   To capture YouTube/meetings, you need a loopback device.")
         print(f"   See AUDIO_SETUP.md for instructions.")
     elif speakers:
-        print("⚠️  PARTIAL SETUP")
-        print(f"\n   ❌ No microphone found")
-        print(f"   ✅ System audio available: [{speakers[0][0]}] {speakers[0][1]}")
+        print(" PARTIAL SETUP")
+        print(f"\n   No microphone found")
+        print(f"   System audio available: [{speakers[0][0]}] {speakers[0][1]}")
         print(f"\n   Connect a microphone to record your voice.")
     else:
-        print("❌ NO DEVICES FOUND")
+        print("NO DEVICES FOUND")
         print("\n   Please check:")
         print("     1. Audio devices are connected")
         print("     2. Drivers are installed")
@@ -188,14 +188,14 @@ def main():
 
     print()
     print("=" * 70)
-    print("🔍 For detailed setup instructions, see: AUDIO_SETUP.md")
+    print("For detailed setup instructions, see: AUDIO_SETUP.md")
     print("=" * 70)
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"\n❌ FATAL ERROR: {e}")
+        print(f"\nFATAL ERROR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

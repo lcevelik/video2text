@@ -22,7 +22,7 @@ logging.basicConfig(
 
 def main():
     print("=" * 70)
-    print("🔍 RECORDING DEBUG TEST WITH FULL LOGGING")
+    print("RECORDING DEBUG TEST WITH FULL LOGGING")
     print("=" * 70)
     print("\nThis will:")
     print("  1. Show detailed logs of recording process")
@@ -40,15 +40,15 @@ def main():
     mics, speakers = get_audio_devices()
 
     if not mics:
-        print("❌ No microphone found!")
+        print("No microphone found!")
         print("   Please connect a microphone and try again.")
         return
 
-    print(f"\n✅ Using microphone: [{mics[0][0]}] {mics[0][1]}")
+    print(f"\nUsing microphone: [{mics[0][0]}] {mics[0][1]}")
     if speakers:
-        print(f"✅ Using speaker: [{speakers[0][0]}] {speakers[0][1]}")
+        print(f"Using speaker: [{speakers[0][0]}] {speakers[0][1]}")
     else:
-        print("⚠️  No system audio device (will record mic only)")
+        print(" No system audio device (will record mic only)")
 
     # Create Qt application
     app = QApplication.instance()
@@ -78,7 +78,7 @@ def main():
     def on_complete(path, duration):
         result['success'] = True
         print(f"\n{'='*70}")
-        print(f"✅ SUCCESS! Recording saved: {path}")
+        print(f"SUCCESS! Recording saved: {path}")
         print(f"   Duration: {duration:.1f}s")
         print(f"{'='*70}")
         QTimer.singleShot(500, app.quit)
@@ -86,7 +86,7 @@ def main():
     def on_error(msg):
         result['error'] = msg
         print(f"\n{'='*70}")
-        print(f"❌ FAILED!")
+        print(f"FAILED!")
         print(f"   Error: {msg}")
         print(f"{'='*70}")
         QTimer.singleShot(500, app.quit)
@@ -95,7 +95,7 @@ def main():
         # Show simple level indicator
         mic_bar = '█' * int(mic * 10)
         spk_bar = '█' * int(spk * 10)
-        print(f"\r🎤 {mic_bar:<10} 🔊 {spk_bar:<10}", end='', flush=True)
+        print(f"\r{mic_bar:<10} {spk_bar:<10}", end='', flush=True)
 
     worker.recording_complete.connect(on_complete)
     worker.recording_error.connect(on_error)
@@ -122,11 +122,11 @@ def main():
 
     # Analysis
     if result['success']:
-        print("\n✅ Recording worked! Check the file to verify audio quality.")
+        print("\nRecording worked! Check the file to verify audio quality.")
     else:
-        print("\n❌ Recording failed!")
+        print("\nRecording failed!")
         print("\nLook at the logs above to see:")
-        print("  - Did streams open? (Look for ✅ Mic stream opened)")
+        print("  - Did streams open? (Look for Mic stream opened)")
         print("  - How many callbacks fired? (Should be > 0)")
         print("  - How many chunks collected? (Should be > 0)")
         print("  - Any error messages or warnings?")
@@ -139,10 +139,10 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Interrupted by user")
+        print("\n\n Interrupted by user")
         sys.exit(0)
     except Exception as e:
-        print(f"\n\n❌ FATAL ERROR: {e}")
+        print(f"\n\nFATAL ERROR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

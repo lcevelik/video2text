@@ -143,7 +143,7 @@ try:
                 block_buffer = AVFoundation.CMSampleBufferGetDataBuffer(sample_buffer)
                 if block_buffer is None:
                     if self.callback_count <= 5:
-                        logger.warning(f"⚠️  Callback #{self.callback_count}: No block buffer in sample")
+                        logger.warning(f" Callback #{self.callback_count}: No block buffer in sample")
                     return
 
                 # Get the raw audio data from CMBlockBuffer
@@ -155,7 +155,7 @@ try:
                         logger.info(f"📊 Callback #{self.callback_count}: Buffer length = {buffer_length} bytes")
                     if buffer_length == 0:
                         if self.callback_count <= 5:
-                            logger.warning(f"⚠️  Callback #{self.callback_count}: Buffer length is 0")
+                            logger.warning(f" Callback #{self.callback_count}: Buffer length is 0")
                         return
 
                     # Allocate buffer to copy data into
@@ -177,7 +177,7 @@ try:
                         status = result
 
                     if status != 0:
-                        logger.warning(f"⚠️  CMBlockBufferCopyDataBytes failed with status {status}")
+                        logger.warning(f" CMBlockBufferCopyDataBytes failed with status {status}")
                         return
 
                     # Convert to numpy array (Float32 PCM)
@@ -185,7 +185,7 @@ try:
 
                     # Detailed diagnostics for first few callbacks
                     if self.callback_count <= 3:
-                        logger.info(f"✅ Callback #{self.callback_count}: Extracted {len(audio_data)} samples")
+                        logger.info(f"Callback #{self.callback_count}: Extracted {len(audio_data)} samples")
                         logger.info(f"   Buffer length: {buffer_length} bytes (aligned: {buffer_length % 8 == 0})")
                         logger.info(f"   Sample count: {len(audio_data)} (expected frames: {buffer_length // 8})")
                         logger.info(f"   Data range: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
@@ -199,16 +199,16 @@ try:
                         nan_count = np.isnan(audio_data).sum()
                         inf_count = np.isinf(audio_data).sum()
                         if nan_count > 0 or inf_count > 0:
-                            logger.warning(f"   ⚠️  Data contains NaN: {nan_count}, Inf: {inf_count}")
+                            logger.warning(f"    Data contains NaN: {nan_count}, Inf: {inf_count}")
 
                     # Also log when we first get non-zero data
                     if self.callback_count <= 20:
                         max_abs = np.abs(audio_data).max()
                         if max_abs > 0.0001:  # Non-silence threshold
-                            logger.info(f"🔊 Callback #{self.callback_count}: First non-silence detected! Max absolute value: {max_abs:.6f}")
+                            logger.info(f"Callback #{self.callback_count}: First non-silence detected! Max absolute value: {max_abs:.6f}")
 
                 except Exception as e:
-                    logger.error(f"❌ Failed to extract audio buffer in callback #{self.callback_count}: {e}", exc_info=True)
+                    logger.error(f"Failed to extract audio buffer in callback #{self.callback_count}: {e}", exc_info=True)
                     return
 
                 # Handle stereo -> mono conversion
@@ -221,7 +221,7 @@ try:
                         right_channel = audio_data[samples_per_channel:samples_per_channel * 2]
                         audio_data = (left_channel + right_channel) / 2.0
                         if self.callback_count <= 3:
-                            logger.info(f"🔊 Callback #{self.callback_count}: Converted PLANAR stereo to mono, {len(audio_data)} samples")
+                            logger.info(f"Callback #{self.callback_count}: Converted PLANAR stereo to mono, {len(audio_data)} samples")
                             logger.info(f"   Left channel range: min={left_channel.min():.6f}, max={left_channel.max():.6f}")
                             logger.info(f"   Right channel range: min={right_channel.min():.6f}, max={right_channel.max():.6f}")
                     else:
@@ -229,7 +229,7 @@ try:
                         # Reshape to (samples, channels) and average to mono
                         audio_data = audio_data.reshape(-1, 2).mean(axis=1)
                         if self.callback_count <= 3:
-                            logger.info(f"🔊 Callback #{self.callback_count}: Converted INTERLEAVED stereo to mono, {len(audio_data)} samples")
+                            logger.info(f"Callback #{self.callback_count}: Converted INTERLEAVED stereo to mono, {len(audio_data)} samples")
 
                     if self.callback_count <= 3:
                         logger.info(f"   After mono: min={audio_data.min():.6f}, max={audio_data.max():.6f}, mean={audio_data.mean():.6f}")
@@ -241,7 +241,7 @@ try:
                     self.audio_chunks.append(chunk)
                     self.speaker_chunks.append(chunk)  # For compatibility with main backend
                     if len(self.audio_chunks) <= 5:
-                        logger.info(f"💾 Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
+                        logger.info(f"Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
 
             except Exception as e:
                 logger.error(f"Error processing ScreenCaptureKit audio: {e}", exc_info=True)
@@ -318,7 +318,7 @@ try:
 
             self.is_recording = True
             self.record_start_time = time.time()
-            logger.info("🔴 ScreenCaptureKit recording started (mic + system audio)")
+            logger.info("ScreenCaptureKit recording started (mic + system audio)")
 
         def _start_microphone(self) -> None:
             """Start microphone recording using sounddevice."""
@@ -372,7 +372,7 @@ try:
                     )
                     self.mic_stream.start()
                     self.mic_sample_rate = int(rate)
-                    logger.info(f"✅ Mic stream opened: device {mic_device}, rate {rate}Hz")
+                    logger.info(f"Mic stream opened: device {mic_device}, rate {rate}Hz")
                     return
                 except Exception as e:
                     logger.debug(f"Failed to open mic at {rate}Hz: {e}")
@@ -489,7 +489,7 @@ try:
                             logger.error(f"Failed to start stream: {error}")
                             logger.info("Check System Settings → Privacy & Security → Screen Recording")
                         else:
-                            logger.info("✅ ScreenCaptureKit system audio stream started")
+                            logger.info("ScreenCaptureKit system audio stream started")
 
                     self.screen_stream.startCaptureWithCompletionHandler_(start_completion)
 
@@ -508,7 +508,7 @@ try:
             self.is_recording = False
             duration = time.time() - self.record_start_time if self.record_start_time else 0
 
-            logger.info(f"⏹️  Recording stopped. Duration: {duration:.1f}s")
+            logger.info(f" Recording stopped. Duration: {duration:.1f}s")
 
             # Stop ScreenCaptureKit stream first
             if self.screen_stream:
@@ -532,7 +532,7 @@ try:
                 logger.info(f"🔢 System audio callbacks received: {self.delegate.callback_count}")
                 logger.info(f"📦 System audio chunks collected: {len(self.delegate.audio_chunks)}")
                 if self.delegate.callback_count > 0 and len(self.delegate.audio_chunks) == 0:
-                    logger.error("❌ PROBLEM: Callbacks were received but NO chunks were stored!")
+                    logger.error("PROBLEM: Callbacks were received but NO chunks were stored!")
                     logger.error("   This indicates audio data extraction is failing")
             else:
                 logger.info("System audio chunks collected: 0 (no delegate)")

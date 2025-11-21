@@ -209,7 +209,7 @@ def print_update_report(results: list):
         lang_name = lang_names.get(summary['lang_code'], summary['lang_code'])
         lang_display = f"{lang_name} ({summary['lang_code']})"
 
-        status = "✅ Updated" if summary['updated'] else "✓ No changes"
+        status = "Updated" if summary['updated'] else "✓ No changes"
 
         print(f"{lang_display:<25} {summary['new_strings_count']:<15} "
               f"{summary['removed_strings_count']:<15} {status:<15}")

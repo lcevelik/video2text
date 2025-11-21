@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 def check_platform():
     """Verify we're running on Windows."""
     if platform.system() != 'Windows':
-        print(f"❌ ERROR: This test must run on Windows")
+        print(f"ERROR: This test must run on Windows")
         print(f"   Current platform: {platform.system()}")
         return False
 
-    print(f"✅ Platform check passed: Windows {platform.version()}")
+    print(f"Platform check passed: Windows {platform.version()}")
     return True
 
 
@@ -36,16 +36,16 @@ def check_dependencies():
 
     try:
         import numpy as np
-        print(f"✅ numpy: {np.__version__}")
+        print(f"numpy: {np.__version__}")
     except ImportError as e:
-        print(f"❌ numpy not found: {e}")
+        print(f"numpy not found: {e}")
         return False
 
     try:
         import comtypes
-        print(f"✅ comtypes: {comtypes.__version__}")
+        print(f"comtypes: {comtypes.__version__}")
     except ImportError as e:
-        print(f"❌ comtypes not found: {e}")
+        print(f"comtypes not found: {e}")
         print("   Install with: pip install comtypes")
         return False
 
@@ -58,13 +58,13 @@ def test_wasapi_imports():
 
     try:
         from gui.recording.wasapi_loopback import WASAPILoopbackCapture
-        print("✅ WASAPI module imported successfully")
+        print("WASAPI module imported successfully")
         return True
     except ImportError as e:
-        print(f"❌ Failed to import WASAPI module: {e}")
+        print(f"Failed to import WASAPI module: {e}")
         return False
     except Exception as e:
-        print(f"❌ Error importing WASAPI module: {e}")
+        print(f"Error importing WASAPI module: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -79,12 +79,12 @@ def test_wasapi_initialization():
 
         # Create instance
         capture = WASAPILoopbackCapture()
-        print("✅ WASAPI capture object created")
+        print("WASAPI capture object created")
 
         # Try to start it
         print("   Starting capture...")
         capture.start()
-        print(f"✅ WASAPI capture started successfully")
+        print(f"WASAPI capture started successfully")
         print(f"   Sample rate: {capture.get_sample_rate()}Hz")
         print(f"   Channels: {capture.get_channels()}")
 
@@ -95,13 +95,13 @@ def test_wasapi_initialization():
         print("   Stopping capture...")
         audio_data = capture.stop()
 
-        print(f"✅ WASAPI capture stopped")
+        print(f"WASAPI capture stopped")
         print(f"   Data shape: {audio_data.shape if audio_data.size > 0 else 'empty'}")
 
         return True
 
     except Exception as e:
-        print(f"❌ WASAPI initialization failed: {e}")
+        print(f"WASAPI initialization failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -170,19 +170,19 @@ def test_wasapi_recording():
             print(f"  RMS level: {rms:.6f}")
 
             if rms > 0.001:
-                print("\n✅ SUCCESS! Audio was captured with good signal level")
+                print("\nSUCCESS! Audio was captured with good signal level")
                 return True
             else:
-                print("\n⚠️  WARNING: Audio captured but signal is very quiet")
+                print("\n WARNING: Audio captured but signal is very quiet")
                 print("   Make sure audio is playing during the test")
                 return True
         else:
-            print("\n❌ FAILED: No audio data captured")
+            print("\nFAILED: No audio data captured")
             print("   Callback chunks:", len(chunks_received))
             return False
 
     except Exception as e:
-        print(f"\n❌ Recording test failed: {e}")
+        print(f"\nRecording test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -198,7 +198,7 @@ def test_integration_with_backend():
         # Create backend
         backend = SoundDeviceBackend(mic_device=None, speaker_device=None)
 
-        print("✅ SoundDeviceBackend created")
+        print("SoundDeviceBackend created")
         print("   Starting recording (this will test WASAPI on Windows)...")
 
         # Start recording
@@ -228,17 +228,17 @@ def test_integration_with_backend():
             print(f"Speaker RMS: {rms:.6f}")
 
             if rms > 0.001:
-                print("\n✅ SUCCESS! Integration test passed - system audio captured")
+                print("\nSUCCESS! Integration test passed - system audio captured")
                 return True
             else:
-                print("\n⚠️  WARNING: Integration test passed but audio signal is quiet")
+                print("\n WARNING: Integration test passed but audio signal is quiet")
                 return True
         else:
-            print("\n⚠️  No speaker data captured (this might be expected if no WASAPI/Stereo Mix available)")
+            print("\n No speaker data captured (this might be expected if no WASAPI/Stereo Mix available)")
             return True
 
     except Exception as e:
-        print(f"\n❌ Integration test failed: {e}")
+        print(f"\nIntegration test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -266,19 +266,19 @@ def main():
     # Test 1: Platform
     results['platform'] = check_platform()
     if not results['platform']:
-        print("\n❌ FAILED: Must run on Windows")
+        print("\nFAILED: Must run on Windows")
         return
 
     # Test 2: Dependencies
     results['dependencies'] = check_dependencies()
     if not results['dependencies']:
-        print("\n❌ FAILED: Missing dependencies")
+        print("\nFAILED: Missing dependencies")
         return
 
     # Test 3: Imports
     results['imports'] = test_wasapi_imports()
     if not results['imports']:
-        print("\n❌ FAILED: Cannot import WASAPI module")
+        print("\nFAILED: Cannot import WASAPI module")
         return
 
     # Test 4: Initialization
@@ -290,7 +290,7 @@ def main():
         results['recording'] = test_wasapi_recording()
     else:
         results['recording'] = False
-        print("⏭️  Skipping recording test due to initialization failure")
+        print(" Skipping recording test due to initialization failure")
 
     # Test 6: Integration
     if results['initialization']:
@@ -298,24 +298,24 @@ def main():
         results['integration'] = test_integration_with_backend()
     else:
         results['integration'] = False
-        print("⏭️  Skipping integration test due to initialization failure")
+        print(" Skipping integration test due to initialization failure")
 
     # Summary
     print("\n" + "=" * 70)
     print("TEST SUMMARY")
     print("=" * 70)
     for test_name, passed in results.items():
-        status = "✅ PASSED" if passed else "❌ FAILED"
+        status = "PASSED" if passed else "FAILED"
         print(f"{test_name:20s}: {status}")
 
     print("=" * 70)
 
     all_passed = all(results.values())
     if all_passed:
-        print("\n🎉 ALL TESTS PASSED!")
+        print("\nALL TESTS PASSED!")
         print("\nWASAPI audio recording is working correctly on your system.")
     else:
-        print("\n⚠️  SOME TESTS FAILED")
+        print("\n SOME TESTS FAILED")
         print("\nPlease review the errors above.")
         print("Common issues:")
         print("  - comtypes not installed: pip install comtypes")
@@ -327,10 +327,10 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Tests interrupted by user")
+        print("\n\n Tests interrupted by user")
         sys.exit(0)
     except Exception as e:
-        print(f"\n\n❌ FATAL ERROR: {e}")
+        print(f"\n\nFATAL ERROR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

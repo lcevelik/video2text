@@ -297,10 +297,15 @@ class ModernTabBar(QFrame):
         layout.setSpacing(8)
 
         # Create tab buttons
+        # Calculate button width: base width (e.g. 120px) * 1.2 = 144px
+        base_width = 120
+        wider_width = int(base_width * 1.2)
         for icon, label, index in tabs:
             btn = QPushButton(f"{icon} {label}")
             btn.setCursor(Qt.PointingHandCursor)
             btn.setMinimumHeight(40)
+            btn.setFixedWidth(wider_width)
+            btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
             btn.setProperty("tab_index", index)
             btn.clicked.connect(lambda checked=False, idx=index: self.switch_to_tab(idx))
             self.tab_buttons.append(btn)

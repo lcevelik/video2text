@@ -113,11 +113,11 @@ def main():
     )
 
     def on_complete(path, duration):
-        print(f"[quick_record_test] ✅ Recording complete: {path} ({duration:.1f}s)")
+        print(f"[quick_record_test] Recording complete: {path} ({duration:.1f}s)")
         QTimer.singleShot(500, app.quit)
 
     def on_error(msg):
-        print(f"[quick_record_test] ❌ Recording error: {msg}")
+        print(f"[quick_record_test] Recording error: {msg}")
         QTimer.singleShot(500, app.quit)
 
     worker.recording_complete.connect(on_complete)
