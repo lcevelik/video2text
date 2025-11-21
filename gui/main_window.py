@@ -729,6 +729,7 @@ class FonixFlowQt(QMainWindow):
             self.toggle_audio_filters,
             indent=32
         )
+        audio_filter_btn.setToolTip("Removes noise, boosts clarity")
         audio_options_layout.addWidget(audio_filter_btn)
 
         settings_content_layout.addWidget(self.audio_options_widget)
@@ -772,6 +773,7 @@ class FonixFlowQt(QMainWindow):
             self.toggle_deep_scan,
             indent=32
         )
+        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
         transcription_options_layout.addWidget(deep_scan_btn)
 
         settings_content_layout.addWidget(self.transcription_options_widget)
