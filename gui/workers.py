@@ -135,17 +135,19 @@ class RecordingWorker(QThread):
         # Auto-select backend based on platform
         platform = get_platform()
 
-        # On macOS, prefer ScreenCaptureKit for native system audio (no BlackHole required!)
-        if platform == 'macos' and HAS_SCREENCAPTUREKIT:
-            try:
-                logger.info("Auto-selecting ScreenCaptureKit backend for macOS (native system audio)")
+        # On macOS, always use ScreenCaptureKit if available, else raise error
+        if platform == 'macos':
+            if HAS_SCREENCAPTUREKIT:
+                logger.info("Using ScreenCaptureKit backend for macOS (native system audio)")
                 return ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
-            except Exception as e:
-                logger.warning(f"ScreenCaptureKit unavailable ({e}), falling back to SoundDevice")
-                logger.info("To use ScreenCaptureKit: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa")
+            else:
+                raise RuntimeError(
+                    "ScreenCaptureKit backend required on macOS but not available.\n"
+                    "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
+                    "Requires macOS 12.3+ and PyObjC."
+                )
 
         # Default to SoundDevice backend (cross-platform)
-        # Note: On macOS without ScreenCaptureKit, this requires BlackHole for system audio
         logger.info(f"Using SoundDevice backend for {platform}")
         return SoundDeviceBackend(self.mic_device, self.speaker_device)
 
