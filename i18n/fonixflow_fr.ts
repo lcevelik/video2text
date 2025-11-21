@@ -4,46 +4,46 @@
     <name>AudioPreviewWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished" />
+      <translation>Extraction de l'audio...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished" />
+      <translation>Finalisation de la transcription...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished" />
+      <translation>Finalisation...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished" />
+      <translation>Transcription...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished" />
+      <translation>Transcription terminée!</translation>
     </message>
   </context>
   <context>
     <name>FileManager</name>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Impossible d'Ouvrir le Dossier</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished" />
+      <translation>Fichiers Multimédias (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;Tous les Fichiers (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished" />
+      <translation>Sélectionner le Dossier d'Enregistrements</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished" />
+      <translation>Sélectionner Fichier Vidéo ou Audio</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished" />
+      <translation>Paramètres Mis à Jour</translation>
     </message>
   </context>
   <context>
@@ -70,7 +70,7 @@
     </message>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished" />
+      <translation>Glisser-déposer fichier vidéo/audio</translation>
     </message>
     <message>
       <source>Enhance Audio</source>
@@ -102,7 +102,7 @@
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished" />
+      <translation>Aucun enregistrement disponible. Veuillez d'abord enregistrer.</translation>
     </message>
     <message>
       <source>Open Folder</source>
@@ -110,11 +110,11 @@
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished" />
+      <translation>Veuillez d'abord sélectionner un fichier.</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished" />
+      <translation>Veuillez d'abord transcrire un fichier.</translation>
     </message>
     <message>
       <source>Processing recording...</source>
@@ -305,7 +305,7 @@
     <name>RecordingDialog</name>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Au moins une langue doit être sélectionnée avant de confirmer.</translation>
     </message>
     <message>
       <source>Audio Recording</source>
@@ -313,91 +313,91 @@
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished" />
+      <translation>Annuler pour décider plus tard.</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Fermer</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished" />
+      <translation>Confirmer les Langues</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished" />
+      <translation>Confirmer la Sélection</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished" />
+      <translation>Périphérique Trouvé</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished" />
+      <translation>Durée: 0:00</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished" />
+      <translation>Anglais (utilise modèle .en optimisé)</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished" />
+      <translation>Votre fichier est-il multilingue?</translation>
     </message>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished" />
+      <translation>Mode Linguistique</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished" />
+      <translation>Multilingue</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished" />
+      <translation>Aucun Type de Langue Sélectionné</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished" />
+      <translation>Aucune Langue Sélectionnée</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished" />
+      <translation>Aucun Microphone Trouvé</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished" />
+      <translation>Aucun périphérique d'entrée audio détecté!</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished" />
+      <translation>Autre langue (utilise modèle multilingue)</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished" />
+      <translation>Veuillez sélectionner Anglais ou Autre langue.</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished" />
+      <translation>Prêt à enregistrer</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished" />
+      <translation>Sélectionnez au moins une langue pour continuer.</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished" />
+      <translation>Sélectionnez le type de langue:</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished" />
+      <translation>Sélectionnez les langues présentes (cochez toutes celles qui s'appliquent):</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Sélectionnez un type de langue avant de confirmer.</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished" />
+      <translation>Monolingue</translation>
     </message>
     <message>
       <source>What will be recorded:</source>

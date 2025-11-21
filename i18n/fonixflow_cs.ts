@@ -413,7 +413,7 @@
     </message>
     <message>
       <source>✅ Audio input device detected!\n\nYou can now start recording.</source>
-      <translation type="unfinished" />
+      <translation>✅ Bylo detekováno zvukové vstupní zařízení!\n\nNyní můžete začít nahrávat.</translation>
     </message>
     <message>
       <source>🎤 Audio Recording</source>
@@ -429,7 +429,7 @@
     </message>
     <message>
       <source>💡 Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured.</source>
-      <translation type="unfinished" />
+      <translation>💡 Perfektní pro videohovory, schůzky nebo jakýkoliv scénář, kde potřebujete\nzachytit váš hlas i systémový zvuk.</translation>
     </message>
     <message>
       <source>📝 Both sources mixed into one recording</source>
