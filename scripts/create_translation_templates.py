@@ -219,8 +219,8 @@ def main():
     print("="*60)
     print()
 
-    # Create i18n directory
-    i18n_dir = Path(__file__).parent / "i18n"
+    # Create i18n directory at project root (parent of scripts dir)
+    i18n_dir = Path(__file__).parent.parent / "i18n"
     i18n_dir.mkdir(exist_ok=True)
 
     # Priority languages
