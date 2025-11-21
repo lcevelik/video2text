@@ -50,23 +50,23 @@
     <name>FonixFlowQt</name>
     <message>
       <source>  ▼ 🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 🎙️ Audioverarbeitung</translation>
     </message>
     <message>
       <source>  ▼ 📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 📝 Transkription</translation>
     </message>
     <message>
       <source>00:00:00</source>
-      <translation type="unfinished" />
+      <translation>00:00:00</translation>
     </message>
     <message>
       <source>Change Folder</source>
-      <translation type="unfinished" />
+      <translation>Ordner Ändern</translation>
     </message>
     <message>
       <source>Deep Scan</source>
-      <translation type="unfinished" />
+      <translation>Tiefenscan</translation>
     </message>
     <message>
       <source>Drag and drop video/audio file</source>
@@ -74,7 +74,7 @@
     </message>
     <message>
       <source>Enhance Audio</source>
-      <translation type="unfinished" />
+      <translation>Audio Verbessern</translation>
     </message>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
@@ -106,7 +106,7 @@
     </message>
     <message>
       <source>Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Ordner Öffnen</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
@@ -122,7 +122,7 @@
     </message>
     <message>
       <source>Quick Actions</source>
-      <translation type="unfinished" />
+      <translation>Schnellaktionen</translation>
     </message>
     <message>
       <source>Ready</source>
@@ -130,7 +130,7 @@
     </message>
     <message>
       <source>Ready for new transcription</source>
-      <translation type="unfinished" />
+      <translation>Bereit für neue Transkription</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
@@ -146,7 +146,7 @@
     </message>
     <message>
       <source>Recording will use the system</source>
-      <translation type="unfinished" />
+      <translation>Aufnahme verwendet das System</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -166,11 +166,11 @@
     </message>
     <message>
       <source>Settings</source>
-      <translation type="unfinished" />
+      <translation>Einstellungen</translation>
     </message>
     <message>
       <source>Settings Sections</source>
-      <translation type="unfinished" />
+      <translation>Einstellungsbereiche</translation>
     </message>
     <message>
       <source>Speaker</source>
@@ -178,7 +178,7 @@
     </message>
     <message>
       <source>Start Recording</source>
-      <translation type="unfinished" />
+      <translation>Aufnahme Starten</translation>
     </message>
     <message>
       <source>Starting…</source>
@@ -186,7 +186,7 @@
     </message>
     <message>
       <source>Stop Recording</source>
-      <translation type="unfinished" />
+      <translation>Aufnahme Stoppen</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
@@ -210,7 +210,7 @@
     </message>
     <message>
       <source>Unknown</source>
-      <translation type="unfinished" />
+      <translation>Unbekannt</translation>
     </message>
     <message>
       <source>Upload</source>
@@ -230,7 +230,7 @@
     </message>
     <message>
       <source>⚙️ Recordings Settings</source>
-      <translation type="unfinished" />
+      <translation>⚙️ Aufnahmeeinstellungen</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
@@ -246,7 +246,7 @@
     </message>
     <message>
       <source>🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>🎙️ Audioverarbeitung</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -278,7 +278,7 @@
     </message>
     <message>
       <source>📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>📝 Transkription</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
@@ -421,7 +421,7 @@
     </message>
     <message>
       <source>🎤 Microphone</source>
-      <translation type="unfinished" />
+      <translation>🎤 Mikrofon</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
@@ -437,7 +437,7 @@
     </message>
     <message>
       <source>🔊 Speaker/System</source>
-      <translation type="unfinished" />
+      <translation>🔊 Lautsprecher/System</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>

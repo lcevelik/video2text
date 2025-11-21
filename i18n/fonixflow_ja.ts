@@ -4,77 +4,77 @@
     <name>AudioPreviewWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished" />
+      <translation>オーディオを抽出中...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished" />
+      <translation>文字起こしを最終化中...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished" />
+      <translation>仕上げ中...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished" />
+      <translation>文字起こし中...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished" />
+      <translation>文字起こし完了！</translation>
     </message>
   </context>
   <context>
     <name>FileManager</name>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished" />
+      <translation>フォルダを開けませんでした</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished" />
+      <translation>メディアファイル (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;すべてのファイル (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished" />
+      <translation>録音フォルダを選択</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished" />
+      <translation>ビデオまたはオーディオファイルを選択</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished" />
+      <translation>設定が更新されました</translation>
     </message>
   </context>
   <context>
     <name>FonixFlowQt</name>
     <message>
       <source>  ▼ 🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 🎙️ 音声処理</translation>
     </message>
     <message>
       <source>  ▼ 📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 📝 文字起こし</translation>
     </message>
     <message>
       <source>00:00:00</source>
-      <translation type="unfinished" />
+      <translation>00:00:00</translation>
     </message>
     <message>
       <source>Change Folder</source>
-      <translation type="unfinished" />
+      <translation>フォルダを変更</translation>
     </message>
     <message>
       <source>Deep Scan</source>
-      <translation type="unfinished" />
+      <translation>ディープスキャン</translation>
     </message>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished" />
+      <translation>ビデオ/オーディオファイルをドラッグ＆ドロップ</translation>
     </message>
     <message>
       <source>Enhance Audio</source>
-      <translation type="unfinished" />
+      <translation>音声を強化</translation>
     </message>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
@@ -102,19 +102,19 @@
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished" />
+      <translation>利用可能な録音がありません。まず録音してください。</translation>
     </message>
     <message>
       <source>Open Folder</source>
-      <translation type="unfinished" />
+      <translation>フォルダを開く</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished" />
+      <translation>まずファイルを選択してください。</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished" />
+      <translation>まずファイルを文字起こししてください。</translation>
     </message>
     <message>
       <source>Processing recording...</source>
@@ -122,7 +122,7 @@
     </message>
     <message>
       <source>Quick Actions</source>
-      <translation type="unfinished" />
+      <translation>クイックアクション</translation>
     </message>
     <message>
       <source>Ready</source>
@@ -130,7 +130,7 @@
     </message>
     <message>
       <source>Ready for new transcription</source>
-      <translation type="unfinished" />
+      <translation>新しい文字起こしの準備完了</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
@@ -146,7 +146,7 @@
     </message>
     <message>
       <source>Recording will use the system</source>
-      <translation type="unfinished" />
+      <translation>録音はシステムを使用します</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -166,11 +166,11 @@
     </message>
     <message>
       <source>Settings</source>
-      <translation type="unfinished" />
+      <translation>設定</translation>
     </message>
     <message>
       <source>Settings Sections</source>
-      <translation type="unfinished" />
+      <translation>設定セクション</translation>
     </message>
     <message>
       <source>Speaker</source>
@@ -178,7 +178,7 @@
     </message>
     <message>
       <source>Start Recording</source>
-      <translation type="unfinished" />
+      <translation>録音開始</translation>
     </message>
     <message>
       <source>Starting…</source>
@@ -186,7 +186,7 @@
     </message>
     <message>
       <source>Stop Recording</source>
-      <translation type="unfinished" />
+      <translation>録音停止</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
@@ -210,7 +210,7 @@
     </message>
     <message>
       <source>Unknown</source>
-      <translation type="unfinished" />
+      <translation>不明</translation>
     </message>
     <message>
       <source>Upload</source>
@@ -230,7 +230,7 @@
     </message>
     <message>
       <source>⚙️ Recordings Settings</source>
-      <translation type="unfinished" />
+      <translation>⚙️ 録音設定</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
@@ -246,7 +246,7 @@
     </message>
     <message>
       <source>🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>🎙️ 音声処理</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -278,7 +278,7 @@
     </message>
     <message>
       <source>📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>📝 文字起こし</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
@@ -305,7 +305,7 @@
     <name>RecordingDialog</name>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished" />
+      <translation>確認する前に少なくとも1つの言語を選択する必要があります。</translation>
     </message>
     <message>
       <source>Audio Recording</source>
@@ -313,91 +313,91 @@
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished" />
+      <translation>後で決定するにはキャンセルしてください。</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>閉じる</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished" />
+      <translation>言語を確認</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished" />
+      <translation>選択を確認</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished" />
+      <translation>デバイスが見つかりました</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished" />
+      <translation>長さ：0:00</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished" />
+      <translation>英語（最適化された.enモデルを使用）</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished" />
+      <translation>ファイルは多言語ですか？</translation>
     </message>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished" />
+      <translation>言語モード</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished" />
+      <translation>多言語</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished" />
+      <translation>言語タイプが選択されていません</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished" />
+      <translation>言語が選択されていません</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished" />
+      <translation>マイクが見つかりません</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished" />
+      <translation>オーディオ入力デバイスが検出されませんでした！</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished" />
+      <translation>その他の言語（多言語モデルを使用）</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished" />
+      <translation>英語またはその他の言語を選択してください。</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished" />
+      <translation>録音準備完了</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished" />
+      <translation>続行するには少なくとも1つの言語を選択してください。</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished" />
+      <translation>言語タイプを選択：</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished" />
+      <translation>存在する言語を選択（該当するものすべてにチェック）：</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished" />
+      <translation>確認する前に1つの言語タイプを選択してください。</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished" />
+      <translation>単一言語</translation>
     </message>
     <message>
       <source>What will be recorded:</source>
@@ -421,7 +421,7 @@
     </message>
     <message>
       <source>🎤 Microphone</source>
-      <translation type="unfinished" />
+      <translation>🎤 マイク</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
@@ -437,7 +437,7 @@
     </message>
     <message>
       <source>🔊 Speaker/System</source>
-      <translation type="unfinished" />
+      <translation>🔊 スピーカー/システム</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>

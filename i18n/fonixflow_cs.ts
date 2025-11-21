@@ -4,77 +4,77 @@
     <name>AudioPreviewWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished" />
+      <translation>Extrakce zvuku...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished" />
+      <translation>Finalizace přepisu...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished" />
+      <translation>Dokončování...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished" />
+      <translation>Přepisování...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished" />
+      <translation>Přepis dokončen!</translation>
     </message>
   </context>
   <context>
     <name>FileManager</name>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Nelze Otevřít Složku</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished" />
+      <translation>Mediální Soubory (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;Všechny Soubory (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished" />
+      <translation>Vybrat Složku Nahrávek</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished" />
+      <translation>Vybrat Video nebo Zvukový Soubor</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished" />
+      <translation>Nastavení Aktualizováno</translation>
     </message>
   </context>
   <context>
     <name>FonixFlowQt</name>
     <message>
       <source>  ▼ 🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 🎙️ Zpracování Zvuku</translation>
     </message>
     <message>
       <source>  ▼ 📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 📝 Přepis</translation>
     </message>
     <message>
       <source>00:00:00</source>
-      <translation type="unfinished" />
+      <translation>00:00:00</translation>
     </message>
     <message>
       <source>Change Folder</source>
-      <translation type="unfinished" />
+      <translation>Změnit Složku</translation>
     </message>
     <message>
       <source>Deep Scan</source>
-      <translation type="unfinished" />
+      <translation>Hluboké Skenování</translation>
     </message>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished" />
+      <translation>Přetáhněte video/zvukový soubor</translation>
     </message>
     <message>
       <source>Enhance Audio</source>
-      <translation type="unfinished" />
+      <translation>Vylepšit Zvuk</translation>
     </message>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
@@ -102,19 +102,19 @@
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished" />
+      <translation>Žádná nahrávka není k dispozici. Nejprve nahrajte.</translation>
     </message>
     <message>
       <source>Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Otevřít Složku</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished" />
+      <translation>Nejprve vyberte soubor.</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished" />
+      <translation>Nejprve přepište soubor.</translation>
     </message>
     <message>
       <source>Processing recording...</source>
@@ -122,7 +122,7 @@
     </message>
     <message>
       <source>Quick Actions</source>
-      <translation type="unfinished" />
+      <translation>Rychlé Akce</translation>
     </message>
     <message>
       <source>Ready</source>
@@ -130,7 +130,7 @@
     </message>
     <message>
       <source>Ready for new transcription</source>
-      <translation type="unfinished" />
+      <translation>Připraven k novému přepisu</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
@@ -146,7 +146,7 @@
     </message>
     <message>
       <source>Recording will use the system</source>
-      <translation type="unfinished" />
+      <translation>Nahrávání použije systém</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -166,11 +166,11 @@
     </message>
     <message>
       <source>Settings</source>
-      <translation type="unfinished" />
+      <translation>Nastavení</translation>
     </message>
     <message>
       <source>Settings Sections</source>
-      <translation type="unfinished" />
+      <translation>Sekce Nastavení</translation>
     </message>
     <message>
       <source>Speaker</source>
@@ -178,7 +178,7 @@
     </message>
     <message>
       <source>Start Recording</source>
-      <translation type="unfinished" />
+      <translation>Začít Nahrávání</translation>
     </message>
     <message>
       <source>Starting…</source>
@@ -186,7 +186,7 @@
     </message>
     <message>
       <source>Stop Recording</source>
-      <translation type="unfinished" />
+      <translation>Zastavit Nahrávání</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
@@ -210,7 +210,7 @@
     </message>
     <message>
       <source>Unknown</source>
-      <translation type="unfinished" />
+      <translation>Neznámý</translation>
     </message>
     <message>
       <source>Upload</source>
@@ -230,7 +230,7 @@
     </message>
     <message>
       <source>⚙️ Recordings Settings</source>
-      <translation type="unfinished" />
+      <translation>⚙️ Nastavení Nahrávek</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
@@ -246,7 +246,7 @@
     </message>
     <message>
       <source>🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>🎙️ Zpracování Zvuku</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -258,7 +258,7 @@
     </message>
     <message>
       <source>💡 After stopping, the recording is saved but NOT automatically transcribed\n💡 Click </source>
-      <translation type="unfinished" />
+      <translation>💡 Po zastavení je nahrávka uložena, ale NENÍ automaticky přepsána\n💡 Klikněte </translation>
     </message>
     <message>
       <source>💡 Files automatically transcribe when dropped or selected</source>
@@ -278,7 +278,7 @@
     </message>
     <message>
       <source>📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>📝 Přepis</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
@@ -305,7 +305,7 @@
     <name>RecordingDialog</name>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Před potvrzením musí být vybrán alespoň jeden jazyk.</translation>
     </message>
     <message>
       <source>Audio Recording</source>
@@ -313,91 +313,91 @@
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished" />
+      <translation>Zrušit pro rozhodnutí později.</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Zavřít</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished" />
+      <translation>Potvrdit Jazyky</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished" />
+      <translation>Potvrdit Výběr</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished" />
+      <translation>Zařízení Nalezeno</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished" />
+      <translation>Trvání: 0:00</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished" />
+      <translation>Angličtina (používá optimalizovaný .en model)</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished" />
+      <translation>Je váš soubor vícejazyčný?</translation>
     </message>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished" />
+      <translation>Jazykový Režim</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished" />
+      <translation>Vícejazyčné</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished" />
+      <translation>Žádný Typ Jazyka Nevybrán</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished" />
+      <translation>Žádné Jazyky Nevybrány</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished" />
+      <translation>Mikrofon Nenalezen</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished" />
+      <translation>Nebyl detekován žádný zvukový vstup!</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished" />
+      <translation>Jiný jazyk (používá vícejazyčný model)</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished" />
+      <translation>Prosím vyberte buď Angličtinu nebo Jiný jazyk.</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished" />
+      <translation>Připraven k nahrávání</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished" />
+      <translation>Pro pokračování vyberte alespoň jeden jazyk.</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished" />
+      <translation>Vyberte typ jazyka:</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished" />
+      <translation>Vyberte přítomné jazyky (označte všechny, které se vztahují):</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Před potvrzením vyberte jeden typ jazyka.</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished" />
+      <translation>Jednojazyčné</translation>
     </message>
     <message>
       <source>What will be recorded:</source>
@@ -421,7 +421,7 @@
     </message>
     <message>
       <source>🎤 Microphone</source>
-      <translation type="unfinished" />
+      <translation>🎤 Mikrofon</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
@@ -437,7 +437,7 @@
     </message>
     <message>
       <source>🔊 Speaker/System</source>
-      <translation type="unfinished" />
+      <translation>🔊 Reproduktor/Systém</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>

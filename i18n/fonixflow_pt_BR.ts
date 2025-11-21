@@ -4,77 +4,77 @@
     <name>AudioPreviewWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished" />
+      <translation>Extraindo áudio...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished" />
+      <translation>Finalizando transcrição...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished" />
+      <translation>Finalizando...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished" />
+      <translation>Transcrevendo...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished" />
+      <translation>Transcrição completa!</translation>
     </message>
   </context>
   <context>
     <name>FileManager</name>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Não Foi Possível Abrir a Pasta</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished" />
+      <translation>Arquivos de Mídia (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;Todos os Arquivos (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished" />
+      <translation>Selecionar Pasta de Gravações</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished" />
+      <translation>Selecionar Arquivo de Vídeo ou Áudio</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished" />
+      <translation>Configurações Atualizadas</translation>
     </message>
   </context>
   <context>
     <name>FonixFlowQt</name>
     <message>
       <source>  ▼ 🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 🎙️ Processamento de Áudio</translation>
     </message>
     <message>
       <source>  ▼ 📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>  ▼ 📝 Transcrição</translation>
     </message>
     <message>
       <source>00:00:00</source>
-      <translation type="unfinished" />
+      <translation>00:00:00</translation>
     </message>
     <message>
       <source>Change Folder</source>
-      <translation type="unfinished" />
+      <translation>Mudar Pasta</translation>
     </message>
     <message>
       <source>Deep Scan</source>
-      <translation type="unfinished" />
+      <translation>Varredura Profunda</translation>
     </message>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished" />
+      <translation>Arraste e solte arquivo de vídeo/áudio</translation>
     </message>
     <message>
       <source>Enhance Audio</source>
-      <translation type="unfinished" />
+      <translation>Melhorar Áudio</translation>
     </message>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
@@ -102,19 +102,19 @@
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished" />
+      <translation>Nenhuma gravação disponível. Por favor, grave primeiro.</translation>
     </message>
     <message>
       <source>Open Folder</source>
-      <translation type="unfinished" />
+      <translation>Abrir Pasta</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished" />
+      <translation>Por favor, selecione um arquivo primeiro.</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished" />
+      <translation>Por favor, transcreva um arquivo primeiro.</translation>
     </message>
     <message>
       <source>Processing recording...</source>
@@ -122,7 +122,7 @@
     </message>
     <message>
       <source>Quick Actions</source>
-      <translation type="unfinished" />
+      <translation>Ações Rápidas</translation>
     </message>
     <message>
       <source>Ready</source>
@@ -130,7 +130,7 @@
     </message>
     <message>
       <source>Ready for new transcription</source>
-      <translation type="unfinished" />
+      <translation>Pronto para nova transcrição</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
@@ -146,7 +146,7 @@
     </message>
     <message>
       <source>Recording will use the system</source>
-      <translation type="unfinished" />
+      <translation>A gravação usará o sistema</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -166,11 +166,11 @@
     </message>
     <message>
       <source>Settings</source>
-      <translation type="unfinished" />
+      <translation>Configurações</translation>
     </message>
     <message>
       <source>Settings Sections</source>
-      <translation type="unfinished" />
+      <translation>Seções de Configurações</translation>
     </message>
     <message>
       <source>Speaker</source>
@@ -178,7 +178,7 @@
     </message>
     <message>
       <source>Start Recording</source>
-      <translation type="unfinished" />
+      <translation>Iniciar Gravação</translation>
     </message>
     <message>
       <source>Starting…</source>
@@ -186,7 +186,7 @@
     </message>
     <message>
       <source>Stop Recording</source>
-      <translation type="unfinished" />
+      <translation>Parar Gravação</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
@@ -210,7 +210,7 @@
     </message>
     <message>
       <source>Unknown</source>
-      <translation type="unfinished" />
+      <translation>Desconhecido</translation>
     </message>
     <message>
       <source>Upload</source>
@@ -230,7 +230,7 @@
     </message>
     <message>
       <source>⚙️ Recordings Settings</source>
-      <translation type="unfinished" />
+      <translation>⚙️ Configurações de Gravação</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
@@ -246,7 +246,7 @@
     </message>
     <message>
       <source>🎙️ Audio Processing</source>
-      <translation type="unfinished" />
+      <translation>🎙️ Processamento de Áudio</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -278,7 +278,7 @@
     </message>
     <message>
       <source>📝 Transcription</source>
-      <translation type="unfinished" />
+      <translation>📝 Transcrição</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
@@ -305,7 +305,7 @@
     <name>RecordingDialog</name>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Pelo menos um idioma deve ser selecionado antes de confirmar.</translation>
     </message>
     <message>
       <source>Audio Recording</source>
@@ -313,91 +313,91 @@
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished" />
+      <translation>Cancelar para decidir depois.</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Fechar</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished" />
+      <translation>Confirmar Idiomas</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished" />
+      <translation>Confirmar Seleção</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished" />
+      <translation>Dispositivo Encontrado</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished" />
+      <translation>Duração: 0:00</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished" />
+      <translation>Inglês (usa modelo .en otimizado)</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished" />
+      <translation>Seu arquivo é multilíngue?</translation>
     </message>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished" />
+      <translation>Modo de Idioma</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished" />
+      <translation>Multi-Idioma</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished" />
+      <translation>Nenhum Tipo de Idioma Selecionado</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished" />
+      <translation>Nenhum Idioma Selecionado</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished" />
+      <translation>Nenhum Microfone Encontrado</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished" />
+      <translation>Nenhum dispositivo de entrada de áudio detectado!</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished" />
+      <translation>Outro idioma (usa modelo multilíngue)</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished" />
+      <translation>Por favor, selecione Inglês ou Outro idioma.</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished" />
+      <translation>Pronto para gravar</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished" />
+      <translation>Selecione pelo menos um idioma para continuar.</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished" />
+      <translation>Selecione o tipo de idioma:</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished" />
+      <translation>Selecione os idiomas presentes (marque todos que se aplicam):</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished" />
+      <translation>Selecione um tipo de idioma antes de confirmar.</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished" />
+      <translation>Idioma Único</translation>
     </message>
     <message>
       <source>What will be recorded:</source>
@@ -421,7 +421,7 @@
     </message>
     <message>
       <source>🎤 Microphone</source>
-      <translation type="unfinished" />
+      <translation>🎤 Microfone</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
@@ -437,7 +437,7 @@
     </message>
     <message>
       <source>🔊 Speaker/System</source>
-      <translation type="unfinished" />
+      <translation>🔊 Alto-falante/Sistema</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>
