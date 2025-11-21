@@ -676,8 +676,8 @@ class FonixFlowQt(QMainWindow):
         from PySide6.QtWidgets import QPushButton
 
         tab_bar = QWidget()
-        tab_bar.setMinimumWidth(140)  # Increased to accommodate button width + margins
-        tab_bar.setMaximumWidth(140)
+        tab_bar.setMinimumWidth(260)  # Increased to accommodate button width + margins
+        tab_bar.setMaximumWidth(260)
 
         layout = QVBoxLayout(tab_bar)
         layout.setContentsMargins(10, 20, 20, 20)  # Increased right margin for buffer from edge
@@ -699,7 +699,7 @@ class FonixFlowQt(QMainWindow):
             btn = QPushButton(self.tr(label))
             set_icon(btn, icon_name, size=32)  # Larger icons for tab bar
             btn.setMinimumHeight(60)
-            btn.setMinimumWidth(110)  # Increased width to fit text completely
+            btn.setMinimumWidth(220)  # Double width for tab buttons
             btn.setCursor(Qt.PointingHandCursor)
             btn.setProperty("tab_index", index)
             btn.clicked.connect(lambda checked=False, idx=index: self.on_tab_changed(idx))

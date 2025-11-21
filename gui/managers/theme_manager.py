@@ -212,36 +212,29 @@ class ThemeManager:
         for i, btn in enumerate(self.main_window.tab_buttons):
             is_active = (i == self.main_window.current_tab_index)
 
-            if is_active:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {Theme.get('accent', self.is_dark_mode)};
-                        color: white;
-                        border: none;
-                        border-radius: 12px;
-                        padding: 15px 10px;
-                        font-size: 13px;
-                        font-weight: bold;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('accent', self.is_dark_mode)};
-                    }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Theme.get('text_primary', self.is_dark_mode)};
-                        border: 2px solid {Theme.get('border', self.is_dark_mode)};
-                        border-radius: 12px;
-                        padding: 15px 10px;
-                        font-size: 13px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                        border-color: {Theme.get('accent', self.is_dark_mode)};
-                    }}
-                """)
+            # Align icon 20px from left, text 20px from icon
+            # Use left padding for button, and set icon size and spacing
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {'transparent' if not is_active else Theme.get('accent', self.is_dark_mode)};
+                    color: {'white' if is_active else Theme.get('text_primary', self.is_dark_mode)};
+                    border: {'none' if is_active else '2px solid ' + Theme.get('border', self.is_dark_mode)};
+                    border-radius: 12px;
+                    padding-left: 20px;
+                    padding-right: 10px;
+                    font-size: 13px;
+                    font-weight: {'bold' if is_active else 'normal'};
+                    text-align: left;
+                }}
+                QPushButton::icon {{
+                    margin-left: 0px;
+                    margin-right: 20px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Theme.get('accent', self.is_dark_mode) if is_active else Theme.get('bg_tertiary', self.is_dark_mode)};
+                    border-color: {Theme.get('accent', self.is_dark_mode)};
+                }}
+            """)
 
     def update_all_cards_theme(self) -> None:
         """Update theme for all Card widgets."""
