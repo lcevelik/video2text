@@ -82,6 +82,7 @@ class RecordingWorker(QThread):
                  mic_device: Optional[int] = None,
                  speaker_device: Optional[int] = None,
                  backend: Optional[str] = None,
+                 enable_filters: bool = True,
                  parent=None):
         """
         Initialize recording worker.
@@ -92,6 +93,7 @@ class RecordingWorker(QThread):
             speaker_device: Device index for system audio (None = auto-detect)
             backend: Force specific backend ('sounddevice' or 'screencapturekit'),
                     or None for auto-select
+            enable_filters: Enable audio filters (noise gate, compressor)
             parent: Parent QObject
         """
         super().__init__(parent)
@@ -99,6 +101,7 @@ class RecordingWorker(QThread):
         self.mic_device = mic_device
         self.speaker_device = speaker_device
         self.backend_name = backend
+        self.enable_filters = enable_filters
         self.backend = None
         self.is_recording = True
 
@@ -179,10 +182,10 @@ class RecordingWorker(QThread):
                     speaker_chunk = self.backend.speaker_chunks[-1]
                     speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
                 # Debug logging for chunk sizes and levels
-                logger.info(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
+                logger.debug(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
                 # Only emit if changed
                 if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
-                    logger.info(f"VU DEBUG: Emitting levels mic={mic_level:.3f}, speaker={speaker_level:.3f}")
+                    logger.debug(f"VU DEBUG: Emitting levels mic={mic_level:.3f}, speaker={speaker_level:.3f}")
                     self.audio_levels_update.emit(mic_level, speaker_level)
                     last_mic_level = mic_level
                     last_speaker_level = speaker_level
@@ -254,6 +257,37 @@ class RecordingWorker(QThread):
 
         logger.info(f"Saving recording to: {recorded_path}")
 
+        # Apply audio filters if enabled
+        if self.enable_filters:
+            try:
+                from gui.audio_filters import NoiseGate, EnhancedCompressor
+                logger.info("Applying audio filters (NoiseGate + Compressor)")
+
+                # Apply noise gate to remove background noise
+                noise_gate = NoiseGate(
+                    threshold_db=-32.0,  # Open gate above -32dB
+                    attack_ms=25.0,
+                    release_ms=150.0,
+                    hold_ms=200.0,
+                    sample_rate=sample_rate
+                )
+                audio_data = noise_gate.process(audio_data)
+
+                # Apply compressor for consistent volume
+                compressor = EnhancedCompressor(
+                    threshold_db=-18.0,  # Compress above -18dB
+                    ratio=3.0,  # 3:1 ratio
+                    attack_ms=6.0,
+                    release_ms=60.0,
+                    output_gain_db=0.0,
+                    sample_rate=sample_rate
+                )
+                audio_data = compressor.process(audio_data)
+
+                logger.info("Audio filters applied successfully")
+            except Exception as e:
+                logger.warning(f"Could not apply audio filters: {e}. Saving unfiltered audio.")
+
         # Convert to int16 for audio file
         audio_data_int16 = (audio_data * 32767).astype(np.int16)
 
@@ -290,13 +324,15 @@ class TranscriptionWorker(QThread):
     transcription_error = Signal(str)  # error message
 
     def __init__(self, video_path, model_size='tiny', language=None,
-                 detect_language_changes=False, use_deep_scan=False, parent=None):
+                 detect_language_changes=False, use_deep_scan=False,
+                 enable_filters=True, parent=None):
         super().__init__(parent)
         self.video_path = video_path
         self.model_size = model_size
         self.language = language
         self.detect_language_changes = detect_language_changes
         self.use_deep_scan = use_deep_scan
+        self.enable_filters = enable_filters
         self._transcriber = None
         self.cancel_requested = False
         self.allowed_languages: List[str] = []
@@ -338,11 +374,22 @@ class TranscriptionWorker(QThread):
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
-            # Stage 2: Loading model (2-5%)
-            self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 3)
+            # Step 1.5: Apply audio filters if enabled
+            if self.enable_filters:
+                try:
+                    self.progress_update.emit("Applying audio filters...", 3)
+                    audio_path = self._apply_audio_filters(audio_path)
+                    logger.info("Audio filters applied to uploaded file")
+                except Exception as e:
+                    logger.warning(f"Could not apply audio filters to upload: {e}")
+                    # Continue with unfiltered audio
+
             if self.cancel_requested:
                 self.transcription_error.emit("Transcription cancelled.")
                 return
+
+            # Stage 2: Loading model (2-5%)
+            self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 4)
 
             # Use EnhancedTranscriber if language change detection is enabled
             if self.detect_language_changes:
@@ -482,6 +529,47 @@ class TranscriptionWorker(QThread):
             logger.error(f"Transcription error: {e}", exc_info=True)
             logger.error(f"Full traceback: {traceback.format_exc()}")
             self.transcription_error.emit(f"Transcription failed: {str(e)}")
+
+    def _apply_audio_filters(self, audio_path: str) -> str:
+        """Apply audio filters to extracted audio file."""
+        import soundfile as sf
+        from gui.audio_filters import NoiseGate, EnhancedCompressor
+
+        logger.info(f"Applying audio filters to: {audio_path}")
+
+        # Load audio file
+        audio_data, sample_rate = sf.read(audio_path)
+
+        # Convert to mono if stereo
+        if len(audio_data.shape) > 1:
+            audio_data = audio_data.mean(axis=1)
+
+        # Apply noise gate
+        noise_gate = NoiseGate(
+            threshold_db=-32.0,
+            attack_ms=25.0,
+            release_ms=150.0,
+            hold_ms=200.0,
+            sample_rate=sample_rate
+        )
+        audio_data = noise_gate.process(audio_data)
+
+        # Apply compressor
+        compressor = EnhancedCompressor(
+            threshold_db=-18.0,
+            ratio=3.0,
+            attack_ms=6.0,
+            release_ms=60.0,
+            output_gain_db=0.0,
+            sample_rate=sample_rate
+        )
+        audio_data = compressor.process(audio_data)
+
+        # Save filtered audio back to file
+        sf.write(audio_path, audio_data, sample_rate)
+        logger.info(f"Filtered audio saved to: {audio_path}")
+
+        return audio_path
 
     def cancel(self):
         """Request cancellation of current transcription (chunk-level for multi-language)."""
