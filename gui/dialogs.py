@@ -46,7 +46,7 @@ class RecordingDialog(QDialog):
         layout.addWidget(title)
 
         # Info card
-        info_card = Card(is_dark_mode=False)  # Dialog uses light mode
+        info_card = Card(self.tr("3a4 Audio Recording"), is_dark_mode=False)  # Dialog uses light mode
         info_card.content_layout.addWidget(QLabel(self.tr("What will be recorded:")))
         info_card.content_layout.addWidget(QLabel(self.tr("🎤 Microphone: Your voice and ambient sounds")))
         info_card.content_layout.addWidget(QLabel(self.tr("🔊 Speaker: System audio, music, video calls")))
@@ -54,7 +54,7 @@ class RecordingDialog(QDialog):
         layout.addWidget(info_card)
 
         # Status
-        self.status_label = QLabel("Ready to record")
+        self.status_label = QLabel(self.tr("Ready to record"))
         self.status_label.setStyleSheet("font-size: 14px; color: #666;")
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
@@ -64,8 +64,8 @@ class RecordingDialog(QDialog):
         vu_meters_layout = QVBoxLayout(self.vu_meters_widget)
         vu_meters_layout.setSpacing(10)
 
-        self.mic_vu_meter = VUMeter("🎤 Microphone")
-        self.speaker_vu_meter = VUMeter("🔊 Speaker/System")
+        self.mic_vu_meter = VUMeter(self.tr("🎤 Microphone"))
+        self.speaker_vu_meter = VUMeter(self.tr("🔊 Speaker/System"))
 
         vu_meters_layout.addWidget(self.mic_vu_meter)
         vu_meters_layout.addWidget(self.speaker_vu_meter)
@@ -76,7 +76,7 @@ class RecordingDialog(QDialog):
         # User-selected language mode (None until chosen via dialog)
         self.multi_language_mode = None
         # Duration
-        self.duration_label = QLabel("Duration: 0:00")
+        self.duration_label = QLabel(self.tr("Duration: 0:00"))
         self.duration_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #0FD2CC;")
         self.duration_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.duration_label)
@@ -86,7 +86,7 @@ class RecordingDialog(QDialog):
         self.start_btn = ModernButton(self.tr("🔴 Start Recording"), primary=True)
         self.stop_btn = ModernButton(self.tr("⏹️ Stop Recording"))
         self.stop_btn.setEnabled(False)
-        close_btn = ModernButton("Close")
+        close_btn = ModernButton(self.tr("Close"))
 
         self.start_btn.clicked.connect(self.start_recording)
         self.stop_btn.clicked.connect(self.stop_recording)
@@ -178,8 +178,8 @@ class RecordingDialog(QDialog):
         """Show dialog when no audio device is found."""
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("No Microphone Found")
-        msg.setText("No audio input device detected!")
+        msg.setWindowTitle(self.tr("No Microphone Found"))
+        msg.setText(self.tr("No audio input device detected!"))
         msg.setInformativeText(
             "Please:\n"
             "1. Connect a microphone\n"

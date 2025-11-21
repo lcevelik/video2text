@@ -69,6 +69,33 @@ class FonixFlowQt(QMainWindow):
         self.performance_overlay = None
         self.model_name_label = None
 
+        # Ensure settings widgets are always initialized
+        self.audio_options_widget = QWidget()
+        audio_options_layout = QVBoxLayout(self.audio_options_widget)
+        audio_options_layout.setContentsMargins(0, 0, 0, 0)
+        audio_options_layout.setSpacing(2)
+        audio_filter_btn = self.create_toggle_option_btn(
+            "🎚️", "Enhance Audio",
+            self.enable_audio_filters,
+            self.toggle_audio_filters,
+            indent=32
+        )
+        audio_filter_btn.setToolTip("Removes noise, boosts clarity")
+        audio_options_layout.addWidget(audio_filter_btn)
+
+        self.transcription_options_widget = QWidget()
+        transcription_options_layout = QVBoxLayout(self.transcription_options_widget)
+        transcription_options_layout.setContentsMargins(0, 0, 0, 0)
+        transcription_options_layout.setSpacing(2)
+        deep_scan_btn = self.create_toggle_option_btn(
+            "🔍", "Deep Scan",
+            self.enable_deep_scan,
+            self.toggle_deep_scan,
+            indent=32
+        )
+        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
+        transcription_options_layout.addWidget(deep_scan_btn)
+
         self.setup_ui()
         self.apply_theme()
         # Ensure ffmpeg is available to pydub across the app
@@ -507,15 +534,15 @@ class FonixFlowQt(QMainWindow):
 
         # Current directory display
         dir_label = QLabel(self.tr("Recordings save to:"))
-        dir_label.setStyleSheet("font-size: 12px; color: #666;")
+        dir_label.setStyleSheet(f"font-size: 12px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         card.content_layout.addWidget(dir_label)
 
         # Create or update the display label (instance variable)
         if not hasattr(self, 'recordings_dir_display'):
             self.recordings_dir_display = QLabel(self.settings["recordings_dir"])
             self.recordings_dir_display.setStyleSheet(
-                "font-size: 13px; color: #2196F3; padding: 8px; "
-                "background-color: #E3F2FD; border-radius: 4px;"
+                f"font-size: 13px; color: {Theme.get('accent', self.is_dark_mode)}; padding: 8px; "
+                f"background-color: {Theme.get('bg_secondary', self.is_dark_mode)}; border-radius: 6px; border: 1px solid {Theme.get('border', self.is_dark_mode)};"
             )
             self.recordings_dir_display.setWordWrap(True)
         else:
@@ -528,22 +555,35 @@ class FonixFlowQt(QMainWindow):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
-        # Change directory button
-        self.change_dir_btn = ModernButton(self.tr("📂 Change Folder"))
-        self.change_dir_btn.clicked.connect(self.change_recordings_directory)
-        btn_row.addWidget(self.change_dir_btn)
+        def style_settings_btn(btn):
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                    color: {Theme.get('text_primary', self.is_dark_mode)};
+                    border: 2px solid {Theme.get('border', self.is_dark_mode)};
+                    border-radius: 12px;
+                    padding: 15px 10px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }}
+                QPushButton:focus {{
+                    outline: none;
+                }}
+                QPushButton:hover {{
+                    background-color: {Theme.get('accent', self.is_dark_mode)};
+                    color: white;
+                    border-color: {Theme.get('accent', self.is_dark_mode)};
+                }}
+            """)
 
-        # Open folder button
-        self.open_folder_btn = ModernButton(self.tr("🗂️ Open Folder"))
-        self.open_folder_btn.clicked.connect(self.open_recordings_folder)
-        btn_row.addWidget(self.open_folder_btn)
+        # Removed Change Folder and Open Folder buttons as requested
 
         card.content_layout.addLayout(btn_row)
 
         return card
 
     def create_content_area(self):
-        """Create content area with collapsible sidebar and tab stack."""
+        """Create content area with tab stack, including new Settings tab."""
         # State for recording
         self.is_recording = False
         self.recording_start_time = None
@@ -559,27 +599,12 @@ class FonixFlowQt(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Left collapsible sidebar with actions and settings
-        self.collapsible_sidebar = CollapsibleSidebar(self.is_dark_mode)
-
-        # Quick actions
-        self.collapsible_sidebar.add_action("🔄", self.tr("New Transcription"), self.clear_for_new_transcription)
-        self.collapsible_sidebar.add_separator()
-        self.collapsible_sidebar.add_action("📂", self.tr("Change Folder"), self.change_recordings_directory)
-        self.collapsible_sidebar.add_action("🗂️", self.tr("Open Folder"), self.open_recordings_folder)
-
-        # Settings section
-        self.collapsible_sidebar.add_separator()
-        self._add_settings_to_sidebar(self.collapsible_sidebar)
-
-        # Start expanded by default to show settings
-        main_layout.addWidget(self.collapsible_sidebar)
-
-        # Tab content stack - order: Record, Upload, Transcript
+        # Tab content stack - order: Record, Upload, Transcript, Settings
         self.basic_tab_stack = QStackedWidget()
         self.basic_tab_stack.addWidget(self.create_basic_record_tab())  # Index 0
         self.basic_tab_stack.addWidget(self.create_basic_upload_tab())  # Index 1
         self.basic_tab_stack.addWidget(self.create_basic_transcript_tab())  # Index 2
+        self.basic_tab_stack.addWidget(self.create_settings_tab())  # Index 3 (Settings)
         main_layout.addWidget(self.basic_tab_stack, 1)
 
         # Right side - vertical tab bar
@@ -587,6 +612,91 @@ class FonixFlowQt(QMainWindow):
         main_layout.addWidget(self.tab_bar)
 
         return container
+    def create_settings_tab(self):
+        """Create the new Settings tab with all sidebar widgets/settings."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+
+        # Quick actions
+        quick_actions_label = QLabel(self.tr("Quick Actions"))
+        quick_actions_label.setStyleSheet(f"""
+            font-size: 15px;
+            font-weight: bold;
+            color: {Theme.get('text_primary', self.is_dark_mode)};
+        """)
+
+        def style_settings_btn(btn):
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {Theme.get('text_primary', self.is_dark_mode)};
+                    border: 2px solid {Theme.get('border', self.is_dark_mode)};
+                    border-radius: 12px;
+                    padding: 15px 10px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                    border-color: {Theme.get('accent', self.is_dark_mode)};
+                }}
+            """)
+
+        quick_actions_row = QHBoxLayout()
+        new_trans_btn = ModernButton(self.tr("🔄 New Transcription"))
+        new_trans_btn.clicked.connect(self.clear_for_new_transcription)
+        style_settings_btn(new_trans_btn)
+        quick_actions_row.addWidget(new_trans_btn)
+        change_folder_btn = ModernButton(self.tr("📂 Change Folder"))
+        change_folder_btn.clicked.connect(self.change_recordings_directory)
+        style_settings_btn(change_folder_btn)
+        quick_actions_row.addWidget(change_folder_btn)
+        open_folder_btn = ModernButton(self.tr("🗂️ Open Folder"))
+        open_folder_btn.clicked.connect(self.open_recordings_folder)
+        style_settings_btn(open_folder_btn)
+        quick_actions_row.addWidget(open_folder_btn)
+        layout.addLayout(quick_actions_row)
+
+        # Recordings directory card
+        layout.addWidget(self.create_settings_card())
+
+        # Settings sections (Audio, Transcription)
+        settings_sections_label = QLabel(self.tr("Settings Sections"))
+        settings_sections_label.setStyleSheet(f"""
+            font-size: 15px;
+            font-weight: bold;
+            color: {Theme.get('text_primary', self.is_dark_mode)};
+        """)
+        layout.addWidget(settings_sections_label)
+
+        # Audio Processing section
+        audio_section_label = QLabel(self.tr("🎙️ Audio Processing"))
+        audio_section_label.setStyleSheet(f"""
+            font-size: 14px;
+            font-weight: 600;
+            color: {Theme.get('text_secondary', self.is_dark_mode)};
+        """)
+        layout.addWidget(audio_section_label)
+        for child in self.audio_options_widget.findChildren(QPushButton):
+            style_settings_btn(child)
+        layout.addWidget(self.audio_options_widget)
+
+        # Transcription section
+        transcription_section_label = QLabel(self.tr("📝 Transcription"))
+        transcription_section_label.setStyleSheet(f"""
+            font-size: 14px;
+            font-weight: 600;
+            color: {Theme.get('text_secondary', self.is_dark_mode)};
+        """)
+        layout.addWidget(transcription_section_label)
+        for child in self.transcription_options_widget.findChildren(QPushButton):
+            style_settings_btn(child)
+        layout.addWidget(self.transcription_options_widget)
+
+        layout.addStretch()
+        return widget
 
     def _add_settings_to_sidebar(self, sidebar):
         """Add settings sections to the left sidebar."""
@@ -709,7 +819,7 @@ class FonixFlowQt(QMainWindow):
         sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_content_widget)
 
     def create_vertical_tab_bar(self):
-        """Create vertical tab bar on the right side."""
+        """Create vertical tab bar on the right side, now with Settings tab."""
         from PySide6.QtWidgets import QPushButton
 
         tab_bar = QWidget()
@@ -728,11 +838,13 @@ class FonixFlowQt(QMainWindow):
         tabs = [
             ("🎙️", self.tr("Record"), 0),
             ("📁", self.tr("Upload"), 1),
-            ("📄", self.tr("Transcript"), 2)
+            ("📄", self.tr("Transcript"), 2),
+            ("⚙️", self.tr("Settings"), 3)
         ]
 
         for icon, label, index in tabs:
-            btn = QPushButton(f"{icon}\n{label}")
+            translated_label = self.tr(label)
+            btn = QPushButton(f"{icon}\n{translated_label}")
             btn.setMinimumHeight(80)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setProperty("tab_index", index)
@@ -800,10 +912,10 @@ class FonixFlowQt(QMainWindow):
         self.settings_section_expanded = not self.settings_section_expanded
 
         if self.settings_section_expanded:
-            self.settings_section_btn.setText("▼ ⚙️ Settings")
+            self.settings_section_btn.setText(self.tr("▼ ⚙️ Settings"))
             self.settings_content_widget.show()
         else:
-            self.settings_section_btn.setText("▶ ⚙️ Settings")
+            self.settings_section_btn.setText(self.tr("▶ ⚙️ Settings"))
             self.settings_content_widget.hide()
 
         logger.info(f"Settings section {'expanded' if self.settings_section_expanded else 'collapsed'}")
@@ -834,7 +946,8 @@ class FonixFlowQt(QMainWindow):
         """Create a toggle option button with checkmark indicator."""
         from PySide6.QtWidgets import QPushButton
         checkmark = "✅" if is_enabled else "⬜"
-        btn = QPushButton(f"  {checkmark} {icon} {label}")
+        translated_label = self.tr(label)
+        btn = QPushButton(f"  {checkmark} {icon} {translated_label}")
         btn.setCursor(Qt.PointingHandCursor)
         btn.setMinimumHeight(36)
         btn.setProperty("callback", callback)  # Store callback
@@ -843,16 +956,19 @@ class FonixFlowQt(QMainWindow):
         btn.clicked.connect(callback)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: transparent;
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
                 color: {Theme.get('text_primary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 8px 12px 8px {indent}px;
-                text-align: left;
+                border: 2px solid {Theme.get('border', self.is_dark_mode)};
+                border-radius: 12px;
+                padding: 15px 10px 15px {indent}px;
                 font-size: 13px;
+                font-weight: bold;
+                text-align: left;
             }}
             QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                background-color: {Theme.get('accent', self.is_dark_mode)};
+                color: white;
+                border-color: {Theme.get('accent', self.is_dark_mode)};
             }}
         """)
         return btn
@@ -1275,7 +1391,7 @@ class FonixFlowQt(QMainWindow):
         self.recording_start_time = time.time()
 
         # Update UI
-        self.basic_record_btn.setText("Stop Recording")
+        self.basic_record_btn.setText(self.tr("Stop Recording"))
         self.basic_record_btn.setStyleSheet("""
             QPushButton {
                 background-color: #F44336;
@@ -1295,7 +1411,7 @@ class FonixFlowQt(QMainWindow):
         self.drop_zone.setEnabled(False)
 
         # Show and start recording timer
-        self.recording_time_label.setText("00:00:00")
+        self.recording_time_label.setText(self.tr("00:00:00"))
         self.recording_time_label.show()
         self.recording_timer.start(1000)  # Update every second
 
@@ -1332,7 +1448,7 @@ class FonixFlowQt(QMainWindow):
             self.recording_worker.stop()
 
         # Update button
-        self.basic_record_btn.setText("Start Recording")
+        self.basic_record_btn.setText(self.tr("Start Recording"))
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
 
@@ -1418,10 +1534,10 @@ class FonixFlowQt(QMainWindow):
             self.statusBar().showMessage(self.tr("Ready"))
         # Main tab bar (vertical tab buttons)
         if hasattr(self, 'tab_buttons'):
-            tab_labels = [self.tr("Record"), self.tr("Upload"), self.tr("Transcript")]
+            tab_labels = [self.tr("Record"), self.tr("Upload"), self.tr("Transcript"), self.tr("Settings")]
+            tab_icons = ["🎙️", "📁", "📄", "⚙️"]
             for i, btn in enumerate(self.tab_buttons):
-                icon = "🎙️" if i == 0 else ("📁" if i == 1 else "📄")
-                btn.setText(f"{icon}\n{tab_labels[i]}")
+                btn.setText(f"{tab_icons[i]}\n{tab_labels[i]}")
         # Sidebar
         if hasattr(self, 'collapsible_sidebar'):
             self.collapsible_sidebar.update_action_label("New Transcription", self.tr("New Transcription"))
@@ -1976,6 +2092,23 @@ class FonixFlowQt(QMainWindow):
 
     def clear_for_new_transcription(self):
         """Cancel any active transcription and reset UI for new transcription."""
+        # Hide and reset recording timer and progress indicators in footer
+        if hasattr(self, 'recording_timer'):
+            self.recording_timer.stop()
+        if hasattr(self, 'recording_time_label'):
+            self.recording_time_label.hide()
+            self.recording_time_label.setText("")
+        if hasattr(self, 'basic_record_progress_bar'):
+            self.basic_record_progress_bar.hide()
+            self.basic_record_progress_bar.setValue(0)
+        if hasattr(self, 'basic_record_progress_label'):
+            self.basic_record_progress_label.setText(self.tr("Ready"))
+        if hasattr(self, 'basic_upload_progress_bar'):
+            self.basic_upload_progress_bar.hide()
+            self.basic_upload_progress_bar.setValue(0)
+        if hasattr(self, 'basic_upload_progress_label'):
+            self.basic_upload_progress_label.setText(self.tr("Ready"))
+
         # Cancel active transcription if running
         self.cancel_transcription()
         # Stop recording worker if running
@@ -2003,11 +2136,11 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'basic_upload_progress_bar'):
             self.basic_upload_progress_bar.setValue(0)
         if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_upload_progress_label.setText("Ready")
+            self.basic_upload_progress_label.setText(self.tr("Ready"))
         if hasattr(self, 'basic_record_progress_bar'):
             self.basic_record_progress_bar.setValue(0)
         if hasattr(self, 'basic_record_progress_label'):
-            self.basic_record_progress_label.setText("Ready")
+            self.basic_record_progress_label.setText(self.tr("Ready"))
         # Disable save until new result
         if hasattr(self, 'basic_save_btn'):
             self.basic_save_btn.setEnabled(False)
@@ -2020,7 +2153,7 @@ class FonixFlowQt(QMainWindow):
         # Reset mode selection for new file
         self.multi_language_mode = None
         try:
-            self.statusBar().showMessage("Ready for new transcription")
+            self.statusBar().showMessage(self.tr("Ready for new transcription"))
         except Exception as e:
             logger.debug(f"Could not update status bar: {e}")
         # Hide manual transcribe button if present
@@ -2049,8 +2182,8 @@ class FonixFlowQt(QMainWindow):
                 logger.warning(f"Failed to stop recording on tab change: {e}")
         # Update status bar
         try:
-            tab_names = {0: "Record", 1: "Upload", 2: "Transcript"}
-            self.statusBar().showMessage(f"Switched to {tab_names.get(index, 'Unknown')} tab")
+            tab_names = {0: self.tr("Record"), 1: self.tr("Upload"), 2: self.tr("Transcript")}
+            self.statusBar().showMessage(self.tr(f"Switched to {tab_names.get(index, self.tr('Unknown'))} tab"))
         except Exception as e:
             logger.debug(f"Could not update status bar: {e}")
 

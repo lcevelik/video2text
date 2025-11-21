@@ -10,6 +10,9 @@ from gui.theme import Theme
 
 
 class ModernButton(QPushButton):
+    def set_label(self, text):
+        self.setText(text)
+        self.apply_style()
     """Modern styled button with hover effects."""
 
     def __init__(self, text, primary=False):
@@ -66,6 +69,9 @@ class ModernButton(QPushButton):
 
 
 class Card(QFrame):
+    def set_label(self, text):
+        if self.title_label:
+            self.title_label.setText(text)
     """Modern card widget with shadow effect."""
 
     def __init__(self, title="", is_dark_mode=False):
@@ -105,6 +111,8 @@ class Card(QFrame):
 
 
 class DropZone(QFrame):
+    def setText(self, text):
+        self.text_label.setText(text)
     """Drag and drop zone for files."""
 
     file_dropped = Signal(str)
@@ -365,6 +373,14 @@ class ModernTabBar(QFrame):
 
 
 class CollapsibleSidebar(QFrame):
+    def update_action_label(self, old_label, new_label):
+        # Update the label of an action button in the sidebar
+        for i in range(self.content_layout.count()):
+            widget = self.content_layout.itemAt(i).widget()
+            if isinstance(widget, QPushButton) and old_label in widget.text():
+                # Preserve icon if present
+                icon = widget.text().split(' ')[0] if ' ' in widget.text() else ''
+                widget.setText(f"{icon} {new_label}")
     """Collapsible sidebar with icons and optional labels."""
 
     def __init__(self, is_dark_mode=False, side='left'):

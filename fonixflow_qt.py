@@ -106,7 +106,9 @@ def main():
     app.setOrganizationName("FonixFlow")
 
     # Load translations based on system locale or override
-    load_translations(app, override_lang=args.lang)
+    # Store translator to prevent garbage collection
+    translator, _ = load_translations(app, override_lang=args.lang)
+    app._translator = translator  # Keep reference on QApplication
 
     # Set application icon globally (for taskbar, alt-tab, etc.)
     icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'fonixflow_icon.png')
@@ -123,6 +125,9 @@ def main():
             pass  # Not on Windows or failed, continue anyway
 
     window = FonixFlowQt()
+    # Call retranslate_ui after translation is installed
+    if hasattr(window, 'retranslate_ui'):
+        window.retranslate_ui()
     window.show()
 
     sys.exit(app.exec())
