@@ -177,10 +177,10 @@ class RecordingWorker(QThread):
                     speaker_chunk = self.backend.speaker_chunks[-1]
                     speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
                 # Debug logging for chunk sizes and levels
-                logger.info(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
+                logger.debug(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
                 # Only emit if changed
                 if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
-                    logger.info(f"VU DEBUG: Emitting levels mic={mic_level:.3f}, speaker={speaker_level:.3f}")
+                    logger.debug(f"VU DEBUG: Emitting levels mic={mic_level:.3f}, speaker={speaker_level:.3f}")
                     self.audio_levels_update.emit(mic_level, speaker_level)
                     last_mic_level = mic_level
                     last_speaker_level = speaker_level

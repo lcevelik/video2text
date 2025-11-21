@@ -1504,21 +1504,21 @@ class FonixFlowQt(QMainWindow):
         language_timeline = result.get('language_timeline', '')
         language_segments = result.get('language_segments', [])
         
-        # DEBUG: Log result details
-        logger.info(f"=== TRANSCRIPTION RESULT DEBUG ===")
-        logger.info(f"Text length: {len(text)} characters")
-        logger.info(f"Segments: {segment_count}")
-        logger.info(f"Language segments: {len(language_segments)}")
-        logger.info(f"Has timeline: {bool(language_timeline)}")
+        # Debug logging for transcription results
+        logger.debug(f"=== TRANSCRIPTION RESULT DEBUG ===")
+        logger.debug(f"Text length: {len(text)} characters")
+        logger.debug(f"Segments: {segment_count}")
+        logger.debug(f"Language segments: {len(language_segments)}")
+        logger.debug(f"Has timeline: {bool(language_timeline)}")
         if language_segments:
-            logger.info(f"First 3 language segments: {language_segments[:3]}")
+            logger.debug(f"First 3 language segments: {language_segments[:3]}")
         if not text:
             logger.warning(f"WARNING: text is empty! Checking language_segments...")
             if language_segments:
                 # Try to reconstruct text from language_segments
                 text = ' '.join(seg.get('text', '') for seg in language_segments)
-                logger.info(f"Reconstructed text from language_segments: {len(text)} characters")
-        logger.info(f"=== END DEBUG ===")
+                logger.debug(f"Reconstructed text from language_segments: {len(text)} characters")
+        logger.debug(f"=== END DEBUG ===")
 
         has_multilang = bool(language_timeline or language_segments)
         display_text = text
