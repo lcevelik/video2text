@@ -39,6 +39,7 @@ try:
             if self is None:
                 return None
             self.audio_chunks = []
+            self.speaker_chunks = []  # For compatibility with main backend
             self.is_recording = True
             self.sample_rate = 48000  # Default, will be updated from actual stream
             self.channels = 2
@@ -236,7 +237,9 @@ try:
 
                 # Store as column vector for consistency
                 if len(audio_data) > 0:
-                    self.audio_chunks.append(audio_data.reshape(-1, 1))
+                    chunk = audio_data.reshape(-1, 1)
+                    self.audio_chunks.append(chunk)
+                    self.speaker_chunks.append(chunk)  # For compatibility with main backend
                     if len(self.audio_chunks) <= 5:
                         logger.info(f"💾 Stored audio chunk #{len(self.audio_chunks)}, size: {len(audio_data)}")
 
@@ -265,6 +268,12 @@ try:
                 logger.info("ScreenCaptureKit stream stopped normally")
 
     class ScreenCaptureKitBackend(RecordingBackend):
+        @property
+        def speaker_chunks(self):
+            # Return system audio chunks from delegate if available
+            if self.delegate and hasattr(self.delegate, 'speaker_chunks'):
+                return self.delegate.speaker_chunks
+            return []
         """
         Recording backend using macOS ScreenCaptureKit for native system audio.
 
@@ -324,8 +333,8 @@ try:
                     if default_input is not None and default_input >= 0:
                         if devices[default_input]['max_input_channels'] > 0:
                             mic_device = default_input
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not auto-detect microphone device: {e}")
 
                 if mic_device is None:
                     for idx, device in enumerate(devices):
@@ -566,8 +575,8 @@ try:
                 try:
                     self.mic_stream.stop()
                     self.mic_stream.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error closing microphone stream: {e}")
 
             if self.screen_stream:
                 try:
