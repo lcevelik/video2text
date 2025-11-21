@@ -26,6 +26,7 @@ from gui.widgets import ModernButton, Card, DropZone, VUMeter, ModernTabBar, Col
 from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
+from gui.managers import SettingsManager, ThemeManager, FileManager
 from transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
@@ -46,24 +47,24 @@ class FonixFlowQt(QMainWindow):
             self.setWindowIcon(app_icon)
             QApplication.instance().setWindowIcon(app_icon)
 
-        # Config file location
-        self.config_file = Path.home() / ".fonixflow_config.json"
-
-        # Load settings
-        self.settings = self.load_settings()
+        # Initialize managers
+        self.settings_manager = SettingsManager(Path.home() / ".fonixflow_config.json")
+        self.settings = self.settings_manager.settings  # Keep for backward compatibility
+        self.theme_manager = ThemeManager(self, self.settings_manager.get("theme_mode", "dark"))
+        self.file_manager = FileManager(self)
 
         # Audio processing settings
-        self.enable_audio_filters = self.settings.get("enable_audio_filters", True)  # Default ON for quality
+        self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", True)
 
         # Transcription settings
-        self.enable_deep_scan = self.settings.get("enable_deep_scan", False)  # Default OFF for speed
+        self.enable_deep_scan = self.settings_manager.get("enable_deep_scan", False)
 
         # State
         self.video_path = None
         self.transcription_result = None
         self.transcription_worker = None  # QThread worker for transcription
-        self.theme_mode = "dark"  # Always dark mode
-        self.is_dark_mode = True  # Always dark mode
+        self.theme_mode = self.theme_manager.theme_mode
+        self.is_dark_mode = self.theme_manager.is_dark_mode
 
         self.transcription_start_time = None
         self.performance_overlay = None
@@ -97,7 +98,7 @@ class FonixFlowQt(QMainWindow):
         transcription_options_layout.addWidget(deep_scan_btn)
 
         self.setup_ui()
-        self.apply_theme()
+        self.theme_manager.apply_theme()
         # Ensure ffmpeg is available to pydub across the app
         try:
             self._configure_ffmpeg_converter()
@@ -150,165 +151,31 @@ class FonixFlowQt(QMainWindow):
             logger.warning(f"Could not center window: {e}")
 
     def load_settings(self):
-        """Load settings from config file."""
-        default_settings = {
-            "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
-            "theme_mode": "dark",  # auto, light, dark (default: dark)
-            "enable_audio_filters": True,  # Audio processing filters (default ON)
-            "enable_deep_scan": False  # Deep scan for transcription (default OFF)
-        }
-
-        try:
-            if self.config_file.exists():
-                with open(self.config_file, 'r') as f:
-                    settings = json.load(f)
-                    # Migrate old dark_mode setting to theme_mode
-                    if "dark_mode" in settings and "theme_mode" not in settings:
-                        settings["theme_mode"] = "dark" if settings["dark_mode"] else "light"
-                        del settings["dark_mode"]
-                    # Merge with defaults for any missing keys
-                    return {**default_settings, **settings}
-        except Exception as e:
-            logger.warning(f"Could not load settings: {e}")
-
-        return default_settings
+        """Load settings from config file (delegated to SettingsManager)."""
+        return self.settings_manager.load_settings()
 
     def save_settings(self):
-        """Save settings to config file."""
-        try:
-            # Update settings dict with current values
-            self.settings["theme_mode"] = self.theme_mode
-            self.settings["enable_audio_filters"] = self.enable_audio_filters
-            self.settings["enable_deep_scan"] = self.enable_deep_scan
-
-            with open(self.config_file, 'w') as f:
-                json.dump(self.settings, f, indent=2)
-            logger.info(f"Settings saved to {self.config_file}")
-        except Exception as e:
-            logger.error(f"Could not save settings: {e}")
+        """Save settings to config file (delegated to SettingsManager)."""
+        self.settings_manager.save_settings(
+            theme_mode=self.theme_mode,
+            enable_audio_filters=self.enable_audio_filters,
+            enable_deep_scan=self.enable_deep_scan
+        )
 
     def check_runtime_compat(self):
         """Warn users on Python 3.13 if pyaudioop is missing (needed for recording)."""
 
     def detect_system_theme(self):
-        """Detect if system is in dark mode."""
-        try:
-            # Use Qt's palette to detect system theme
-            palette = QApplication.palette()
-            # Updated for PySide6: use QPalette.ColorRole.Window instead of deprecated attribute
-            bg_color = palette.color(QPalette.ColorRole.Window)
-            # If background is dark (luminance < 128), system is in dark mode
-            is_dark = bg_color.lightness() < 128
-            return is_dark
-        except Exception as e:
-            logger.warning(f"Could not detect system theme: {e}")
-            return False  # Default to light
+        """Detect if system is in dark mode (delegated to ThemeManager)."""
+        return self.theme_manager.detect_system_theme()
 
     def get_effective_theme(self):
-        """Get the effective theme based on mode setting."""
-        # Always return dark mode
-        return True
+        """Get the effective theme based on mode setting (delegated to ThemeManager)."""
+        return self.theme_manager.get_effective_theme()
 
     def apply_theme(self):
-        """Apply the current theme to all UI elements."""
-        # Get theme colors
-        bg = Theme.get('bg_primary', self.is_dark_mode)
-        text = Theme.get('text_primary', self.is_dark_mode)
-        border = Theme.get('border', self.is_dark_mode)
-        accent = Theme.get('accent', self.is_dark_mode)
-
-        # Main window stylesheet
-        self.setStyleSheet(f"""
-            QMainWindow {{
-                background-color: {bg};
-                color: {text};
-            }}
-            QWidget {{
-                background-color: {bg};
-                color: {text};
-            }}
-            QLabel {{
-                color: {text};
-            }}
-            QPushButton {{
-                background-color: {Theme.get('button_bg', self.is_dark_mode)};
-                color: {Theme.get('button_text', self.is_dark_mode)};
-                border: 2px solid {border};
-                border-radius: 8px;
-                padding: 8px 16px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                border-color: {accent};
-                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
-            }}
-            QTextEdit {{
-                background-color: {Theme.get('input_bg', self.is_dark_mode)};
-                color: {text};
-                border: 1px solid {border};
-                border-radius: 8px;
-            }}
-            QProgressBar {{
-                border: 2px solid {border};
-                border-radius: 8px;
-                text-align: center;
-                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
-                color: {text};
-            }}
-            QProgressBar::chunk {{
-                background-color: {accent};
-                border-radius: 6px;
-            }}
-            QComboBox {{
-                background-color: {Theme.get('input_bg', self.is_dark_mode)};
-                color: {text};
-                border: 1px solid {border};
-                border-radius: 4px;
-                padding: 5px;
-            }}
-            QRadioButton {{
-                color: {text};
-            }}
-        """)
-
-        # Update sidebar if it exists (old)
-        if hasattr(self, 'basic_sidebar'):
-            self.update_sidebar_theme(self.basic_sidebar)
-
-        # Update vertical tab bar theme
-        if hasattr(self, 'tab_bar') and hasattr(self, 'update_vertical_tab_styles'):
-            self.update_vertical_tab_styles()
-
-        # Update CollapsibleSidebar theme
-        if hasattr(self, 'collapsible_sidebar'):
-            self.collapsible_sidebar.update_theme(self.is_dark_mode)
-
-        # Update settings section button styles
-        if hasattr(self, 'settings_section_btn'):
-            self.settings_section_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: transparent;
-                    color: {Theme.get('text_primary', self.is_dark_mode)};
-                    border: none;
-                    border-radius: 6px;
-                    padding: 8px 12px;
-                    text-align: left;
-                    font-size: 14px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                }}
-            """)
-
-        # Update DropZone theme
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.set_theme(self.is_dark_mode)
-
-        # Update all Card widgets
-        self.update_all_cards_theme()
-
-        logger.info(f"Applied {'dark' if self.is_dark_mode else 'light'} theme")
+        """Apply the current theme to all UI elements (delegated to ThemeManager)."""
+        self.theme_manager.apply_theme()
 
     def closeEvent(self, event):
         """Ensure background threads stop cleanly on window close."""
@@ -383,9 +250,8 @@ class FonixFlowQt(QMainWindow):
                 continue
 
     def update_all_cards_theme(self):
-        """Update theme for all Card widgets."""
-        for widget in self.findChildren(Card):
-            widget.update_theme(self.is_dark_mode)
+        """Update theme for all Card widgets (delegated to ThemeManager)."""
+        self.theme_manager.update_all_cards_theme()
 
     def eventFilter(self, obj, event):
         """No-op, was for device refresh."""
@@ -396,32 +262,8 @@ class FonixFlowQt(QMainWindow):
         return super().changeEvent(event)
 
     def update_sidebar_theme(self, sidebar):
-        """Update sidebar theme colors."""
-        sidebar.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {Theme.get('bg_secondary', self.is_dark_mode)};
-                border: none;
-                border-right: 1px solid {Theme.get('border', self.is_dark_mode)};
-                padding: 10px;
-                outline: none;
-            }}
-            QListWidget::item {{
-                background-color: transparent;
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border-radius: 8px;
-                padding: 12px 15px;
-                margin: 2px 0px;
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QListWidget::item:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-            QListWidget::item:selected {{
-                background-color: {Theme.get('accent', self.is_dark_mode)};
-                color: white;
-            }}
-        """)
+        """Update sidebar theme colors (delegated to ThemeManager)."""
+        self.theme_manager.update_sidebar_theme(sidebar)
 
     def setup_ui(self):
         """Setup the main UI with modern navigation."""
@@ -519,14 +361,10 @@ class FonixFlowQt(QMainWindow):
     def set_theme_mode(self, mode):
         """Set theme mode (auto/light/dark)."""
         self.theme_mode = mode
-        self.settings["theme_mode"] = mode
+        self.theme_manager.set_theme_mode(mode)
+        self.is_dark_mode = self.theme_manager.is_dark_mode
+        self.settings_manager.set("theme_mode", mode)
         self.save_settings()
-
-        # Update effective theme
-        self.is_dark_mode = self.get_effective_theme()
-        self.apply_theme()
-
-        logger.info(f"Theme mode set to: {mode} (effective: {'dark' if self.is_dark_mode else 'light'})")
 
     def create_settings_card(self):
         """Create settings card for recordings directory."""
@@ -860,40 +698,8 @@ class FonixFlowQt(QMainWindow):
         return tab_bar
 
     def update_vertical_tab_styles(self):
-        """Update styling for vertical tab buttons."""
-        for i, btn in enumerate(self.tab_buttons):
-            is_active = (i == self.current_tab_index)
-
-            if is_active:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {Theme.get('accent', self.is_dark_mode)};
-                        color: white;
-                        border: none;
-                        border-radius: 12px;
-                        padding: 15px 10px;
-                        font-size: 13px;
-                        font-weight: bold;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('accent', self.is_dark_mode)};
-                    }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Theme.get('text_primary', self.is_dark_mode)};
-                        border: 2px solid {Theme.get('border', self.is_dark_mode)};
-                        border-radius: 12px;
-                        padding: 15px 10px;
-                        font-size: 13px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                        border-color: {Theme.get('accent', self.is_dark_mode)};
-                    }}
-                """)
+        """Update styling for vertical tab buttons (delegated to ThemeManager)."""
+        self.theme_manager.update_vertical_tab_styles()
 
     def on_tab_changed(self, index):
         """Handle tab switching."""
@@ -1218,36 +1024,16 @@ class FonixFlowQt(QMainWindow):
         return widget
 
     def on_file_dropped_basic(self, file_path):
-        """Handle file drop - auto-start transcription."""
-        self.load_file(file_path)
-        QTimer.singleShot(150, self.prompt_multi_language_and_transcribe)
+        """Handle file drop - auto-start transcription (delegated to FileManager)."""
+        self.file_manager.on_file_dropped(file_path, self.prompt_multi_language_and_transcribe)
 
     def browse_file(self):
-        """Browse for video/audio file."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            self.tr("Select Video or Audio File"),
-            "",
-            self.tr("Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)")
-        )
-
-        if file_path:
-            self.load_file(file_path)
-            QTimer.singleShot(150, self.prompt_multi_language_and_transcribe)
+        """Browse for video/audio file (delegated to FileManager)."""
+        self.file_manager.browse_file(self.prompt_multi_language_and_transcribe)
 
     def load_file(self, file_path):
-        """Load a video or audio file."""
-        self.video_path = file_path
-        # Reset language mode so dialog appears for each new file
-        self.multi_language_mode = None
-        filename = Path(file_path).name
-
-        # Update UI
-        self.drop_zone.set_file(filename)
-        # Transcription will start after user chooses language mode
-
-        self.statusBar().showMessage(f"File selected: {filename}")
-        logger.info(f"Selected file: {file_path}")
+        """Load a video or audio file (delegated to FileManager)."""
+        self.file_manager.load_file(file_path)
 
     def refresh_audio_devices(self):
         """No-op. Device selection removed."""
@@ -1645,54 +1431,13 @@ class FonixFlowQt(QMainWindow):
         self.start_audio_preview()
 
     def change_recordings_directory(self):
-        """Open dialog to change recordings directory."""
-        current_dir = self.settings["recordings_dir"]
-        new_dir = QFileDialog.getExistingDirectory(
-            self,
-            self.tr("Select Recordings Folder"),
-            current_dir,
-            QFileDialog.ShowDirsOnly
-        )
-
-        if new_dir:
-            self.settings["recordings_dir"] = new_dir
-            if hasattr(self, 'recordings_dir_display') and self.recordings_dir_display is not None:
-                try:
-                    self.recordings_dir_display.setText(new_dir)
-                except Exception as e:
-                    logger.debug(f"Could not update recordings directory display: {e}")
-            self.save_settings()
-            logger.info(f"Recordings directory changed to: {new_dir}")
-            QMessageBox.information(
-                self,
-                self.tr("Settings Updated"),
-                f"Recordings will now be saved to:\n{new_dir}"
-            )
+        """Open dialog to change recordings directory (delegated to FileManager)."""
+        self.file_manager.change_recordings_directory(self.settings_manager)
 
     def open_recordings_folder(self):
-        """Open the recordings folder in the system file explorer."""
-        recordings_dir = Path(self.settings["recordings_dir"])
-
-        # Create directory if it doesn't exist
-        recordings_dir.mkdir(parents=True, exist_ok=True)
-
-        # Open in file explorer (cross-platform)
-        try:
-            if platform.system() == "Windows":
-                os.startfile(str(recordings_dir))
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", str(recordings_dir)])
-            else:  # Linux
-                subprocess.run(["xdg-open", str(recordings_dir)])
-
-            logger.info(f"Opened recordings folder: {recordings_dir}")
-        except Exception as e:
-            logger.error(f"Could not open recordings folder: {e}")
-            QMessageBox.warning(
-                self,
-                self.tr("Could Not Open Folder"),
-                f"Please navigate manually to:\n{recordings_dir}"
-            )
+        """Open the recordings folder in the system file explorer (delegated to FileManager)."""
+        recordings_dir = self.settings_manager.get("recordings_dir", str(Path.home() / "FonixFlow" / "Recordings"))
+        self.file_manager.open_recordings_folder(recordings_dir)
 
     def show_recording_dialog(self):
         """Show recording dialog (Advanced Mode only)."""
