@@ -123,7 +123,7 @@ class DropZone(QFrame):
         self.layout.setAlignment(Qt.AlignCenter)
 
         # Just text label, no icon
-        self.text_label = QLabel("Drag and drop video/audio file")
+        self.text_label = QLabel(self.tr("Drag and drop video/audio file"))
         self.text_label.setAlignment(Qt.AlignCenter)
         self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
 
@@ -180,7 +180,7 @@ class DropZone(QFrame):
 
     def clear_file(self):
         self.has_file = False
-        self.text_label.setText("Drag and drop video/audio file")
+        self.text_label.setText(self.tr("Drag and drop video/audio file"))
         self.text_label.setStyleSheet(f"font-size: 14px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         self.update_style()
 

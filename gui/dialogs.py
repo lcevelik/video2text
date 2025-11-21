@@ -26,7 +26,7 @@ class RecordingDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Audio Recording")
+        self.setWindowTitle(self.tr("Audio Recording"))
         self.setMinimumSize(500, 400)
         self.recording = False
         self.start_time = None
@@ -40,17 +40,17 @@ class RecordingDialog(QDialog):
         layout.setSpacing(20)
 
         # Title
-        title = QLabel("🎤 Audio Recording")
+        title = QLabel(self.tr("🎤 Audio Recording"))
         title.setStyleSheet("font-size: 20px; font-weight: bold;")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
         # Info card
         info_card = Card(is_dark_mode=False)  # Dialog uses light mode
-        info_card.content_layout.addWidget(QLabel("What will be recorded:"))
-        info_card.content_layout.addWidget(QLabel("🎤 Microphone: Your voice and ambient sounds"))
-        info_card.content_layout.addWidget(QLabel("🔊 Speaker: System audio, music, video calls"))
-        info_card.content_layout.addWidget(QLabel("📝 Both sources mixed into one recording"))
+        info_card.content_layout.addWidget(QLabel(self.tr("What will be recorded:")))
+        info_card.content_layout.addWidget(QLabel(self.tr("🎤 Microphone: Your voice and ambient sounds")))
+        info_card.content_layout.addWidget(QLabel(self.tr("🔊 Speaker: System audio, music, video calls")))
+        info_card.content_layout.addWidget(QLabel(self.tr("📝 Both sources mixed into one recording")))
         layout.addWidget(info_card)
 
         # Status
@@ -83,8 +83,8 @@ class RecordingDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.start_btn = ModernButton("🔴 Start Recording", primary=True)
-        self.stop_btn = ModernButton("⏹️ Stop Recording")
+        self.start_btn = ModernButton(self.tr("🔴 Start Recording"), primary=True)
+        self.stop_btn = ModernButton(self.tr("⏹️ Stop Recording"))
         self.stop_btn.setEnabled(False)
         close_btn = ModernButton("Close")
 
@@ -98,7 +98,7 @@ class RecordingDialog(QDialog):
         layout.addLayout(btn_layout)
 
         # Tip
-        tip = QLabel("💡 Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured.")
+        tip = QLabel(self.tr("💡 Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured."))
         tip.setStyleSheet("font-size: 11px; color: #999;")
         tip.setAlignment(Qt.AlignCenter)
         layout.addWidget(tip)
@@ -149,7 +149,7 @@ class RecordingDialog(QDialog):
         if self.worker:
             self.worker.stop()
 
-        self.status_label.setText("⏹️ Stopping recording...")
+        self.status_label.setText(self.tr("⏹️ Stopping recording..."))
         self.status_label.setStyleSheet("font-size: 14px; color: #FF9800;")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -229,7 +229,7 @@ class MultiLanguageChoiceDialog(QDialog):
     """Dialog asking whether audio contains multiple languages (code switching) and optional language selection."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Language Mode")
+        self.setWindowTitle(self.tr("Language Mode"))
         self.setModal(True)
         self.is_multi_language = False
         self.selected_languages: List[str] = []
@@ -237,7 +237,7 @@ class MultiLanguageChoiceDialog(QDialog):
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout()
-        title = QLabel("Is your file multi-language?")
+        title = QLabel(self.tr("Is your file multi-language?"))
         title.setStyleSheet("font-size:16px; font-weight:bold;")
         layout.addWidget(title)
 
@@ -245,24 +245,24 @@ class MultiLanguageChoiceDialog(QDialog):
         self.single_lang_select_widget = QWidget()
         self.single_lang_select_layout = QVBoxLayout(self.single_lang_select_widget)
         self.single_lang_select_widget.setVisible(False)
-        single_lang_label = QLabel("Select language type:")
+        single_lang_label = QLabel(self.tr("Select language type:"))
         single_lang_label.setStyleSheet("font-weight:bold; margin-top:8px;")
         self.single_lang_select_layout.addWidget(single_lang_label)
 
         # English checkbox
-        self.english_checkbox = QCheckBox("English (uses optimized .en model)")
+        self.english_checkbox = QCheckBox(self.tr("English (uses optimized .en model)"))
         self.english_checkbox.setChecked(True)
         self.single_lang_select_layout.addWidget(self.english_checkbox)
 
         # Other checkbox
-        self.other_checkbox = QCheckBox("Other language (uses multilingual model)")
+        self.other_checkbox = QCheckBox(self.tr("Other language (uses multilingual model)"))
         self.single_lang_select_layout.addWidget(self.other_checkbox)
 
         # Make checkboxes mutually exclusive
         self.english_checkbox.stateChanged.connect(lambda state: self.other_checkbox.setChecked(False) if state else None)
         self.other_checkbox.stateChanged.connect(lambda state: self.english_checkbox.setChecked(False) if state else None)
 
-        single_hint = QLabel("Select one language type before confirming.")
+        single_hint = QLabel(self.tr("Select one language type before confirming."))
         single_hint.setStyleSheet("font-size:11px; color:#666;")
         self.single_lang_select_layout.addWidget(single_hint)
         layout.addWidget(self.single_lang_select_widget)
@@ -271,7 +271,7 @@ class MultiLanguageChoiceDialog(QDialog):
         self.lang_select_widget = QWidget()
         self.lang_select_layout = QVBoxLayout(self.lang_select_widget)
         self.lang_select_widget.setVisible(False)
-        lang_label = QLabel("Select languages present (check all that apply):")
+        lang_label = QLabel(self.tr("Select languages present (check all that apply):"))
         lang_label.setStyleSheet("font-weight:bold; margin-top:8px;")
         self.lang_select_layout.addWidget(lang_label)
         # Expanded allow-list (can be extended further)
@@ -282,21 +282,21 @@ class MultiLanguageChoiceDialog(QDialog):
         grid = QGridLayout()
         self.lang_checkboxes: List[QCheckBox] = []
         for idx,(code,name) in enumerate(self.available_languages):
-            cb = QCheckBox(name)
+            cb = QCheckBox(self.tr(name))  # Translate language name
             cb.lang_code = code
             if code in ('en','es'):  # common pair default
                 cb.setChecked(True)
             self.lang_checkboxes.append(cb)
             grid.addWidget(cb, idx//3, idx%3)
         self.lang_select_layout.addLayout(grid)
-        hint = QLabel("At least one language must be selected before confirming.")
+        hint = QLabel(self.tr("At least one language must be selected before confirming."))
         hint.setStyleSheet("font-size:11px; color:#666;")
         self.lang_select_layout.addWidget(hint)
         layout.addWidget(self.lang_select_widget)
 
         btn_row = QHBoxLayout()
-        self.yes_btn = QPushButton("Multi-Language")
-        self.no_btn = QPushButton("Single-Language")
+        self.yes_btn = QPushButton(self.tr("Multi-Language"))
+        self.no_btn = QPushButton(self.tr("Single-Language"))
         self.yes_btn.setCursor(Qt.PointingHandCursor)
         self.no_btn.setCursor(Qt.PointingHandCursor)
         self.yes_btn.setStyleSheet("""
@@ -335,7 +335,7 @@ class MultiLanguageChoiceDialog(QDialog):
         btn_row.addWidget(self.no_btn)
         layout.addLayout(btn_row)
 
-        info = QLabel("Cancel to decide later.")
+        info = QLabel(self.tr("Cancel to decide later."))
         info.setStyleSheet("font-size:12px; color:#888;")
         layout.addWidget(info)
 
@@ -349,12 +349,12 @@ class MultiLanguageChoiceDialog(QDialog):
             self.is_multi_language = True
             self.lang_select_widget.setVisible(True)
             self.single_lang_select_widget.setVisible(False)  # Hide single-language options
-            self.yes_btn.setText("Confirm Languages")
+            self.yes_btn.setText(self.tr("Confirm Languages"))
             return
         # Confirm selection
         chosen = [cb.lang_code for cb in self.lang_checkboxes if cb.isChecked()]
         if not chosen:
-            QMessageBox.warning(self, "No Languages Selected", "Select at least one language to proceed.")
+            QMessageBox.warning(self, self.tr("No Languages Selected"), "Select at least one language to proceed.")
             return
         self.selected_languages = chosen
         self.accept()
@@ -365,11 +365,11 @@ class MultiLanguageChoiceDialog(QDialog):
             self.is_multi_language = False
             self.single_lang_select_widget.setVisible(True)
             self.lang_select_widget.setVisible(False)  # Hide multi-language options
-            self.no_btn.setText("Confirm Selection")
+            self.no_btn.setText(self.tr("Confirm Selection"))
             return
         # Confirm selection
         if not self.english_checkbox.isChecked() and not self.other_checkbox.isChecked():
-            QMessageBox.warning(self, "No Language Type Selected", "Please select either English or Other language.")
+            QMessageBox.warning(self, self.tr("No Language Type Selected"), self.tr("Please select either English or Other language."))
             return
 
         # Determine which type was selected
