@@ -44,6 +44,12 @@ class FonixFlowQt(QMainWindow):
         # Load settings
         self.settings = self.load_settings()
 
+        # Audio processing settings
+        self.enable_audio_filters = self.settings.get("enable_audio_filters", True)  # Default ON for quality
+
+        # Transcription settings
+        self.enable_deep_scan = self.settings.get("enable_deep_scan", False)  # Default OFF for speed
+
         # State
         self.video_path = None
         self.transcription_result = None
@@ -108,7 +114,9 @@ class FonixFlowQt(QMainWindow):
         """Load settings from config file."""
         default_settings = {
             "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
-            "theme_mode": "auto"  # auto, light, dark
+            "theme_mode": "auto",  # auto, light, dark
+            "enable_audio_filters": True,  # Audio processing filters (default ON)
+            "enable_deep_scan": False  # Deep scan for transcription (default OFF)
         }
 
         try:
@@ -129,6 +137,11 @@ class FonixFlowQt(QMainWindow):
     def save_settings(self):
         """Save settings to config file."""
         try:
+            # Update settings dict with current values
+            self.settings["theme_mode"] = self.theme_mode
+            self.settings["enable_audio_filters"] = self.enable_audio_filters
+            self.settings["enable_deep_scan"] = self.enable_deep_scan
+
             with open(self.config_file, 'w') as f:
                 json.dump(self.settings, f, indent=2)
             logger.info(f"Settings saved to {self.config_file}")
@@ -490,19 +503,6 @@ class FonixFlowQt(QMainWindow):
         dark_action.setChecked(self.theme_mode == "dark")
         dark_action.triggered.connect(lambda: self.set_theme_mode("dark"))
 
-        # Deep scan toggle (global multi-language chunk reanalysis)
-        settings_menu.addSeparator()
-        deep_scan_action = settings_menu.addAction("🔍 Enable Deep Scan (Slower)")
-        deep_scan_action.setCheckable(True)
-        if not hasattr(self, 'enable_deep_scan'):
-            self.enable_deep_scan = False
-        deep_scan_action.setChecked(self.enable_deep_scan)
-        def toggle_deep_scan():
-            self.enable_deep_scan = not self.enable_deep_scan
-            deep_scan_action.setChecked(self.enable_deep_scan)
-            logger.info(f"Deep scan toggled: {self.enable_deep_scan}")
-        deep_scan_action.triggered.connect(toggle_deep_scan)
-
         # Recording Settings under Settings
         settings_menu.addSeparator()
         rec_dir_action = settings_menu.addAction("📁 Change Recording Directory")
@@ -690,6 +690,92 @@ class FonixFlowQt(QMainWindow):
 
         settings_content_layout.addWidget(self.theme_options_widget)
 
+        # Add spacing
+        settings_content_layout.addSpacing(8)
+
+        # Audio Processing section (nested under Settings)
+        self.audio_section_expanded = True
+        audio_section_btn = QPushButton("  ▼ 🎙️ Audio Processing")
+        audio_section_btn.setCursor(Qt.PointingHandCursor)
+        audio_section_btn.setMinimumHeight(36)
+        audio_section_btn.clicked.connect(self.toggle_audio_section)
+        audio_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_secondary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px 6px 16px;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        settings_content_layout.addWidget(audio_section_btn)
+
+        # Audio options container
+        self.audio_options_widget = QWidget()
+        audio_options_layout = QVBoxLayout(self.audio_options_widget)
+        audio_options_layout.setContentsMargins(0, 0, 0, 0)
+        audio_options_layout.setSpacing(2)
+
+        # Audio filters toggle
+        audio_filter_btn = self.create_toggle_option_btn(
+            "🎚️", "Noise Reduction & Filters",
+            self.enable_audio_filters,
+            self.toggle_audio_filters,
+            indent=32
+        )
+        audio_options_layout.addWidget(audio_filter_btn)
+
+        settings_content_layout.addWidget(self.audio_options_widget)
+
+        # Add spacing
+        settings_content_layout.addSpacing(8)
+
+        # Transcription section (nested under Settings)
+        self.transcription_section_expanded = True
+        transcription_section_btn = QPushButton("  ▼ 📝 Transcription")
+        transcription_section_btn.setCursor(Qt.PointingHandCursor)
+        transcription_section_btn.setMinimumHeight(36)
+        transcription_section_btn.clicked.connect(self.toggle_transcription_section)
+        transcription_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_secondary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px 6px 16px;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        settings_content_layout.addWidget(transcription_section_btn)
+
+        # Transcription options container
+        self.transcription_options_widget = QWidget()
+        transcription_options_layout = QVBoxLayout(self.transcription_options_widget)
+        transcription_options_layout.setContentsMargins(0, 0, 0, 0)
+        transcription_options_layout.setSpacing(2)
+
+        # Deep scan toggle
+        deep_scan_btn = self.create_toggle_option_btn(
+            "🔍", "Deep Scan (Slower, More Accurate)",
+            self.enable_deep_scan,
+            self.toggle_deep_scan,
+            indent=32
+        )
+        transcription_options_layout.addWidget(deep_scan_btn)
+
+        settings_content_layout.addWidget(self.transcription_options_widget)
+
         sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_content_widget)
 
         return sidebar
@@ -742,6 +828,87 @@ class FonixFlowQt(QMainWindow):
             self.theme_options_widget.hide()
 
         logger.info(f"Theme section {'expanded' if self.theme_section_expanded else 'collapsed'}")
+
+    def toggle_audio_section(self):
+        """Toggle audio processing section visibility."""
+        self.audio_section_expanded = not self.audio_section_expanded
+
+        if self.audio_section_expanded:
+            self.audio_options_widget.show()
+        else:
+            self.audio_options_widget.hide()
+
+        logger.info(f"Audio section {'expanded' if self.audio_section_expanded else 'collapsed'}")
+
+    def toggle_transcription_section(self):
+        """Toggle transcription section visibility."""
+        self.transcription_section_expanded = not self.transcription_section_expanded
+
+        if self.transcription_section_expanded:
+            self.transcription_options_widget.show()
+        else:
+            self.transcription_options_widget.hide()
+
+        logger.info(f"Transcription section {'expanded' if self.transcription_section_expanded else 'collapsed'}")
+
+    def create_toggle_option_btn(self, icon, label, is_enabled, callback, indent=24):
+        """Create a toggle option button with checkmark indicator."""
+        from PySide6.QtWidgets import QPushButton
+        checkmark = "✅" if is_enabled else "⬜"
+        btn = QPushButton(f"  {checkmark} {icon} {label}")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setMinimumHeight(36)
+        btn.setProperty("callback", callback)  # Store callback
+        btn.setProperty("icon", icon)  # Store icon
+        btn.setProperty("label", label)  # Store label
+        btn.clicked.connect(callback)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px 8px {indent}px;
+                text-align: left;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        return btn
+
+    def toggle_audio_filters(self):
+        """Toggle audio filters on/off."""
+        self.enable_audio_filters = not self.enable_audio_filters
+        self.save_settings()
+
+        # Update button visual
+        checkmark = "✅" if self.enable_audio_filters else "⬜"
+        for child in self.audio_options_widget.findChildren(QPushButton):
+            if "Noise Reduction" in child.text():
+                icon = child.property("icon") or "🎚️"
+                label = child.property("label") or "Noise Reduction & Filters"
+                child.setText(f"  {checkmark} {icon} {label}")
+                break
+
+        logger.info(f"Audio filters {'enabled' if self.enable_audio_filters else 'disabled'}")
+
+    def toggle_deep_scan(self):
+        """Toggle deep scan on/off."""
+        self.enable_deep_scan = not self.enable_deep_scan
+        self.save_settings()
+
+        # Update button visual
+        checkmark = "✅" if self.enable_deep_scan else "⬜"
+        for child in self.transcription_options_widget.findChildren(QPushButton):
+            if "Deep Scan" in child.text():
+                icon = child.property("icon") or "🔍"
+                label = child.property("label") or "Deep Scan (Slower, More Accurate)"
+                child.setText(f"  {checkmark} {icon} {label}")
+                break
+
+        logger.info(f"Deep scan {'enabled' if self.enable_deep_scan else 'disabled'}")
 
     def create_sidebar(self):
         """Create sidebar navigation widget."""
@@ -1166,7 +1333,8 @@ class FonixFlowQt(QMainWindow):
         self.recording_worker = RecordingWorker(
             output_dir=self.settings["recordings_dir"],
             mic_device=None,  # Use default
-            speaker_device=None, # Use default
+            speaker_device=None,  # Use default
+            enable_filters=self.enable_audio_filters,  # Audio filters setting
             parent=self
         )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)

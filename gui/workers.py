@@ -82,6 +82,7 @@ class RecordingWorker(QThread):
                  mic_device: Optional[int] = None,
                  speaker_device: Optional[int] = None,
                  backend: Optional[str] = None,
+                 enable_filters: bool = True,
                  parent=None):
         """
         Initialize recording worker.
@@ -92,6 +93,7 @@ class RecordingWorker(QThread):
             speaker_device: Device index for system audio (None = auto-detect)
             backend: Force specific backend ('sounddevice' or 'screencapturekit'),
                     or None for auto-select
+            enable_filters: Enable audio filters (noise gate, compressor)
             parent: Parent QObject
         """
         super().__init__(parent)
@@ -99,6 +101,7 @@ class RecordingWorker(QThread):
         self.mic_device = mic_device
         self.speaker_device = speaker_device
         self.backend_name = backend
+        self.enable_filters = enable_filters
         self.backend = None
         self.is_recording = True
 
@@ -251,6 +254,37 @@ class RecordingWorker(QThread):
         recorded_path = str(self.output_dir / filename)
 
         logger.info(f"Saving recording to: {recorded_path}")
+
+        # Apply audio filters if enabled
+        if self.enable_filters:
+            try:
+                from gui.audio_filters import NoiseGate, EnhancedCompressor
+                logger.info("Applying audio filters (NoiseGate + Compressor)")
+
+                # Apply noise gate to remove background noise
+                noise_gate = NoiseGate(
+                    threshold_db=-32.0,  # Open gate above -32dB
+                    attack_ms=25.0,
+                    release_ms=150.0,
+                    hold_ms=200.0,
+                    sample_rate=sample_rate
+                )
+                audio_data = noise_gate.process(audio_data)
+
+                # Apply compressor for consistent volume
+                compressor = EnhancedCompressor(
+                    threshold_db=-18.0,  # Compress above -18dB
+                    ratio=3.0,  # 3:1 ratio
+                    attack_ms=6.0,
+                    release_ms=60.0,
+                    output_gain_db=0.0,
+                    sample_rate=sample_rate
+                )
+                audio_data = compressor.process(audio_data)
+
+                logger.info("Audio filters applied successfully")
+            except Exception as e:
+                logger.warning(f"Could not apply audio filters: {e}. Saving unfiltered audio.")
 
         # Convert to int16 for audio file
         audio_data_int16 = (audio_data * 32767).astype(np.int16)
