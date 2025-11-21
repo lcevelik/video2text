@@ -46,7 +46,7 @@ class RecordingDialog(QDialog):
         layout.addWidget(title)
 
         # Info card
-        info_card = Card(self.tr("3a4 Audio Recording"), is_dark_mode=False)  # Dialog uses light mode
+        info_card = Card(self.tr("Audio Recording"), is_dark_mode=False)  # Dialog uses light mode
         info_card.content_layout.addWidget(QLabel(self.tr("What will be recorded:")))
         info_card.content_layout.addWidget(QLabel(self.tr("🎤 Microphone: Your voice and ambient sounds")))
         info_card.content_layout.addWidget(QLabel(self.tr("🔊 Speaker: System audio, music, video calls")))
@@ -198,8 +198,8 @@ class RecordingDialog(QDialog):
             if self.check_audio_devices():
                 QMessageBox.information(
                     self,
-                    "Device Found",
-                    "✅ Audio input device detected!\n\nYou can now start recording."
+                    self.tr("Device Found"),
+                    self.tr("✅ Audio input device detected!\n\nYou can now start recording.")
                 )
                 # Automatically start recording
                 self.start_recording()
@@ -354,7 +354,7 @@ class MultiLanguageChoiceDialog(QDialog):
         # Confirm selection
         chosen = [cb.lang_code for cb in self.lang_checkboxes if cb.isChecked()]
         if not chosen:
-            QMessageBox.warning(self, self.tr("No Languages Selected"), "Select at least one language to proceed.")
+            QMessageBox.warning(self, self.tr("No Languages Selected"), self.tr("Select at least one language to proceed."))
             return
         self.selected_languages = chosen
         self.accept()

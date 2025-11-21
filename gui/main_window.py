@@ -964,7 +964,7 @@ class FonixFlowQt(QMainWindow):
         self.transcribe_recording_btn.hide()
         def _start_transcribe_recording():
             if not self.video_path:
-                QMessageBox.information(self, self.tr("No Recording"), "No recording available. Please record first.")
+                QMessageBox.information(self, self.tr("No Recording"), self.tr("No recording available. Please record first."))
                 return
             # Reset multi-language choice so dialog appears for each manual transcription
             self.multi_language_mode = None
@@ -984,7 +984,7 @@ class FonixFlowQt(QMainWindow):
         layout.setContentsMargins(30, 30, 30, 30)
 
         # Language info (shown after transcription)
-        self.basic_transcript_desc = QLabel(self.tr(""))
+        self.basic_transcript_desc = QLabel("")
         self.basic_transcript_desc.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(self.basic_transcript_desc)
 
@@ -1163,7 +1163,7 @@ class FonixFlowQt(QMainWindow):
                 QMessageBox.information(
                     self,
                     self.tr("Device Found"),
-                    "✅ Audio input device detected!\n\nYou can now start recording."
+                    self.tr("✅ Audio input device detected!\n\nYou can now start recording.")
                 )
                 # Automatically start recording
                 self.start_basic_recording()
@@ -1448,7 +1448,7 @@ class FonixFlowQt(QMainWindow):
     def start_transcription(self):
         """Start transcription process."""
         if not self.video_path:
-            QMessageBox.warning(self, self.tr("No File"), "Please select a file first.")
+            QMessageBox.warning(self, self.tr("No File"), self.tr("Please select a file first."))
             return
 
         # Disable buttons and clear results
@@ -1573,7 +1573,7 @@ class FonixFlowQt(QMainWindow):
     def save_transcription(self):
         """Save current transcription (Video2TextQt scope)."""
         if not getattr(self, 'transcription_result', None):
-            QMessageBox.warning(self, self.tr("No Transcription"), "Please transcribe a file first.")
+            QMessageBox.warning(self, self.tr("No Transcription"), self.tr("Please transcribe a file first."))
             return
         default_name = Path(self.video_path).stem if self.video_path else "transcription"
         file_path, selected_filter = QFileDialog.getSaveFileName(
