@@ -33,6 +33,9 @@ python fonixflow_qt.py --lang fr
 # German
 python fonixflow_qt.py --lang de
 
+# Czech
+python fonixflow_qt.py --lang cs
+
 # Chinese (Simplified)
 python fonixflow_qt.py --lang zh_CN
 
@@ -62,6 +65,7 @@ These languages have complete translations with all 107 strings translated:
 | 🇪🇸 Spanish | es | `python fonixflow_qt.py --lang es` |
 | 🇫🇷 French | fr | `python fonixflow_qt.py --lang fr` |
 | 🇩🇪 German | de | `python fonixflow_qt.py --lang de` |
+| 🇨🇿 Czech | cs | `python fonixflow_qt.py --lang cs` |
 
 ### ⏳ Templates Available (Need Translation)
 
@@ -75,7 +79,6 @@ These languages have template files ready but need translations:
 - 🇮🇹 Italian - it
 - 🇵🇱 Polish - pl
 - 🇸🇦 Arabic - ar
-- 🇨🇿 Czech - cs
 
 ## What to Test
 
@@ -316,6 +319,7 @@ Need help?
 | Test Spanish | `python fonixflow_qt.py --lang es` |
 | Test French | `python fonixflow_qt.py --lang fr` |
 | Test German | `python fonixflow_qt.py --lang de` |
+| Test Czech | `python fonixflow_qt.py --lang cs` |
 | Interactive menu | `python test_languages.py` |
 | System language | `python fonixflow_qt.py` |
 | Get help | `python fonixflow_qt.py --help` |
