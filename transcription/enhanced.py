@@ -65,6 +65,7 @@ import threading
 import queue
 from typing import Dict, List, Optional, Any, Tuple
 from transcriber import Transcriber
+from transcription.processors import FormatConverter, DiagnosticsLogger, AudioProcessor
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -120,13 +121,16 @@ class EnhancedTranscriber(Transcriber):
         """
         super().__init__(model_size)
         self.language_segments = []
-        self.enable_diagnostics = enable_diagnostics
-        self.diagnostics = {}  # Store diagnostic information
         self.cancel_requested = False  # User cancellation flag
         self._audio_fallback_model = None  # Cached model for audio fallback (performance optimization)
-        self._audio_cache = None  # Cached audio data for in-memory processing
-        self._audio_cache_path = None  # Path of cached audio
-        self._audio_sample_rate = 16000  # Whisper expects 16kHz
+
+        # Initialize processors
+        self.diagnostics_logger = DiagnosticsLogger(enable_diagnostics)
+        self.audio_processor = AudioProcessor(sample_rate=16000)
+
+        # Backward compatibility properties
+        self.enable_diagnostics = enable_diagnostics
+        self.diagnostics = self.diagnostics_logger.diagnostics
 
     def transcribe_multilang(
         self,
@@ -1165,18 +1169,8 @@ class EnhancedTranscriber(Transcriber):
         return '\n'.join(timeline)
 
     def _format_timestamp_readable(self, seconds: float) -> str:
-        """
-        Format timestamp in readable format (MM:SS).
-
-        Args:
-            seconds: Time in seconds
-
-        Returns:
-            Formatted timestamp
-        """
-        minutes = int(seconds // 60)
-        secs = int(seconds % 60)
-        return f"{minutes:02d}:{secs:02d}"
+        """Format timestamp in readable format (delegated to FormatConverter)."""
+        return FormatConverter.format_timestamp_readable(seconds)
 
     def _log_segment_diagnostics(self, segments: List[Dict[str, Any]], stage: str):
         """
@@ -1366,90 +1360,16 @@ class EnhancedTranscriber(Transcriber):
         return avg_confidence
 
     def format_as_vtt(self, transcription_result: Dict[str, Any]) -> str:
-        """
-        Format transcription result as VTT subtitle file.
-
-        Args:
-            transcription_result: Result dictionary from transcribe()
-
-        Returns:
-            str: VTT formatted subtitle content
-        """
-        segments = transcription_result.get('segments', [])
-        vtt_content = ["WEBVTT\n"]
-
-        for i, segment in enumerate(segments, start=1):
-            start_time = self._format_vtt_timestamp(segment['start'])
-            end_time = self._format_vtt_timestamp(segment['end'])
-            text = segment['text'].strip()
-
-            vtt_content.append(f"{start_time} --> {end_time}\n{text}\n")
-
-        return "\n".join(vtt_content)
+        """Format transcription result as VTT subtitle file (delegated to FormatConverter)."""
+        return FormatConverter.format_as_vtt(transcription_result)
 
     def _format_vtt_timestamp(self, seconds: float) -> str:
-        """
-        Format seconds as VTT timestamp (HH:MM:SS.mmm).
-
-        Args:
-            seconds: Time in seconds
-
-        Returns:
-            str: Formatted VTT timestamp
-        """
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        millis = int((seconds % 1) * 1000)
-
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"
+        """Format seconds as VTT timestamp (delegated to FormatConverter)."""
+        return FormatConverter._format_vtt_timestamp(seconds)
 
     def format_multilang_report(self, result: Dict[str, Any]) -> str:
-        """
-        Format a detailed multi-language transcription report.
-
-        Args:
-            result: Enhanced transcription result with language info
-
-        Returns:
-            Formatted report string
-        """
-        report = []
-        report.append("=" * 60)
-        report.append("MULTI-LANGUAGE TRANSCRIPTION REPORT")
-        report.append("=" * 60)
-        report.append("")
-
-        # Overall info
-        detected_lang = result.get('language', 'unknown')
-        report.append(f"Primary Language: {detected_lang.upper()}")
-        report.append("")
-
-        # Language segments
-        if 'language_segments' in result:
-            segments = result['language_segments']
-            report.append(f"Language Segments Detected: {len(segments)}")
-            report.append("")
-
-            for i, seg in enumerate(segments, 1):
-                start_str = self._format_timestamp_readable(seg['start'])
-                end_str = self._format_timestamp_readable(seg['end'])
-                lang = seg['language']
-
-                report.append(f"Segment {i}: {lang.upper()} [{start_str} - {end_str}]")
-                report.append(f"  {seg['text'][:100]}...")
-                report.append("")
-
-        # Timeline
-        if 'language_timeline' in result:
-            report.append("Language Timeline:")
-            report.append("-" * 60)
-            report.append(result['language_timeline'])
-            report.append("")
-
-        report.append("=" * 60)
-
-        return "\n".join(report)
+        """Format a detailed multi-language transcription report (delegated to FormatConverter)."""
+        return FormatConverter.format_multilang_report(result)
 
     def _detect_language_from_words(
         self,
