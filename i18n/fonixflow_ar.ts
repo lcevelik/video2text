@@ -4,50 +4,50 @@
     <name>DropZone</name>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished"/>
+      <translation>اسحب وأفلت ملف فيديو/صوت</translation>
     </message>
   </context>
   <context>
     <name>FonixFlowQt</name>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
-      <translation type="unfinished"/>
+      <translation>FonixFlow - نسخ Whisper</translation>
     </message>
     <message>
       <source>Ready</source>
-      <translation type="unfinished"/>
+      <translation>جاهز</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
-      <translation type="unfinished"/>
+      <translation>جاهز للنسخ</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished"/>
+      <translation>جاهز للتسجيل</translation>
     </message>
     <message>
       <source>Record</source>
-      <translation type="unfinished"/>
+      <translation>تسجيل</translation>
     </message>
     <message>
       <source>Upload</source>
-      <translation type="unfinished"/>
+      <translation>رفع</translation>
     </message>
     <message>
       <source>Transcript</source>
-      <translation type="unfinished"/>
+      <translation>نسخ</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>⚙️ الإعدادات</translation>
     </message>
     <message>
       <source>🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>🎨 المظهر</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
-      <translation type="unfinished"/>
+      <translation>🔄 تلقائي (النظام)</translation>
     </message>
     <message>
       <source>🔄 Auto</source>
@@ -55,394 +55,396 @@
     </message>
     <message>
       <source>☀️ Light</source>
-      <translation type="unfinished"/>
+      <translation>☀️ فاتح</translation>
     </message>
     <message>
       <source>🌙 Dark</source>
-      <translation type="unfinished"/>
+      <translation>🌙 داكن</translation>
     </message>
     <message>
       <source>🔍 Enable Deep Scan (Slower)</source>
-      <translation type="unfinished"/>
+      <translation>🔍 تمكين المسح العميق (أبطأ)</translation>
     </message>
     <message>
       <source>📁 Change Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>📁 تغيير دليل التسجيلات</translation>
     </message>
     <message>
       <source>🗂️ Open Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ فتح دليل التسجيلات</translation>
     </message>
     <message>
       <source>🔄 New Transcription</source>
-      <translation type="unfinished"/>
+      <translation>🔄 نسخ جديد</translation>
     </message>
     <message>
       <source>▼ ⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>▼ ⚙️ الإعدادات</translation>
     </message>
     <message>
       <source>▶ ⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>▶ ⚙️ الإعدادات</translation>
     </message>
     <message>
       <source>▼ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▼ 🎨 المظهر</translation>
     </message>
     <message>
       <source>▶ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▶ 🎨 المظهر</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
-      <translation type="unfinished"/>
+      <translation>حفظ التسجيلات في:</translation>
     </message>
     <message>
       <source>📂 Change Folder</source>
-      <translation type="unfinished"/>
+      <translation>📂 تغيير المجلد</translation>
     </message>
     <message>
       <source>🗂️ Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ فتح المجلد</translation>
     </message>
     <message>
       <source>New Transcription</source>
-      <translation type="unfinished"/>
+      <translation>نسخ جديد</translation>
     </message>
     <message>
       <source>Change Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>تغيير مجلد التسجيلات</translation>
     </message>
     <message>
       <source>Open Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>فتح مجلد التسجيلات</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
-      <translation type="unfinished"/>
+      <translation>🎤 بدء التسجيل</translation>
     </message>
     <message>
       <source>Transcribe Recording</source>
-      <translation type="unfinished"/>
+      <translation>نسخ التسجيل</translation>
     </message>
     <message>
       <source>💾 Save Transcription</source>
-      <translation type="unfinished"/>
+      <translation>💾 حفظ النسخ</translation>
     </message>
     <message>
       <source>✖ Cancel Transcription</source>
-      <translation type="unfinished"/>
+      <translation>✖ إلغاء النسخ</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished"/>
+      <translation>إغلاق</translation>
     </message>
     <message>
       <source>Recording will use the system's default microphone and audio output.</source>
-      <translation type="unfinished"/>
+      <translation>سيستخدم التسجيل الميكروفون وإخراج الصوت الافتراضي للنظام.</translation>
     </message>
     <message>
       <source>💡 Files automatically transcribe when dropped or selected</source>
-      <translation type="unfinished"/>
+      <translation>💡 يتم نسخ الملفات تلقائيًا عند إسقاطها أو تحديدها</translation>
     </message>
     <message>
       <source>💡 After stopping, the recording is saved but NOT automatically transcribed
 💡 Click 'Transcribe Recording' to manually start transcription</source>
-      <translation type="unfinished"/>
+      <translation>💡 بعد التوقف، يتم حفظ التسجيل ولكن لا يتم نسخه تلقائيًا
+💡 انقر على &quot;نسخ التسجيل&quot; لبدء النسخ يدويًا</translation>
     </message>
     <message>
       <source>Transcription text will appear here...</source>
-      <translation type="unfinished"/>
+      <translation>سيظهر نص النسخ هنا...</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished"/>
+      <translation>المدة: 0:00</translation>
     </message>
     <message>
       <source>Microphone</source>
-      <translation type="unfinished"/>
+      <translation>ميكروفون</translation>
     </message>
     <message>
       <source>Speaker</source>
-      <translation type="unfinished"/>
+      <translation>مكبر الصوت</translation>
     </message>
     <message>
       <source>🔴 Recording from Microphone + Speaker...</source>
-      <translation type="unfinished"/>
+      <translation>🔴 التسجيل من الميكروفون + مكبر الصوت...</translation>
     </message>
     <message>
       <source>Recording in progress...</source>
-      <translation type="unfinished"/>
+      <translation>التسجيل قيد التقدم...</translation>
     </message>
     <message>
       <source>Processing recording...</source>
-      <translation type="unfinished"/>
+      <translation>معالجة التسجيل...</translation>
     </message>
     <message>
       <source>Starting…</source>
-      <translation type="unfinished"/>
+      <translation>جارٍ البدء…</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished"/>
+      <translation>حدد ملف فيديو أو صوت</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished"/>
+      <translation>ملفات الوسائط (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;جميع الملفات (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>حدد مجلد التسجيلات</translation>
     </message>
     <message>
       <source>Save Transcription</source>
-      <translation type="unfinished"/>
+      <translation>حفظ النسخ</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
-      <translation type="unfinished"/>
+      <translation>ملفات نصية (*.txt);;ترجمات SRT (*.srt);;ترجمات VTT (*.vtt)</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished"/>
+      <translation>لم يتم العثور على ميكروفون</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished"/>
+      <translation>لم يتم الكشف عن جهاز إدخال صوتي!</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished"/>
+      <translation>تم العثور على الجهاز</translation>
     </message>
     <message>
       <source>No Recording</source>
-      <translation type="unfinished"/>
+      <translation>لا يوجد تسجيل</translation>
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished"/>
+      <translation>لا يوجد تسجيل متاح. يرجى التسجيل أولاً.</translation>
     </message>
     <message>
       <source>No File</source>
-      <translation type="unfinished"/>
+      <translation>لا يوجد ملف</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished"/>
+      <translation>يرجى تحديد ملف أولاً.</translation>
     </message>
     <message>
       <source>No Transcription</source>
-      <translation type="unfinished"/>
+      <translation>لا يوجد نسخ</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished"/>
+      <translation>يرجى نسخ ملف أولاً.</translation>
     </message>
     <message>
       <source>Saved Successfully</source>
-      <translation type="unfinished"/>
+      <translation>تم الحفظ بنجاح</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished"/>
+      <translation>تم تحديث الإعدادات</translation>
     </message>
     <message>
       <source>Save Error</source>
-      <translation type="unfinished"/>
+      <translation>خطأ في الحفظ</translation>
     </message>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>تعذر فتح المجلد</translation>
     </message>
     <message>
       <source>Transcription Error</source>
-      <translation type="unfinished"/>
+      <translation>خطأ في النسخ</translation>
     </message>
   </context>
   <context>
     <name>MultiLanguageChoiceDialog</name>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished"/>
+      <translation>وضع اللغة</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished"/>
+      <translation>هل ملفك متعدد اللغات؟</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished"/>
+      <translation>حدد نوع اللغة:</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished"/>
+      <translation>الإنجليزية (يستخدم نموذج .en المحسّن)</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished"/>
+      <translation>لغة أخرى (يستخدم نموذج متعدد اللغات)</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished"/>
+      <translation>حدد نوع لغة واحد قبل التأكيد.</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished"/>
+      <translation>حدد اللغات الموجودة (حدد كل ما ينطبق):</translation>
     </message>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished"/>
+      <translation>يجب تحديد لغة واحدة على الأقل قبل التأكيد.</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished"/>
+      <translation>متعدد اللغات</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished"/>
+      <translation>تأكيد اللغات</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished"/>
+      <translation>لغة واحدة</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished"/>
+      <translation>تأكيد التحديد</translation>
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished"/>
+      <translation>إلغاء للتقرير لاحقًا.</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished"/>
+      <translation>لم يتم تحديد لغات</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished"/>
+      <translation>حدد لغة واحدة على الأقل للمتابعة.</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished"/>
+      <translation>لم يتم تحديد نوع اللغة</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished"/>
+      <translation>يرجى تحديد الإنجليزية أو لغة أخرى.</translation>
     </message>
     <message>
       <source>English</source>
-      <translation type="unfinished"/>
+      <translation>الإنجليزية</translation>
     </message>
     <message>
       <source>Czech</source>
-      <translation type="unfinished"/>
+      <translation>التشيكية</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="unfinished"/>
+      <translation>الألمانية</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="unfinished"/>
+      <translation>الفرنسية</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="unfinished"/>
+      <translation>الإسبانية</translation>
     </message>
     <message>
       <source>Italian</source>
-      <translation type="unfinished"/>
+      <translation>الإيطالية</translation>
     </message>
     <message>
       <source>Polish</source>
-      <translation type="unfinished"/>
+      <translation>البولندية</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="unfinished"/>
+      <translation>الروسية</translation>
     </message>
     <message>
       <source>Chinese</source>
-      <translation type="unfinished"/>
+      <translation>الصينية</translation>
     </message>
     <message>
       <source>Japanese</source>
-      <translation type="unfinished"/>
+      <translation>اليابانية</translation>
     </message>
     <message>
       <source>Korean</source>
-      <translation type="unfinished"/>
+      <translation>الكورية</translation>
     </message>
     <message>
       <source>Arabic</source>
-      <translation type="unfinished"/>
+      <translation>العربية</translation>
     </message>
   </context>
   <context>
     <name>RecordingDialog</name>
     <message>
       <source>Audio Recording</source>
-      <translation type="unfinished"/>
+      <translation>تسجيل صوتي</translation>
     </message>
     <message>
       <source>🎤 Audio Recording</source>
-      <translation type="unfinished"/>
+      <translation>🎤 تسجيل صوتي</translation>
     </message>
     <message>
       <source>What will be recorded:</source>
-      <translation type="unfinished"/>
+      <translation>ما سيتم تسجيله:</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
-      <translation type="unfinished"/>
+      <translation>🎤 الميكروفون: صوتك والأصوات المحيطة</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>
-      <translation type="unfinished"/>
+      <translation>🔊 مكبر الصوت: صوت النظام والموسيقى ومكالمات الفيديو</translation>
     </message>
     <message>
       <source>📝 Both sources mixed into one recording</source>
-      <translation type="unfinished"/>
+      <translation>📝 كلا المصدرين ممزوجان في تسجيل واحد</translation>
     </message>
     <message>
       <source>🔴 Start Recording</source>
-      <translation type="unfinished"/>
+      <translation>🔴 بدء التسجيل</translation>
     </message>
     <message>
       <source>⏹️ Stop Recording</source>
-      <translation type="unfinished"/>
+      <translation>⏹️ إيقاف التسجيل</translation>
     </message>
     <message>
       <source>💡 Perfect for video calls, meetings, or any scenario where you need both
 your voice and system audio captured.</source>
-      <translation type="unfinished"/>
+      <translation>💡 مثالي لمكالمات الفيديو والاجتماعات أو أي سيناريو تحتاج فيه
+إلى التقاط صوتك وصوت النظام معًا.</translation>
     </message>
     <message>
       <source>⏹️ Stopping recording...</source>
-      <translation type="unfinished"/>
+      <translation>⏹️ جارٍ إيقاف التسجيل...</translation>
     </message>
   </context>
   <context>
     <name>TranscriptionWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished"/>
+      <translation>استخراج الصوت...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished"/>
+      <translation>جارٍ النسخ...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished"/>
+      <translation>جارٍ الإنهاء...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished"/>
+      <translation>جارٍ إنهاء النسخ...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished"/>
+      <translation>اكتمل النسخ!</translation>
     </message>
   </context>
 </TS>

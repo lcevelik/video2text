@@ -4,50 +4,50 @@
     <name>DropZone</name>
     <message>
       <source>Drag and drop video/audio file</source>
-      <translation type="unfinished"/>
+      <translation>Trascina e rilascia file video/audio</translation>
     </message>
   </context>
   <context>
     <name>FonixFlowQt</name>
     <message>
       <source>FonixFlow - Whisper Transcription</source>
-      <translation type="unfinished"/>
+      <translation>FonixFlow - Trascrizione Whisper</translation>
     </message>
     <message>
       <source>Ready</source>
-      <translation type="unfinished"/>
+      <translation>Pronto</translation>
     </message>
     <message>
       <source>Ready to transcribe</source>
-      <translation type="unfinished"/>
+      <translation>Pronto per trascrivere</translation>
     </message>
     <message>
       <source>Ready to record</source>
-      <translation type="unfinished"/>
+      <translation>Pronto per registrare</translation>
     </message>
     <message>
       <source>Record</source>
-      <translation type="unfinished"/>
+      <translation>Registra</translation>
     </message>
     <message>
       <source>Upload</source>
-      <translation type="unfinished"/>
+      <translation>Carica</translation>
     </message>
     <message>
       <source>Transcript</source>
-      <translation type="unfinished"/>
+      <translation>Trascrizione</translation>
     </message>
     <message>
       <source>⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>⚙️ Impostazioni</translation>
     </message>
     <message>
       <source>🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>🎨 Tema</translation>
     </message>
     <message>
       <source>🔄 Auto (System)</source>
-      <translation type="unfinished"/>
+      <translation>🔄 Auto (Sistema)</translation>
     </message>
     <message>
       <source>🔄 Auto</source>
@@ -55,394 +55,396 @@
     </message>
     <message>
       <source>☀️ Light</source>
-      <translation type="unfinished"/>
+      <translation>☀️ Chiaro</translation>
     </message>
     <message>
       <source>🌙 Dark</source>
-      <translation type="unfinished"/>
+      <translation>🌙 Scuro</translation>
     </message>
     <message>
       <source>🔍 Enable Deep Scan (Slower)</source>
-      <translation type="unfinished"/>
+      <translation>🔍 Abilita Scansione Profonda (Più Lento)</translation>
     </message>
     <message>
       <source>📁 Change Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>📁 Cambia Directory di Registrazione</translation>
     </message>
     <message>
       <source>🗂️ Open Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Apri Directory di Registrazione</translation>
     </message>
     <message>
       <source>🔄 New Transcription</source>
-      <translation type="unfinished"/>
+      <translation>🔄 Nuova Trascrizione</translation>
     </message>
     <message>
       <source>▼ ⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>▼ ⚙️ Impostazioni</translation>
     </message>
     <message>
       <source>▶ ⚙️ Settings</source>
-      <translation type="unfinished"/>
+      <translation>▶ ⚙️ Impostazioni</translation>
     </message>
     <message>
       <source>▼ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▼ 🎨 Tema</translation>
     </message>
     <message>
       <source>▶ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▶ 🎨 Tema</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
-      <translation type="unfinished"/>
+      <translation>Le registrazioni vengono salvate in:</translation>
     </message>
     <message>
       <source>📂 Change Folder</source>
-      <translation type="unfinished"/>
+      <translation>📂 Cambia Cartella</translation>
     </message>
     <message>
       <source>🗂️ Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Apri Cartella</translation>
     </message>
     <message>
       <source>New Transcription</source>
-      <translation type="unfinished"/>
+      <translation>Nuova Trascrizione</translation>
     </message>
     <message>
       <source>Change Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Cambia Cartella Registrazioni</translation>
     </message>
     <message>
       <source>Open Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Apri Cartella Registrazioni</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
-      <translation type="unfinished"/>
+      <translation>🎤 Inizia Registrazione</translation>
     </message>
     <message>
       <source>Transcribe Recording</source>
-      <translation type="unfinished"/>
+      <translation>Trascrivi Registrazione</translation>
     </message>
     <message>
       <source>💾 Save Transcription</source>
-      <translation type="unfinished"/>
+      <translation>💾 Salva Trascrizione</translation>
     </message>
     <message>
       <source>✖ Cancel Transcription</source>
-      <translation type="unfinished"/>
+      <translation>✖ Annulla Trascrizione</translation>
     </message>
     <message>
       <source>Close</source>
-      <translation type="unfinished"/>
+      <translation>Chiudi</translation>
     </message>
     <message>
       <source>Recording will use the system's default microphone and audio output.</source>
-      <translation type="unfinished"/>
+      <translation>La registrazione utilizzerà il microfono e l'uscita audio predefiniti del sistema.</translation>
     </message>
     <message>
       <source>💡 Files automatically transcribe when dropped or selected</source>
-      <translation type="unfinished"/>
+      <translation>💡 I file vengono trascritti automaticamente quando rilasciati o selezionati</translation>
     </message>
     <message>
       <source>💡 After stopping, the recording is saved but NOT automatically transcribed
 💡 Click 'Transcribe Recording' to manually start transcription</source>
-      <translation type="unfinished"/>
+      <translation>💡 Dopo l'arresto, la registrazione viene salvata ma NON trascritta automaticamente
+💡 Clicca 'Trascrivi Registrazione' per avviare manualmente la trascrizione</translation>
     </message>
     <message>
       <source>Transcription text will appear here...</source>
-      <translation type="unfinished"/>
+      <translation>Il testo della trascrizione apparirà qui...</translation>
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished"/>
+      <translation>Durata: 0:00</translation>
     </message>
     <message>
       <source>Microphone</source>
-      <translation type="unfinished"/>
+      <translation>Microfono</translation>
     </message>
     <message>
       <source>Speaker</source>
-      <translation type="unfinished"/>
+      <translation>Altoparlante</translation>
     </message>
     <message>
       <source>🔴 Recording from Microphone + Speaker...</source>
-      <translation type="unfinished"/>
+      <translation>🔴 Registrazione da Microfono + Altoparlante...</translation>
     </message>
     <message>
       <source>Recording in progress...</source>
-      <translation type="unfinished"/>
+      <translation>Registrazione in corso...</translation>
     </message>
     <message>
       <source>Processing recording...</source>
-      <translation type="unfinished"/>
+      <translation>Elaborazione registrazione...</translation>
     </message>
     <message>
       <source>Starting…</source>
-      <translation type="unfinished"/>
+      <translation>Avvio…</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona File Video o Audio</translation>
     </message>
     <message>
       <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-      <translation type="unfinished"/>
+      <translation>File Multimediali (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;Tutti i File (*.*)</translation>
     </message>
     <message>
       <source>Select Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona Cartella Registrazioni</translation>
     </message>
     <message>
       <source>Save Transcription</source>
-      <translation type="unfinished"/>
+      <translation>Salva Trascrizione</translation>
     </message>
     <message>
       <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
-      <translation type="unfinished"/>
+      <translation>File di Testo (*.txt);;Sottotitoli SRT (*.srt);;Sottotitoli VTT (*.vtt)</translation>
     </message>
     <message>
       <source>No Microphone Found</source>
-      <translation type="unfinished"/>
+      <translation>Nessun Microfono Trovato</translation>
     </message>
     <message>
       <source>No audio input device detected!</source>
-      <translation type="unfinished"/>
+      <translation>Nessun dispositivo di ingresso audio rilevato!</translation>
     </message>
     <message>
       <source>Device Found</source>
-      <translation type="unfinished"/>
+      <translation>Dispositivo Trovato</translation>
     </message>
     <message>
       <source>No Recording</source>
-      <translation type="unfinished"/>
+      <translation>Nessuna Registrazione</translation>
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished"/>
+      <translation>Nessuna registrazione disponibile. Registra prima.</translation>
     </message>
     <message>
       <source>No File</source>
-      <translation type="unfinished"/>
+      <translation>Nessun File</translation>
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona prima un file.</translation>
     </message>
     <message>
       <source>No Transcription</source>
-      <translation type="unfinished"/>
+      <translation>Nessuna Trascrizione</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished"/>
+      <translation>Trascrivi prima un file.</translation>
     </message>
     <message>
       <source>Saved Successfully</source>
-      <translation type="unfinished"/>
+      <translation>Salvato con Successo</translation>
     </message>
     <message>
       <source>Settings Updated</source>
-      <translation type="unfinished"/>
+      <translation>Impostazioni Aggiornate</translation>
     </message>
     <message>
       <source>Save Error</source>
-      <translation type="unfinished"/>
+      <translation>Errore di Salvataggio</translation>
     </message>
     <message>
       <source>Could Not Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>Impossibile Aprire la Cartella</translation>
     </message>
     <message>
       <source>Transcription Error</source>
-      <translation type="unfinished"/>
+      <translation>Errore di Trascrizione</translation>
     </message>
   </context>
   <context>
     <name>MultiLanguageChoiceDialog</name>
     <message>
       <source>Language Mode</source>
-      <translation type="unfinished"/>
+      <translation>Modalità Lingua</translation>
     </message>
     <message>
       <source>Is your file multi-language?</source>
-      <translation type="unfinished"/>
+      <translation>Il tuo file è multilingue?</translation>
     </message>
     <message>
       <source>Select language type:</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona tipo di lingua:</translation>
     </message>
     <message>
       <source>English (uses optimized .en model)</source>
-      <translation type="unfinished"/>
+      <translation>Inglese (usa modello .en ottimizzato)</translation>
     </message>
     <message>
       <source>Other language (uses multilingual model)</source>
-      <translation type="unfinished"/>
+      <translation>Altra lingua (usa modello multilingue)</translation>
     </message>
     <message>
       <source>Select one language type before confirming.</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona un tipo di lingua prima di confermare.</translation>
     </message>
     <message>
       <source>Select languages present (check all that apply):</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona le lingue presenti (seleziona tutte quelle applicabili):</translation>
     </message>
     <message>
       <source>At least one language must be selected before confirming.</source>
-      <translation type="unfinished"/>
+      <translation>Almeno una lingua deve essere selezionata prima di confermare.</translation>
     </message>
     <message>
       <source>Multi-Language</source>
-      <translation type="unfinished"/>
+      <translation>Multi-Lingua</translation>
     </message>
     <message>
       <source>Confirm Languages</source>
-      <translation type="unfinished"/>
+      <translation>Conferma Lingue</translation>
     </message>
     <message>
       <source>Single-Language</source>
-      <translation type="unfinished"/>
+      <translation>Singola Lingua</translation>
     </message>
     <message>
       <source>Confirm Selection</source>
-      <translation type="unfinished"/>
+      <translation>Conferma Selezione</translation>
     </message>
     <message>
       <source>Cancel to decide later.</source>
-      <translation type="unfinished"/>
+      <translation>Annulla per decidere più tardi.</translation>
     </message>
     <message>
       <source>No Languages Selected</source>
-      <translation type="unfinished"/>
+      <translation>Nessuna Lingua Selezionata</translation>
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona almeno una lingua per procedere.</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
-      <translation type="unfinished"/>
+      <translation>Nessun Tipo di Lingua Selezionato</translation>
     </message>
     <message>
       <source>Please select either English or Other language.</source>
-      <translation type="unfinished"/>
+      <translation>Seleziona Inglese o Altra lingua.</translation>
     </message>
     <message>
       <source>English</source>
-      <translation type="unfinished"/>
+      <translation>Inglese</translation>
     </message>
     <message>
       <source>Czech</source>
-      <translation type="unfinished"/>
+      <translation>Ceco</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="unfinished"/>
+      <translation>Tedesco</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="unfinished"/>
+      <translation>Francese</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="unfinished"/>
+      <translation>Spagnolo</translation>
     </message>
     <message>
       <source>Italian</source>
-      <translation type="unfinished"/>
+      <translation>Italiano</translation>
     </message>
     <message>
       <source>Polish</source>
-      <translation type="unfinished"/>
+      <translation>Polacco</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="unfinished"/>
+      <translation>Russo</translation>
     </message>
     <message>
       <source>Chinese</source>
-      <translation type="unfinished"/>
+      <translation>Cinese</translation>
     </message>
     <message>
       <source>Japanese</source>
-      <translation type="unfinished"/>
+      <translation>Giapponese</translation>
     </message>
     <message>
       <source>Korean</source>
-      <translation type="unfinished"/>
+      <translation>Coreano</translation>
     </message>
     <message>
       <source>Arabic</source>
-      <translation type="unfinished"/>
+      <translation>Arabo</translation>
     </message>
   </context>
   <context>
     <name>RecordingDialog</name>
     <message>
       <source>Audio Recording</source>
-      <translation type="unfinished"/>
+      <translation>Registrazione Audio</translation>
     </message>
     <message>
       <source>🎤 Audio Recording</source>
-      <translation type="unfinished"/>
+      <translation>🎤 Registrazione Audio</translation>
     </message>
     <message>
       <source>What will be recorded:</source>
-      <translation type="unfinished"/>
+      <translation>Cosa verrà registrato:</translation>
     </message>
     <message>
       <source>🎤 Microphone: Your voice and ambient sounds</source>
-      <translation type="unfinished"/>
+      <translation>🎤 Microfono: La tua voce e i suoni ambientali</translation>
     </message>
     <message>
       <source>🔊 Speaker: System audio, music, video calls</source>
-      <translation type="unfinished"/>
+      <translation>🔊 Altoparlante: Audio di sistema, musica, videochiamate</translation>
     </message>
     <message>
       <source>📝 Both sources mixed into one recording</source>
-      <translation type="unfinished"/>
+      <translation>📝 Entrambe le sorgenti mixate in una registrazione</translation>
     </message>
     <message>
       <source>🔴 Start Recording</source>
-      <translation type="unfinished"/>
+      <translation>🔴 Inizia Registrazione</translation>
     </message>
     <message>
       <source>⏹️ Stop Recording</source>
-      <translation type="unfinished"/>
+      <translation>⏹️ Ferma Registrazione</translation>
     </message>
     <message>
       <source>💡 Perfect for video calls, meetings, or any scenario where you need both
 your voice and system audio captured.</source>
-      <translation type="unfinished"/>
+      <translation>💡 Perfetto per videochiamate, riunioni o qualsiasi scenario in cui hai bisogno
+di catturare sia la tua voce che l'audio di sistema.</translation>
     </message>
     <message>
       <source>⏹️ Stopping recording...</source>
-      <translation type="unfinished"/>
+      <translation>⏹️ Arresto registrazione...</translation>
     </message>
   </context>
   <context>
     <name>TranscriptionWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished"/>
+      <translation>Estrazione audio...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished"/>
+      <translation>Trascrizione...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished"/>
+      <translation>Completamento...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished"/>
+      <translation>Finalizzazione trascrizione...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished"/>
+      <translation>Trascrizione completata!</translation>
     </message>
   </context>
 </TS>

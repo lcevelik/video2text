@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="cs">
   <context>
     <name>DropZone</name>
@@ -63,7 +63,7 @@
     </message>
     <message>
       <source>🔍 Enable Deep Scan (Slower)</source>
-      <translation type="unfinished"/>
+      <translation>🔍 Povolit Hluboké Skenování (Pomalejší)</translation>
     </message>
     <message>
       <source>📁 Change Recording Directory</source>
@@ -71,7 +71,7 @@
     </message>
     <message>
       <source>🗂️ Open Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Otevřít Adresář Nahrávek</translation>
     </message>
     <message>
       <source>🔄 New Transcription</source>
@@ -87,11 +87,11 @@
     </message>
     <message>
       <source>▼ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▼ 🎨 Motiv</translation>
     </message>
     <message>
       <source>▶ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▶ 🎨 Motiv</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -99,11 +99,11 @@
     </message>
     <message>
       <source>📂 Change Folder</source>
-      <translation type="unfinished"/>
+      <translation>📂 Změnit Složku</translation>
     </message>
     <message>
       <source>🗂️ Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Otevřít Složku</translation>
     </message>
     <message>
       <source>New Transcription</source>
@@ -111,11 +111,11 @@
     </message>
     <message>
       <source>Change Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Změnit Složku Nahrávek</translation>
     </message>
     <message>
       <source>Open Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Otevřít Složku Nahrávek</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -157,7 +157,7 @@
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished"/>
+      <translation>Trvání: 0:00</translation>
     </message>
     <message>
       <source>Microphone</source>
@@ -332,51 +332,51 @@
     </message>
     <message>
       <source>English</source>
-      <translation type="unfinished"/>
+      <translation>Angličtina</translation>
     </message>
     <message>
       <source>Czech</source>
-      <translation type="unfinished"/>
+      <translation>Čeština</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="unfinished"/>
+      <translation>Němčina</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="unfinished"/>
+      <translation>Francouzština</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="unfinished"/>
+      <translation>Španělština</translation>
     </message>
     <message>
       <source>Italian</source>
-      <translation type="unfinished"/>
+      <translation>Italština</translation>
     </message>
     <message>
       <source>Polish</source>
-      <translation type="unfinished"/>
+      <translation>Polština</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="unfinished"/>
+      <translation>Ruština</translation>
     </message>
     <message>
       <source>Chinese</source>
-      <translation type="unfinished"/>
+      <translation>Čínština</translation>
     </message>
     <message>
       <source>Japanese</source>
-      <translation type="unfinished"/>
+      <translation>Japonština</translation>
     </message>
     <message>
       <source>Korean</source>
-      <translation type="unfinished"/>
+      <translation>Korejština</translation>
     </message>
     <message>
       <source>Arabic</source>
-      <translation type="unfinished"/>
+      <translation>Arabština</translation>
     </message>
   </context>
   <context>
@@ -428,23 +428,23 @@ zachytit váš hlas i systémový zvuk.</translation>
     <name>TranscriptionWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished"/>
+      <translation>Extrakce zvuku...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished"/>
+      <translation>Přepisování...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished"/>
+      <translation>Dokončování...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished"/>
+      <translation>Finalizace přepisu...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished"/>
+      <translation>Přepis dokončen!</translation>
     </message>
   </context>
 </TS>

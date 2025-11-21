@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="es">
   <context>
     <name>DropZone</name>
@@ -63,15 +63,15 @@
     </message>
     <message>
       <source>🔍 Enable Deep Scan (Slower)</source>
-      <translation type="unfinished"/>
+      <translation>🔍 Activar Escaneo Profundo (Más Lento)</translation>
     </message>
     <message>
       <source>📁 Change Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>📁 Cambiar Directorio de Grabaciones</translation>
     </message>
     <message>
       <source>🗂️ Open Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Abrir Directorio de Grabaciones</translation>
     </message>
     <message>
       <source>🔄 New Transcription</source>
@@ -87,11 +87,11 @@
     </message>
     <message>
       <source>▼ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▼ 🎨 Tema</translation>
     </message>
     <message>
       <source>▶ 🎨 Theme</source>
-      <translation type="unfinished"/>
+      <translation>▶ 🎨 Tema</translation>
     </message>
     <message>
       <source>Recordings save to:</source>
@@ -99,11 +99,11 @@
     </message>
     <message>
       <source>📂 Change Folder</source>
-      <translation type="unfinished"/>
+      <translation>📂 Cambiar Carpeta</translation>
     </message>
     <message>
       <source>🗂️ Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Abrir Carpeta</translation>
     </message>
     <message>
       <source>New Transcription</source>
@@ -111,11 +111,11 @@
     </message>
     <message>
       <source>Change Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Cambiar Carpeta de Grabaciones</translation>
     </message>
     <message>
       <source>Open Recordings Folder</source>
-      <translation type="unfinished"/>
+      <translation>Abrir Carpeta de Grabaciones</translation>
     </message>
     <message>
       <source>🎤 Start Recording</source>
@@ -157,7 +157,7 @@
     </message>
     <message>
       <source>Duration: 0:00</source>
-      <translation type="unfinished"/>
+      <translation>Duración: 0:00</translation>
     </message>
     <message>
       <source>Microphone</source>
@@ -169,19 +169,19 @@
     </message>
     <message>
       <source>🔴 Recording from Microphone + Speaker...</source>
-      <translation type="unfinished"/>
+      <translation>🔴 Grabando desde Micrófono + Altavoz...</translation>
     </message>
     <message>
       <source>Recording in progress...</source>
-      <translation type="unfinished"/>
+      <translation>Grabación en progreso...</translation>
     </message>
     <message>
       <source>Processing recording...</source>
-      <translation type="unfinished"/>
+      <translation>Procesando grabación...</translation>
     </message>
     <message>
       <source>Starting…</source>
-      <translation type="unfinished"/>
+      <translation>Iniciando…</translation>
     </message>
     <message>
       <source>Select Video or Audio File</source>
@@ -221,7 +221,7 @@
     </message>
     <message>
       <source>No recording available. Please record first.</source>
-      <translation type="unfinished"/>
+      <translation>No hay grabación disponible. Por favor, grabe primero.</translation>
     </message>
     <message>
       <source>No File</source>
@@ -229,7 +229,7 @@
     </message>
     <message>
       <source>Please select a file first.</source>
-      <translation type="unfinished"/>
+      <translation>Por favor, seleccione un archivo primero.</translation>
     </message>
     <message>
       <source>No Transcription</source>
@@ -237,7 +237,7 @@
     </message>
     <message>
       <source>Please transcribe a file first.</source>
-      <translation type="unfinished"/>
+      <translation>Por favor, transcriba un archivo primero.</translation>
     </message>
     <message>
       <source>Saved Successfully</source>
@@ -332,51 +332,51 @@
     </message>
     <message>
       <source>English</source>
-      <translation type="unfinished"/>
+      <translation>Inglés</translation>
     </message>
     <message>
       <source>Czech</source>
-      <translation type="unfinished"/>
+      <translation>Checo</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="unfinished"/>
+      <translation>Alemán</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="unfinished"/>
+      <translation>Francés</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="unfinished"/>
+      <translation>Español</translation>
     </message>
     <message>
       <source>Italian</source>
-      <translation type="unfinished"/>
+      <translation>Italiano</translation>
     </message>
     <message>
       <source>Polish</source>
-      <translation type="unfinished"/>
+      <translation>Polaco</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="unfinished"/>
+      <translation>Ruso</translation>
     </message>
     <message>
       <source>Chinese</source>
-      <translation type="unfinished"/>
+      <translation>Chino</translation>
     </message>
     <message>
       <source>Japanese</source>
-      <translation type="unfinished"/>
+      <translation>Japonés</translation>
     </message>
     <message>
       <source>Korean</source>
-      <translation type="unfinished"/>
+      <translation>Coreano</translation>
     </message>
     <message>
       <source>Arabic</source>
-      <translation type="unfinished"/>
+      <translation>Árabe</translation>
     </message>
   </context>
   <context>
@@ -428,23 +428,23 @@ capturar tu voz y el audio del sistema.</translation>
     <name>TranscriptionWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished"/>
+      <translation>Extrayendo audio...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished"/>
+      <translation>Transcribiendo...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished"/>
+      <translation>Finalizando...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished"/>
+      <translation>Finalizando transcripción...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished"/>
+      <translation>¡Transcripción completa!</translation>
     </message>
   </context>
 </TS>

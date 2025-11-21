@@ -71,7 +71,7 @@
     </message>
     <message>
       <source>🗂️ Open Recording Directory</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Aufnahmeverzeichnis Öffnen</translation>
     </message>
     <message>
       <source>🔄 New Transcription</source>
@@ -99,11 +99,11 @@
     </message>
     <message>
       <source>📂 Change Folder</source>
-      <translation type="unfinished"/>
+      <translation>📂 Ordner Ändern</translation>
     </message>
     <message>
       <source>🗂️ Open Folder</source>
-      <translation type="unfinished"/>
+      <translation>🗂️ Ordner Öffnen</translation>
     </message>
     <message>
       <source>New Transcription</source>
@@ -233,7 +233,7 @@
     </message>
     <message>
       <source>No Transcription</source>
-      <translation type="unfinished"/>
+      <translation>Keine Transkription</translation>
     </message>
     <message>
       <source>Please transcribe a file first.</source>
@@ -320,7 +320,7 @@
     </message>
     <message>
       <source>Select at least one language to proceed.</source>
-      <translation type="unfinished"/>
+      <translation>Wählen Sie mindestens eine Sprache aus, um fortzufahren.</translation>
     </message>
     <message>
       <source>No Language Type Selected</source>
@@ -332,51 +332,51 @@
     </message>
     <message>
       <source>English</source>
-      <translation type="unfinished"/>
+      <translation>Englisch</translation>
     </message>
     <message>
       <source>Czech</source>
-      <translation type="unfinished"/>
+      <translation>Tschechisch</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="unfinished"/>
+      <translation>Deutsch</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="unfinished"/>
+      <translation>Französisch</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="unfinished"/>
+      <translation>Spanisch</translation>
     </message>
     <message>
       <source>Italian</source>
-      <translation type="unfinished"/>
+      <translation>Italienisch</translation>
     </message>
     <message>
       <source>Polish</source>
-      <translation type="unfinished"/>
+      <translation>Polnisch</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="unfinished"/>
+      <translation>Russisch</translation>
     </message>
     <message>
       <source>Chinese</source>
-      <translation type="unfinished"/>
+      <translation>Chinesisch</translation>
     </message>
     <message>
       <source>Japanese</source>
-      <translation type="unfinished"/>
+      <translation>Japanisch</translation>
     </message>
     <message>
       <source>Korean</source>
-      <translation type="unfinished"/>
+      <translation>Koreanisch</translation>
     </message>
     <message>
       <source>Arabic</source>
-      <translation type="unfinished"/>
+      <translation>Arabisch</translation>
     </message>
   </context>
   <context>
@@ -428,23 +428,23 @@ Ihre Stimme als auch System-Audio aufnehmen müssen.</translation>
     <name>TranscriptionWorker</name>
     <message>
       <source>Extracting audio...</source>
-      <translation type="unfinished"/>
+      <translation>Audio wird extrahiert...</translation>
     </message>
     <message>
       <source>Transcribing...</source>
-      <translation type="unfinished"/>
+      <translation>Transkribiere...</translation>
     </message>
     <message>
       <source>Finishing up...</source>
-      <translation type="unfinished"/>
+      <translation>Abschließen...</translation>
     </message>
     <message>
       <source>Finalizing transcription...</source>
-      <translation type="unfinished"/>
+      <translation>Transkription wird abgeschlossen...</translation>
     </message>
     <message>
       <source>Transcription complete!</source>
-      <translation type="unfinished"/>
+      <translation>Transkription abgeschlossen!</translation>
     </message>
   </context>
 </TS>

@@ -63,7 +63,7 @@ def compile_ts_file(ts_file):
 
 def main():
     """Main function."""
-    i18n_dir = Path(__file__).parent / "i18n"
+    i18n_dir = Path(__file__).parent.parent / "i18n"
 
     if not i18n_dir.exists():
         print(f"Error: {i18n_dir} directory not found!")
