@@ -30,7 +30,7 @@ fi
 # Launch the Qt application
 echo "Starting Modern Qt Interface..."
 echo ""
-python3 gui_qt.py
+python3 fonixflow_qt.py
 
 # Check exit code
 if [ $? -ne 0 ]; then

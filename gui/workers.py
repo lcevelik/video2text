@@ -16,10 +16,33 @@ class AudioPreviewWorker(QThread):
             self.backend.is_recording = False
 
     def run(self):
-        from gui.recording import SoundDeviceBackend
+        from gui.utils import get_platform
+        from gui.recording import SoundDeviceBackend, ScreenCaptureKitBackend, HAS_SCREENCAPTUREKIT
         import sounddevice as sd
         import numpy as np
-        self.backend = SoundDeviceBackend(self.mic_device, self.speaker_device)
+        platform = get_platform()
+        if platform == 'macos':
+            if HAS_SCREENCAPTUREKIT:
+                try:
+                    self.backend = ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
+                    logger.info("AudioPreviewWorker: ScreenCaptureKit backend initialized successfully.")
+                except Exception as e:
+                    logger.error(f"AudioPreviewWorker: Failed to initialize ScreenCaptureKit backend: {e}", exc_info=True)
+                    raise RuntimeError(
+                        f"ScreenCaptureKit backend required for audio preview on macOS but failed to initialize: {e}\n"
+                        "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
+                        "Requires macOS 12.3+ and PyObjC."
+                    )
+            else:
+                logger.error("AudioPreviewWorker: HAS_SCREENCAPTUREKIT is False. ScreenCaptureKit not available.")
+                raise RuntimeError(
+                    "ScreenCaptureKit backend required for audio preview on macOS but not available.\n"
+                    "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
+                    "Requires macOS 12.3+ and PyObjC."
+                )
+        else:
+            self.backend = SoundDeviceBackend(self.mic_device, self.speaker_device)
+            logger.info(f"AudioPreviewWorker: Using SoundDeviceBackend for platform {platform}.")
         self.backend.start_recording()
         last_mic_level = 0.0
         last_speaker_level = 0.0
@@ -141,9 +164,18 @@ class RecordingWorker(QThread):
         # On macOS, always use ScreenCaptureKit if available, else raise error
         if platform == 'macos':
             if HAS_SCREENCAPTUREKIT:
-                logger.info("Using ScreenCaptureKit backend for macOS (native system audio)")
-                return ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
+                try:
+                    logger.info("RecordingWorker: Using ScreenCaptureKit backend for macOS (native system audio)")
+                    return ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
+                except Exception as e:
+                    logger.error(f"RecordingWorker: Failed to initialize ScreenCaptureKit backend: {e}", exc_info=True)
+                    raise RuntimeError(
+                        f"ScreenCaptureKit backend required on macOS but failed to initialize: {e}\n"
+                        "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
+                        "Requires macOS 12.3+ and PyObjC."
+                    )
             else:
+                logger.error("RecordingWorker: HAS_SCREENCAPTUREKIT is False. ScreenCaptureKit not available.")
                 raise RuntimeError(
                     "ScreenCaptureKit backend required on macOS but not available.\n"
                     "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
