@@ -127,13 +127,13 @@
     <message>
         <location filename="../gui/main_window.py" line="532"/>
         <location filename="../gui/main_window.py" line="1459"/>
-        <source>📂 Change Folder</source>
+        <source>Change Folder</source>
         <translation>Cambiar Carpeta</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="537"/>
         <location filename="../gui/main_window.py" line="1462"/>
-        <source>🗂️ Open Folder</source>
+        <source>Open Folder</source>
         <translation>Abrir Carpeta</translation>
     </message>
     <message>

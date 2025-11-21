@@ -100,11 +100,6 @@
         <translation>📁 Aufnahmeverzeichnis Ändern</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="481"/>
-        <source>🗂️ Open Recording Directory</source>
-        <translation>🗂️ Aufnahmeverzeichnis Öffnen</translation>
-    </message>
-    <message>
         <location filename="../gui/main_window.py" line="486"/>
         <source>🔄 New Transcription</source>
         <translation>🔄 Neue Transkription</translation>
