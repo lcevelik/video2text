@@ -14,7 +14,7 @@ import threading
 import queue
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
-from transcriber import Transcriber
+from app.transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
 

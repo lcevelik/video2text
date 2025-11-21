@@ -27,7 +27,7 @@ from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
 from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
 from gui.managers import SettingsManager, ThemeManager, FileManager
-from transcriber import Transcriber
+from app.transcriber import Transcriber
 
 logger = logging.getLogger(__name__)
 
@@ -1588,10 +1588,10 @@ class FonixFlowQt(QMainWindow):
             ext = Path(file_path).suffix.lower()
             content = self.transcription_result.get('text', '')
             if ext == '.srt' or 'SRT' in selected_filter:
-                from transcriber import Transcriber
+                from app.transcriber import Transcriber
                 content = Transcriber().format_as_srt(self.transcription_result)
             elif ext == '.vtt' or 'VTT' in selected_filter:
-                from transcriber import Transcriber
+                from app.transcriber import Transcriber
                 srt_content = Transcriber().format_as_srt(self.transcription_result)
                 content = "WEBVTT\n\n" + srt_content.replace(',', '.')
             with open(file_path, 'w', encoding='utf-8') as f:

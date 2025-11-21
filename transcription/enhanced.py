@@ -64,7 +64,7 @@ import time
 import threading
 import queue
 from typing import Dict, List, Optional, Any, Tuple
-from transcriber import Transcriber
+from app.transcriber import Transcriber
 from transcription.processors import FormatConverter, DiagnosticsLogger, AudioProcessor
 import numpy as np
 

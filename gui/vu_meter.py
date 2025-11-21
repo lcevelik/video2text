@@ -21,14 +21,17 @@ class VUMeter(QWidget):
         self.setMinimumHeight(30)
         self.setMinimumWidth(200)
 
-        # Timer for peak decay
+        # Timer for automatic decay
         self.decay_timer = QTimer()
-        self.decay_timer.timeout.connect(self._decay_peak)
+        self.decay_timer.timeout.connect(self._decay)
         self.decay_timer.start(50)  # 50ms decay interval
 
     def set_level(self, level):
         """Set the current audio level (0.0 to 1.0)."""
-        self.level = max(0.0, min(1.0, level))
+        new_level = max(0.0, min(1.0, level))
+
+        # Always update to new level (fast attack for rising, immediate for all)
+        self.level = new_level
 
         # Update peak hold
         if self.level > self.peak_level:
@@ -37,16 +40,30 @@ class VUMeter(QWidget):
 
         self.update()  # Trigger repaint
 
-    def _decay_peak(self):
-        """Decay the peak indicator."""
+    def _decay(self):
+        """Automatically decay level and peak indicator towards zero."""
+        needs_update = False
+
+        # Always decay the level bar towards zero when not being actively updated
+        if self.level > 0:
+            # Smooth exponential decay - faster when higher, slower as it approaches zero
+            decay_rate = 0.08  # Decay by 8% every 50ms
+            self.level = max(0.0, self.level * (1 - decay_rate))
+            # Clamp to zero when very small to avoid floating point issues
+            if self.level < 0.001:
+                self.level = 0.0
+            needs_update = True
+
+        # Decay peak indicator
         if self.peak_hold_time > 0:
             self.peak_hold_time -= 1
         else:
             # Decay peak slowly
             if self.peak_level > self.level:
                 self.peak_level = max(self.level, self.peak_level - 0.01)
+                needs_update = True
 
-        if self.peak_level != self.level:
+        if needs_update:
             self.update()
 
     def paintEvent(self, event):

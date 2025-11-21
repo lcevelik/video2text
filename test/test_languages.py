@@ -42,7 +42,7 @@ def check_translation_status(lang_code):
     Returns:
         tuple: (has_qm, has_ts, status_symbol)
     """
-    i18n_dir = Path(__file__).parent / "i18n"
+    i18n_dir = Path(__file__).parent.parent / "i18n"
     qm_file = i18n_dir / f"fonixflow_{lang_code}.qm"
     ts_file = i18n_dir / f"fonixflow_{lang_code}.ts"
 
@@ -75,7 +75,7 @@ def launch_app(lang_code=None):
     Args:
         lang_code: Language code or None for default
     """
-    cmd = [sys.executable, 'fonixflow_qt.py']
+    cmd = [sys.executable, '-m', 'app.fonixflow_qt']
 
     if lang_code and lang_code != 'en':
         cmd.extend(['--lang', lang_code])
@@ -166,7 +166,7 @@ def main():
 
 if __name__ == "__main__":
     # Check if running from correct directory
-    if not Path('fonixflow_qt.py').exists():
+    if not Path('app/fonixflow_qt.py').exists():
         print("Error: Please run this script from the video2text directory")
         print(f"Current directory: {Path.cwd()}")
         sys.exit(1)

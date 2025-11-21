@@ -3,7 +3,7 @@
 block_cipher = None
 
 # Main script
-main_script = 'fonixflow_qt.py'
+main_script = 'app/fonixflow_qt.py'
 
 # App name
 app_name = 'FonixFlow'

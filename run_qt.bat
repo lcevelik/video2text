@@ -32,7 +32,7 @@ if %ERRORLEVEL% NEQ 0 (
 REM Launch the Qt application
 echo Starting Modern Qt Interface...
 echo.
-python gui_qt.py
+python -m app.fonixflow_qt
 
 REM Check exit code
 if %ERRORLEVEL% NEQ 0 (

@@ -61,7 +61,7 @@ def load_translations(app, override_lang=None):
     # Look for translation file
     # Try specific locale first (e.g., zh_CN.qm), then language code (e.g., zh.qm)
     # Also try .ts files as fallback for testing
-    i18n_dir = os.path.join(os.path.dirname(__file__), 'i18n')
+    i18n_dir = os.path.join(os.path.dirname(__file__), '..', 'i18n')
     translation_files = [
         os.path.join(i18n_dir, f"fonixflow_{locale_name}.qm"),  # Specific: es_ES.qm
         os.path.join(i18n_dir, f"fonixflow_{lang_code}.qm"),    # General: es.qm
@@ -111,7 +111,7 @@ def main():
     app._translator = translator  # Keep reference on QApplication
 
     # Set application icon globally (for taskbar, alt-tab, etc.)
-    icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'fonixflow_icon.png')
+    icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'fonixflow_icon.png')
     if os.path.exists(icon_path):
         app_icon = QIcon(icon_path)
         app.setWindowIcon(app_icon)

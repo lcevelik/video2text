@@ -372,8 +372,8 @@ class TranscriptionWorker(QThread):
     def run(self):
         """Execute transcription in background thread with cancellation checks."""
         try:
-            from audio_extractor import AudioExtractor
-            from transcriber import Transcriber
+            from app.audio_extractor import AudioExtractor
+            from app.transcriber import Transcriber
             from transcription.enhanced import EnhancedTranscriber
 
             # Stage 1: Audio extraction (1-2%)
