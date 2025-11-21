@@ -294,6 +294,7 @@ class RecordingWorker(QThread):
             try:
                 from gui.audio_filters import NoiseGate, EnhancedCompressor
                 logger.info("Applying audio filters (NoiseGate + Compressor)")
+                self.status_update.emit("Applying noise gate filter...")
 
                 # Apply noise gate to remove background noise
                 noise_gate = NoiseGate(
@@ -304,7 +305,9 @@ class RecordingWorker(QThread):
                     sample_rate=sample_rate
                 )
                 audio_data = noise_gate.process(audio_data)
+                logger.info("Noise gate applied")
 
+                self.status_update.emit("Applying compression filter...")
                 # Apply compressor for consistent volume
                 compressor = EnhancedCompressor(
                     threshold_db=-18.0,  # Compress above -18dB
@@ -317,8 +320,10 @@ class RecordingWorker(QThread):
                 audio_data = compressor.process(audio_data)
 
                 logger.info("Audio filters applied successfully")
+                self.status_update.emit("Audio filters applied")
             except Exception as e:
                 logger.warning(f"Could not apply audio filters: {e}. Saving unfiltered audio.")
+                self.status_update.emit(f"Filter warning: {e}")
 
         # Convert to int16 for audio file
         audio_data_int16 = (audio_data * 32767).astype(np.int16)

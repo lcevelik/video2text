@@ -78,6 +78,10 @@ class FonixFlowQt(QMainWindow):
         self.performance_overlay = None
         self.model_name_label = None
 
+        # Multi-language dialog state
+        self.multi_language_mode = None
+        self.allowed_languages = []
+        self.single_language_type = None
         # Ensure settings widgets are always initialized
         self.audio_options_widget = QWidget()
         audio_options_layout = QVBoxLayout(self.audio_options_widget)
@@ -1510,13 +1514,13 @@ class FonixFlowQt(QMainWindow):
         multi_mode = self.multi_language_mode
 
         if multi_mode:
-            # Multi-language mode: Use turbo if GPU available, otherwise large
+            # Multi-language mode: Use turbo if GPU available, otherwise medium
             if has_gpu_available():
                 model_size = "turbo"
                 logger.info("GPU detected: Using turbo model for multi-language transcription")
             else:
-                model_size = "large"
-                logger.info("No GPU detected: Using large model for multi-language transcription")
+                model_size = "medium"
+                logger.info("No GPU detected: Using medium model for multi-language transcription")
             language = None  # Auto-detect
             detect_language_changes = True
             # Use global deep scan toggle; if False use heuristic + conditional fallback
@@ -1525,10 +1529,10 @@ class FonixFlowQt(QMainWindow):
             # Single-language mode: Determine model based on language type
             single_lang_type = getattr(self, 'single_language_type', None)
             if single_lang_type == 'english':
-                # English: Use optimized .en model (base.en for speed, small.en for better accuracy)
-                model_size = "base.en"
+                # English: Use optimized .en model (small.en for better accuracy)
+                model_size = "small.en"
                 language = "en"  # Explicitly set English
-                logger.info("Single-language English: Using base.en model")
+                logger.info("Single-language English: Using small.en model")
             elif single_lang_type == 'other':
                 # Other languages: Use medium multilingual model
                 model_size = "medium"

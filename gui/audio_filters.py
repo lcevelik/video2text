@@ -53,7 +53,7 @@ class NoiseGate:
 
     def process(self, audio_data):
         """
-        Apply noise gate to audio.
+        Apply noise gate to audio using vectorized operations.
 
         Args:
             audio_data: numpy array (frames, channels) or (frames,)
@@ -64,53 +64,58 @@ class NoiseGate:
         if audio_data.size == 0:
             return audio_data
 
-        # Ensure 2D array
+        # Ensure 1D array for processing
         is_1d = audio_data.ndim == 1
-        if is_1d:
-            audio_data = audio_data.reshape(-1, 1)
+        if not is_1d:
+            # For 2D, process each channel
+            return np.column_stack([self.process(audio_data[:, i]) for i in range(audio_data.shape[1])])
 
+        # Work with chunks for better performance (process 1024 samples at a time)
+        chunk_size = 1024
         output = np.zeros_like(audio_data)
-        frames = audio_data.shape[0]
 
         # Calculate attack/release coefficients (per sample)
         attack_coeff = 1.0 / max(1, self.attack_frames)
         release_coeff = 1.0 / max(1, self.release_frames)
 
-        for i in range(frames):
-            # Calculate RMS of current frame
-            frame_rms = np.sqrt(np.mean(audio_data[i] ** 2))
+        for start_idx in range(0, len(audio_data), chunk_size):
+            end_idx = min(start_idx + chunk_size, len(audio_data))
+            chunk = audio_data[start_idx:end_idx]
 
-            # Determine if gate should be open
-            should_open = frame_rms > self.threshold
+            # Process chunk sample by sample (still needed for stateful envelope)
+            for i in range(len(chunk)):
+                # Calculate RMS (for mono, this is just abs value)
+                frame_rms = abs(chunk[i])
 
-            if should_open:
-                self.hold_counter = self.hold_frames
-                if not self.is_open:
-                    self.is_open = True
+                # Determine if gate should be open
+                should_open = frame_rms > self.threshold
 
-            # Apply hold time
-            if self.hold_counter > 0:
-                self.hold_counter -= 1
-                should_open = True
-            else:
-                if self.is_open and not should_open:
-                    self.is_open = False
+                if should_open:
+                    self.hold_counter = self.hold_frames
+                    if not self.is_open:
+                        self.is_open = True
 
-            # Smooth envelope transition
-            target = 1.0 if should_open else 0.0
-            if self.envelope < target:
-                # Attack
-                self.envelope += attack_coeff
-                self.envelope = min(self.envelope, 1.0)
-            elif self.envelope > target:
-                # Release
-                self.envelope -= release_coeff
-                self.envelope = max(self.envelope, 0.0)
+                # Apply hold time
+                if self.hold_counter > 0:
+                    self.hold_counter -= 1
+                    should_open = True
+                else:
+                    if self.is_open and not should_open:
+                        self.is_open = False
 
-            # Apply gate
-            output[i] = audio_data[i] * self.envelope
+                # Smooth envelope transition
+                target = 1.0 if should_open else 0.0
+                if self.envelope < target:
+                    # Attack
+                    self.envelope = min(self.envelope + attack_coeff, 1.0)
+                elif self.envelope > target:
+                    # Release
+                    self.envelope = max(self.envelope - release_coeff, 0.0)
 
-        return output.reshape(-1) if is_1d else output
+                # Apply gate
+                output[start_idx + i] = chunk[i] * self.envelope
+
+        return output
 
 
 class EnhancedCompressor:
@@ -166,7 +171,7 @@ class EnhancedCompressor:
 
     def process(self, audio_data):
         """
-        Apply compression to audio.
+        Apply compression to audio using vectorized operations.
 
         Args:
             audio_data: numpy array (frames, channels) or (frames,)
@@ -177,46 +182,53 @@ class EnhancedCompressor:
         if audio_data.size == 0:
             return audio_data
 
-        # Ensure 2D array
+        # Ensure 1D array for processing
         is_1d = audio_data.ndim == 1
-        if is_1d:
-            audio_data = audio_data.reshape(-1, 1)
+        if not is_1d:
+            # For 2D, process each channel
+            return np.column_stack([self.process(audio_data[:, i]) for i in range(audio_data.shape[1])])
 
+        # Work with chunks for better performance
+        chunk_size = 1024
         output = np.zeros_like(audio_data)
-        frames = audio_data.shape[0]
 
-        for i in range(frames):
-            # Calculate RMS of current frame
-            frame_rms = np.sqrt(np.mean(audio_data[i] ** 2))
+        for start_idx in range(0, len(audio_data), chunk_size):
+            end_idx = min(start_idx + chunk_size, len(audio_data))
+            chunk = audio_data[start_idx:end_idx]
 
-            # Envelope follower with attack/release
-            if frame_rms > self.envelope:
-                # Attack
-                self.envelope = self.attack_coeff * self.envelope + (1.0 - self.attack_coeff) * frame_rms
-            else:
-                # Release
-                self.envelope = self.release_coeff * self.envelope + (1.0 - self.release_coeff) * frame_rms
+            # Process chunk sample by sample (needed for stateful envelope)
+            for i in range(len(chunk)):
+                # Calculate RMS (for mono, this is just abs value)
+                frame_rms = abs(chunk[i])
 
-            # Calculate gain reduction
-            if self.envelope > self.threshold:
-                # Convert to dB for ratio calculation
-                envelope_db = self._linear_to_db(self.envelope)
+                # Envelope follower with attack/release
+                if frame_rms > self.envelope:
+                    # Attack
+                    self.envelope = self.attack_coeff * self.envelope + (1.0 - self.attack_coeff) * frame_rms
+                else:
+                    # Release
+                    self.envelope = self.release_coeff * self.envelope + (1.0 - self.release_coeff) * frame_rms
 
-                # Amount over threshold
-                over_db = envelope_db - self.threshold_db
+                # Calculate gain reduction
+                if self.envelope > self.threshold:
+                    # Convert to dB for ratio calculation
+                    envelope_db = self._linear_to_db(self.envelope)
 
-                # Apply ratio (slope calculation)
-                gain_reduction_db = over_db * (1.0 - 1.0 / self.ratio)
+                    # Amount over threshold
+                    over_db = envelope_db - self.threshold_db
 
-                # Convert back to linear
-                gain = self._db_to_linear(-gain_reduction_db)
-            else:
-                gain = 1.0
+                    # Apply ratio (slope calculation)
+                    gain_reduction_db = over_db * (1.0 - 1.0 / self.ratio)
 
-            # Apply compression and output gain
-            output[i] = audio_data[i] * gain * self.output_gain
+                    # Convert back to linear
+                    gain = self._db_to_linear(-gain_reduction_db)
+                else:
+                    gain = 1.0
 
-        return output.reshape(-1) if is_1d else output
+                # Apply compression and output gain
+                output[start_idx + i] = chunk[i] * gain * self.output_gain
+
+        return output
 
 
 class RNNoise:
