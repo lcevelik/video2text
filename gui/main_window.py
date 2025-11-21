@@ -1551,6 +1551,7 @@ class FonixFlowQt(QMainWindow):
             language=language,
             detect_language_changes=detect_language_changes,
             use_deep_scan=use_deep_scan,
+            enable_filters=self.enable_audio_filters,
             parent=self
         )
         # Pass allowed languages to worker if multi-language

@@ -322,13 +322,15 @@ class TranscriptionWorker(QThread):
     transcription_error = Signal(str)  # error message
 
     def __init__(self, video_path, model_size='tiny', language=None,
-                 detect_language_changes=False, use_deep_scan=False, parent=None):
+                 detect_language_changes=False, use_deep_scan=False,
+                 enable_filters=True, parent=None):
         super().__init__(parent)
         self.video_path = video_path
         self.model_size = model_size
         self.language = language
         self.detect_language_changes = detect_language_changes
         self.use_deep_scan = use_deep_scan
+        self.enable_filters = enable_filters
         self._transcriber = None
         self.cancel_requested = False
         self.allowed_languages: List[str] = []
@@ -359,6 +361,16 @@ class TranscriptionWorker(QThread):
                 return
 
             self.progress_update.emit(f"Audio extracted successfully", 30)
+
+            # Step 1.5: Apply audio filters if enabled
+            if self.enable_filters:
+                try:
+                    self.progress_update.emit("Applying audio filters...", 35)
+                    audio_path = self._apply_audio_filters(audio_path)
+                    logger.info("Audio filters applied to uploaded file")
+                except Exception as e:
+                    logger.warning(f"Could not apply audio filters to upload: {e}")
+                    # Continue with unfiltered audio
 
             # Step 2: Load and run transcription
             self.progress_update.emit(f"Loading Whisper model ({self.model_size})...", 40)
@@ -447,6 +459,47 @@ class TranscriptionWorker(QThread):
             logger.error(f"Transcription error: {e}", exc_info=True)
             logger.error(f"Full traceback: {traceback.format_exc()}")
             self.transcription_error.emit(f"Transcription failed: {str(e)}")
+
+    def _apply_audio_filters(self, audio_path: str) -> str:
+        """Apply audio filters to extracted audio file."""
+        import soundfile as sf
+        from gui.audio_filters import NoiseGate, EnhancedCompressor
+
+        logger.info(f"Applying audio filters to: {audio_path}")
+
+        # Load audio file
+        audio_data, sample_rate = sf.read(audio_path)
+
+        # Convert to mono if stereo
+        if len(audio_data.shape) > 1:
+            audio_data = audio_data.mean(axis=1)
+
+        # Apply noise gate
+        noise_gate = NoiseGate(
+            threshold_db=-32.0,
+            attack_ms=25.0,
+            release_ms=150.0,
+            hold_ms=200.0,
+            sample_rate=sample_rate
+        )
+        audio_data = noise_gate.process(audio_data)
+
+        # Apply compressor
+        compressor = EnhancedCompressor(
+            threshold_db=-18.0,
+            ratio=3.0,
+            attack_ms=6.0,
+            release_ms=60.0,
+            output_gain_db=0.0,
+            sample_rate=sample_rate
+        )
+        audio_data = compressor.process(audio_data)
+
+        # Save filtered audio back to file
+        sf.write(audio_path, audio_data, sample_rate)
+        logger.info(f"Filtered audio saved to: {audio_path}")
+
+        return audio_path
 
     def cancel(self):
         """Request cancellation of current transcription (chunk-level for multi-language)."""
