@@ -1,556 +1,450 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version="1.0" ?>
 <TS version="2.1" language="it">
-<context>
+  <context>
     <name>DropZone</name>
     <message>
-        <location filename="../gui/widgets.py" line="134"/>
-        <location filename="../gui/widgets.py" line="191"/>
-        <source>Drag and drop video/audio file</source>
-        <translation type="unfinished"></translation>
+      <source>Drag and drop video/audio file</source>
+      <translation>Trascina e rilascia file video/audio</translation>
     </message>
-</context>
-<context>
+  </context>
+  <context>
     <name>FonixFlowQt</name>
     <message>
-        <location filename="../gui/main_window.py" line="38"/>
-        <location filename="../gui/main_window.py" line="1417"/>
-        <source>FonixFlow - Whisper Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>FonixFlow - Whisper Transcription</source>
+      <translation>FonixFlow - Trascrizione Whisper</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="418"/>
-        <location filename="../gui/main_window.py" line="1420"/>
-        <location filename="../gui/main_window.py" line="2008"/>
-        <location filename="../gui/main_window.py" line="2012"/>
-        <source>Ready</source>
-        <translation type="unfinished"></translation>
+      <source>Ready</source>
+      <translation>Pronto</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="954"/>
-        <location filename="../gui/main_window.py" line="1399"/>
-        <location filename="../gui/main_window.py" line="1446"/>
-        <source>Ready to transcribe</source>
-        <translation type="unfinished"></translation>
+      <source>Ready to transcribe</source>
+      <translation>Pronto per trascrivere</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1026"/>
-        <location filename="../gui/main_window.py" line="1396"/>
-        <location filename="../gui/main_window.py" line="1448"/>
-        <source>Ready to record</source>
-        <translation type="unfinished"></translation>
+      <source>Ready to record</source>
+      <translation>Pronto per registrare</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="729"/>
-        <location filename="../gui/main_window.py" line="1423"/>
-        <location filename="../gui/main_window.py" line="2054"/>
-        <source>Record</source>
-        <translation type="unfinished"></translation>
+      <source>Record</source>
+      <translation>Registra</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="730"/>
-        <location filename="../gui/main_window.py" line="1423"/>
-        <location filename="../gui/main_window.py" line="2054"/>
-        <source>Upload</source>
-        <translation type="unfinished"></translation>
+      <source>Upload</source>
+      <translation>Carica</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="731"/>
-        <location filename="../gui/main_window.py" line="1424"/>
-        <location filename="../gui/main_window.py" line="2055"/>
-        <source>Transcript</source>
-        <translation type="unfinished"></translation>
+      <source>Transcript</source>
+      <translation>Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="455"/>
-        <source>⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>⚙️ Settings</source>
+      <translation>⚙️ Impostazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="458"/>
-        <source>🎨 Theme</source>
-        <translation type="unfinished"></translation>
+      <source>🎨 Theme</source>
+      <translation>🎨 Tema</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="461"/>
-        <source>🔄 Auto (System)</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 Auto (System)</source>
+      <translation>🔄 Auto (Sistema)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="466"/>
-        <source>☀️ Light</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 Auto</source>
+      <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="471"/>
-        <source>🌙 Dark</source>
-        <translation type="unfinished"></translation>
+      <source>☀️ Light</source>
+      <translation>☀️ Chiaro</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="478"/>
-        <source>📁 Change Recording Directory</source>
-        <translation type="unfinished"></translation>
+      <source>🌙 Dark</source>
+      <translation>🌙 Scuro</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="486"/>
-        <source>🔄 New Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>🔍 Enable Deep Scan (Slower)</source>
+      <translation>🔍 Abilita Scansione Profonda (Più Lento)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="506"/>
-        <source>⚙️ Recordings Settings</source>
-        <translation type="unfinished"></translation>
+      <source>📁 Change Recording Directory</source>
+      <translation>📁 Cambia Directory di Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="568"/>
-        <location filename="../gui/main_window.py" line="1430"/>
-        <source>Change Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🗂️ Open Recording Directory</source>
+      <translation>🗂️ Apri Directory di Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="569"/>
-        <location filename="../gui/main_window.py" line="1431"/>
-        <source>Open Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 New Transcription</source>
+      <translation>🔄 Nuova Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="597"/>
-        <location filename="../gui/main_window.py" line="804"/>
-        <location filename="../gui/main_window.py" line="1434"/>
-        <source>▼ ⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>▼ ⚙️ Settings</source>
+      <translation>▼ ⚙️ Impostazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="626"/>
-        <location filename="../gui/main_window.py" line="1437"/>
-        <source>  ▼ 🎙️ Audio Processing</source>
-        <translation type="unfinished"></translation>
+      <source>▶ ⚙️ Settings</source>
+      <translation>▶ ⚙️ Impostazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="670"/>
-        <location filename="../gui/main_window.py" line="1440"/>
-        <source>  ▼ 📝 Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>▼ 🎨 Theme</source>
+      <translation>▼ 🎨 Tema</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="807"/>
-        <source>▶ ⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>▶ 🎨 Theme</source>
+      <translation>▶ 🎨 Tema</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="509"/>
-        <source>Recordings save to:</source>
-        <translation type="unfinished"></translation>
+      <source>Recordings save to:</source>
+      <translation>Le registrazioni vengono salvate in:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="532"/>
-        <location filename="../gui/main_window.py" line="1459"/>
-        <source>Change Folder</source>
-        <translation type="unfinished"></translation>
+      <source>📂 Change Folder</source>
+      <translation>📂 Cambia Cartella</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="537"/>
-        <location filename="../gui/main_window.py" line="1462"/>
-        <source>Open Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🗂️ Open Folder</source>
+      <translation>🗂️ Apri Cartella</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="566"/>
-        <location filename="../gui/main_window.py" line="1429"/>
-        <source>New Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>New Transcription</source>
+      <translation>Nuova Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1526"/>
-        <source>🎤 Start Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Change Recordings Folder</source>
+      <translation>Cambia Cartella Registrazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1042"/>
-        <location filename="../gui/main_window.py" line="1405"/>
-        <source>Transcribe Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Open Recordings Folder</source>
+      <translation>Apri Cartella Registrazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1091"/>
-        <source>💾 Save Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Start Recording</source>
+      <translation>🎤 Inizia Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1097"/>
-        <source>✖ Cancel Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Transcribe Recording</source>
+      <translation>Trascrivi Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1205"/>
-        <source>Close</source>
-        <translation type="unfinished"></translation>
+      <source>💾 Save Transcription</source>
+      <translation>💾 Salva Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="981"/>
-        <location filename="../gui/main_window.py" line="1393"/>
-        <location filename="../gui/main_window.py" line="1465"/>
-        <source>Recording will use the system&apos;s default microphone and audio output.</source>
-        <translation type="unfinished"></translation>
+      <source>✖ Cancel Transcription</source>
+      <translation>✖ Annulla Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="964"/>
-        <source>💡 Files automatically transcribe when dropped or selected</source>
-        <translation type="unfinished"></translation>
+      <source>Close</source>
+      <translation>Chiudi</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1036"/>
-        <source>💡 After stopping, the recording is saved but NOT automatically transcribed
-💡 Click &apos;Transcribe Recording&apos; to manually start transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Recording will use the system's default microphone and audio output.</source>
+      <translation>La registrazione utilizzerà il microfono e l'uscita audio predefiniti del sistema.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1075"/>
-        <location filename="../gui/main_window.py" line="1408"/>
-        <source>Transcription text will appear here...</source>
-        <translation type="unfinished"></translation>
+      <source>💡 Files automatically transcribe when dropped or selected</source>
+      <translation>💡 I file vengono trascritti automaticamente quando rilasciati o selezionati</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="992"/>
-        <location filename="../gui/main_window.py" line="1372"/>
-        <location filename="../gui/main_window.py" line="1451"/>
-        <source>Microphone</source>
-        <translation type="unfinished"></translation>
+      <source>💡 After stopping, the recording is saved but NOT automatically transcribed
+💡 Click 'Transcribe Recording' to manually start transcription</source>
+      <translation>💡 Dopo l'arresto, la registrazione viene salvata ma NON trascritta automaticamente
+💡 Clicca 'Trascrivi Registrazione' per avviare manualmente la trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="993"/>
-        <location filename="../gui/main_window.py" line="1374"/>
-        <location filename="../gui/main_window.py" line="1453"/>
-        <source>Speaker</source>
-        <translation type="unfinished"></translation>
+      <source>Transcription text will appear here...</source>
+      <translation>Il testo della trascrizione apparirà qui...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1005"/>
-        <location filename="../gui/main_window.py" line="1337"/>
-        <location filename="../gui/main_window.py" line="1412"/>
-        <source>Start Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Duration: 0:00</source>
+      <translation>Durata: 0:00</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1015"/>
-        <location filename="../gui/main_window.py" line="1300"/>
-        <location filename="../gui/main_window.py" line="1415"/>
-        <source>00:00:00</source>
-        <translation type="unfinished"></translation>
+      <source>Microphone</source>
+      <translation>Microfono</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1183"/>
-        <source>🎙️ Audio Setup Guide for {platform_display}</source>
-        <translation type="unfinished"></translation>
+      <source>Speaker</source>
+      <translation>Altoparlante</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1280"/>
-        <source>Stop Recording</source>
-        <translation type="unfinished"></translation>
+      <source>🔴 Recording from Microphone + Speaker...</source>
+      <translation>🔴 Registrazione da Microfono + Altoparlante...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1305"/>
-        <source>🔴 Recording from Microphone + Speaker...</source>
-        <translation type="unfinished"></translation>
+      <source>Recording in progress...</source>
+      <translation>Registrazione in corso...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1306"/>
-        <source>Recording in progress...</source>
-        <translation type="unfinished"></translation>
+      <source>Processing recording...</source>
+      <translation>Elaborazione registrazione...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1353"/>
-        <location filename="../gui/main_window.py" line="1354"/>
-        <source>Processing recording...</source>
-        <translation type="unfinished"></translation>
+      <source>Starting…</source>
+      <translation>Avvio…</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1381"/>
-        <source>Enhance Audio</source>
-        <translation type="unfinished"></translation>
+      <source>Select Video or Audio File</source>
+      <translation>Seleziona File Video o Audio</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1389"/>
-        <source>Deep Scan</source>
-        <translation type="unfinished"></translation>
+      <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
+      <translation>File Multimediali (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;Tutti i File (*.*)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1402"/>
-        <location filename="../gui/main_window.py" line="1443"/>
-        <source>Drag and drop video/audio file</source>
-        <translation type="unfinished"></translation>
+      <source>Select Recordings Folder</source>
+      <translation>Seleziona Cartella Registrazioni</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1609"/>
-        <source>Starting…</source>
-        <translation type="unfinished"></translation>
+      <source>Save Transcription</source>
+      <translation>Salva Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="2025"/>
-        <source>Ready for new transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
+      <translation>File di Testo (*.txt);;Sottotitoli SRT (*.srt);;Sottotitoli VTT (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="2055"/>
-        <source>Switched to {tab_names.get(index, self.tr(&apos;Unknown&apos;))} tab</source>
-        <translation type="unfinished"></translation>
+      <source>No Microphone Found</source>
+      <translation>Nessun Microfono Trovato</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1115"/>
-        <source>Select Video or Audio File</source>
-        <translation type="unfinished"></translation>
+      <source>No audio input device detected!</source>
+      <translation>Nessun dispositivo di ingresso audio rilevato!</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1118"/>
-        <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
+      <source>Device Found</source>
+      <translation>Dispositivo Trovato</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1538"/>
-        <source>Select Recordings Folder</source>
-        <translation type="unfinished"></translation>
+      <source>No Recording</source>
+      <translation>Nessuna Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1722"/>
-        <source>Save Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>No recording available. Please record first.</source>
+      <translation>Nessuna registrazione disponibile. Registra prima.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1725"/>
-        <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
-        <translation type="unfinished"></translation>
+      <source>No File</source>
+      <translation>Nessun File</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1245"/>
-        <source>No Microphone Found</source>
-        <translation type="unfinished"></translation>
+      <source>Please select a file first.</source>
+      <translation>Seleziona prima un file.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1246"/>
-        <source>No audio input device detected!</source>
-        <translation type="unfinished"></translation>
+      <source>No Transcription</source>
+      <translation>Nessuna Trascrizione</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1265"/>
-        <source>Device Found</source>
-        <translation type="unfinished"></translation>
+      <source>Please transcribe a file first.</source>
+      <translation>Trascrivi prima un file.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1047"/>
-        <source>No Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Saved Successfully</source>
+      <translation>Salvato con Successo</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1592"/>
-        <source>No File</source>
-        <translation type="unfinished"></translation>
+      <source>Settings Updated</source>
+      <translation>Impostazioni Aggiornate</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1717"/>
-        <source>No Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Save Error</source>
+      <translation>Errore di Salvataggio</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1741"/>
-        <source>Saved Successfully</source>
-        <translation type="unfinished"></translation>
+      <source>Could Not Open Folder</source>
+      <translation>Impossibile Aprire la Cartella</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1554"/>
-        <source>Settings Updated</source>
-        <translation type="unfinished"></translation>
+      <source>Transcription Error</source>
+      <translation>Errore di Trascrizione</translation>
     </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1745"/>
-        <source>Save Error</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1579"/>
-        <source>Could Not Open Folder</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1968"/>
-        <source>Transcription Error</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
+  </context>
+  <context>
     <name>MultiLanguageChoiceDialog</name>
     <message>
-        <location filename="../gui/dialogs.py" line="232"/>
-        <source>Language Mode</source>
-        <translation type="unfinished"></translation>
+      <source>Language Mode</source>
+      <translation>Modalità Lingua</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="240"/>
-        <source>Is your file multi-language?</source>
-        <translation type="unfinished"></translation>
+      <source>Is your file multi-language?</source>
+      <translation>Il tuo file è multilingue?</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="248"/>
-        <source>Select language type:</source>
-        <translation type="unfinished"></translation>
+      <source>Select language type:</source>
+      <translation>Seleziona tipo di lingua:</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="253"/>
-        <source>English (uses optimized .en model)</source>
-        <translation type="unfinished"></translation>
+      <source>English (uses optimized .en model)</source>
+      <translation>Inglese (usa modello .en ottimizzato)</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="258"/>
-        <source>Other language (uses multilingual model)</source>
-        <translation type="unfinished"></translation>
+      <source>Other language (uses multilingual model)</source>
+      <translation>Altra lingua (usa modello multilingue)</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="265"/>
-        <source>Select one language type before confirming.</source>
-        <translation type="unfinished"></translation>
+      <source>Select one language type before confirming.</source>
+      <translation>Seleziona un tipo di lingua prima di confermare.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="274"/>
-        <source>Select languages present (check all that apply):</source>
-        <translation type="unfinished"></translation>
+      <source>Select languages present (check all that apply):</source>
+      <translation>Seleziona le lingue presenti (seleziona tutte quelle applicabili):</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="292"/>
-        <source>At least one language must be selected before confirming.</source>
-        <translation type="unfinished"></translation>
+      <source>At least one language must be selected before confirming.</source>
+      <translation>Almeno una lingua deve essere selezionata prima di confermare.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="298"/>
-        <source>Multi-Language</source>
-        <translation type="unfinished"></translation>
+      <source>Multi-Language</source>
+      <translation>Multi-Lingua</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="352"/>
-        <source>Confirm Languages</source>
-        <translation type="unfinished"></translation>
+      <source>Confirm Languages</source>
+      <translation>Conferma Lingue</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="299"/>
-        <source>Single-Language</source>
-        <translation type="unfinished"></translation>
+      <source>Single-Language</source>
+      <translation>Singola Lingua</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="368"/>
-        <source>Confirm Selection</source>
-        <translation type="unfinished"></translation>
+      <source>Confirm Selection</source>
+      <translation>Conferma Selezione</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="338"/>
-        <source>Cancel to decide later.</source>
-        <translation type="unfinished"></translation>
+      <source>Cancel to decide later.</source>
+      <translation>Annulla per decidere più tardi.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="357"/>
-        <source>No Languages Selected</source>
-        <translation type="unfinished"></translation>
+      <source>No Languages Selected</source>
+      <translation>Nessuna Lingua Selezionata</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="372"/>
-        <source>No Language Type Selected</source>
-        <translation type="unfinished"></translation>
+      <source>Select at least one language to proceed.</source>
+      <translation>Seleziona almeno una lingua per procedere.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="372"/>
-        <source>Please select either English or Other language.</source>
-        <translation type="unfinished"></translation>
+      <source>No Language Type Selected</source>
+      <translation>Nessun Tipo di Lingua Selezionato</translation>
     </message>
-</context>
-<context>
+    <message>
+      <source>Please select either English or Other language.</source>
+      <translation>Seleziona Inglese o Altra lingua.</translation>
+    </message>
+    <message>
+      <source>English</source>
+      <translation>Inglese</translation>
+    </message>
+    <message>
+      <source>Czech</source>
+      <translation>Ceco</translation>
+    </message>
+    <message>
+      <source>German</source>
+      <translation>Tedesco</translation>
+    </message>
+    <message>
+      <source>French</source>
+      <translation>Francese</translation>
+    </message>
+    <message>
+      <source>Spanish</source>
+      <translation>Spagnolo</translation>
+    </message>
+    <message>
+      <source>Italian</source>
+      <translation>Italiano</translation>
+    </message>
+    <message>
+      <source>Polish</source>
+      <translation>Polacco</translation>
+    </message>
+    <message>
+      <source>Russian</source>
+      <translation>Russo</translation>
+    </message>
+    <message>
+      <source>Chinese</source>
+      <translation>Cinese</translation>
+    </message>
+    <message>
+      <source>Japanese</source>
+      <translation>Giapponese</translation>
+    </message>
+    <message>
+      <source>Korean</source>
+      <translation>Coreano</translation>
+    </message>
+    <message>
+      <source>Arabic</source>
+      <translation>Arabo</translation>
+    </message>
+  </context>
+  <context>
     <name>RecordingDialog</name>
     <message>
-        <location filename="../gui/dialogs.py" line="29"/>
-        <source>Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Audio Recording</source>
+      <translation>Registrazione Audio</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="43"/>
-        <source>🎤 Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Audio Recording</source>
+      <translation>🎤 Registrazione Audio</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="49"/>
-        <source><byte value="x1f"/>3a4 Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>What will be recorded:</source>
+      <translation>Cosa verrà registrato:</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="50"/>
-        <source>What will be recorded:</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Microphone: Your voice and ambient sounds</source>
+      <translation>🎤 Microfono: La tua voce e i suoni ambientali</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="51"/>
-        <source>🎤 Microphone: Your voice and ambient sounds</source>
-        <translation type="unfinished"></translation>
+      <source>🔊 Speaker: System audio, music, video calls</source>
+      <translation>🔊 Altoparlante: Audio di sistema, musica, videochiamate</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="52"/>
-        <source>🔊 Speaker: System audio, music, video calls</source>
-        <translation type="unfinished"></translation>
+      <source>📝 Both sources mixed into one recording</source>
+      <translation>📝 Entrambe le sorgenti mixate in una registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="53"/>
-        <source>📝 Both sources mixed into one recording</source>
-        <translation type="unfinished"></translation>
+      <source>🔴 Start Recording</source>
+      <translation>🔴 Inizia Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="57"/>
-        <source>Ready to record</source>
-        <translation type="unfinished"></translation>
+      <source>⏹️ Stop Recording</source>
+      <translation>⏹️ Ferma Registrazione</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="67"/>
-        <source>🎤 Microphone</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="68"/>
-        <source>🔊 Speaker/System</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="79"/>
-        <source>Duration: 0:00</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="86"/>
-        <source>🔴 Start Recording</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="87"/>
-        <source>⏹️ Stop Recording</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="89"/>
-        <source>Close</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="101"/>
-        <source>💡 Perfect for video calls, meetings, or any scenario where you need both
+      <source>💡 Perfect for video calls, meetings, or any scenario where you need both
 your voice and system audio captured.</source>
-        <translation type="unfinished"></translation>
+      <translation>💡 Perfetto per videochiamate, riunioni o qualsiasi scenario in cui hai bisogno
+di catturare sia la tua voce che l'audio di sistema.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="152"/>
-        <source>⏹️ Stopping recording...</source>
-        <translation type="unfinished"></translation>
+      <source>⏹️ Stopping recording...</source>
+      <translation>⏹️ Arresto registrazione...</translation>
+    </message>
+  </context>
+  <context>
+    <name>TranscriptionWorker</name>
+    <message>
+      <source>Extracting audio...</source>
+      <translation>Estrazione audio...</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="181"/>
-        <source>No Microphone Found</source>
-        <translation type="unfinished"></translation>
+      <source>Transcribing...</source>
+      <translation>Trascrizione...</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="182"/>
-        <source>No audio input device detected!</source>
-        <translation type="unfinished"></translation>
+      <source>Finishing up...</source>
+      <translation>Completamento...</translation>
     </message>
-</context>
+    <message>
+      <source>Finalizing transcription...</source>
+      <translation>Finalizzazione trascrizione...</translation>
+    </message>
+    <message>
+      <source>Transcription complete!</source>
+      <translation>Trascrizione completata!</translation>
+    </message>
+  </context>
 </TS>

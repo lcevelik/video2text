@@ -1,556 +1,450 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version="1.0" ?>
 <TS version="2.1" language="ko">
-<context>
+  <context>
     <name>DropZone</name>
     <message>
-        <location filename="../gui/widgets.py" line="134"/>
-        <location filename="../gui/widgets.py" line="191"/>
-        <source>Drag and drop video/audio file</source>
-        <translation type="unfinished"></translation>
+      <source>Drag and drop video/audio file</source>
+      <translation>비디오/오디오 파일을 드래그 앤 드롭하세요</translation>
     </message>
-</context>
-<context>
+  </context>
+  <context>
     <name>FonixFlowQt</name>
     <message>
-        <location filename="../gui/main_window.py" line="38"/>
-        <location filename="../gui/main_window.py" line="1417"/>
-        <source>FonixFlow - Whisper Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>FonixFlow - Whisper Transcription</source>
+      <translation>FonixFlow - Whisper 전사</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="418"/>
-        <location filename="../gui/main_window.py" line="1420"/>
-        <location filename="../gui/main_window.py" line="2008"/>
-        <location filename="../gui/main_window.py" line="2012"/>
-        <source>Ready</source>
-        <translation type="unfinished"></translation>
+      <source>Ready</source>
+      <translation>준비됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="954"/>
-        <location filename="../gui/main_window.py" line="1399"/>
-        <location filename="../gui/main_window.py" line="1446"/>
-        <source>Ready to transcribe</source>
-        <translation type="unfinished"></translation>
+      <source>Ready to transcribe</source>
+      <translation>전사 준비됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1026"/>
-        <location filename="../gui/main_window.py" line="1396"/>
-        <location filename="../gui/main_window.py" line="1448"/>
-        <source>Ready to record</source>
-        <translation type="unfinished"></translation>
+      <source>Ready to record</source>
+      <translation>녹음 준비됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="729"/>
-        <location filename="../gui/main_window.py" line="1423"/>
-        <location filename="../gui/main_window.py" line="2054"/>
-        <source>Record</source>
-        <translation type="unfinished"></translation>
+      <source>Record</source>
+      <translation>녹음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="730"/>
-        <location filename="../gui/main_window.py" line="1423"/>
-        <location filename="../gui/main_window.py" line="2054"/>
-        <source>Upload</source>
-        <translation type="unfinished"></translation>
+      <source>Upload</source>
+      <translation>업로드</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="731"/>
-        <location filename="../gui/main_window.py" line="1424"/>
-        <location filename="../gui/main_window.py" line="2055"/>
-        <source>Transcript</source>
-        <translation type="unfinished"></translation>
+      <source>Transcript</source>
+      <translation>전사</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="455"/>
-        <source>⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>⚙️ Settings</source>
+      <translation>⚙️ 설정</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="458"/>
-        <source>🎨 Theme</source>
-        <translation type="unfinished"></translation>
+      <source>🎨 Theme</source>
+      <translation>🎨 테마</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="461"/>
-        <source>🔄 Auto (System)</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 Auto (System)</source>
+      <translation>🔄 자동 (시스템)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="466"/>
-        <source>☀️ Light</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 Auto</source>
+      <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="471"/>
-        <source>🌙 Dark</source>
-        <translation type="unfinished"></translation>
+      <source>☀️ Light</source>
+      <translation>☀️ 라이트</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="478"/>
-        <source>📁 Change Recording Directory</source>
-        <translation type="unfinished"></translation>
+      <source>🌙 Dark</source>
+      <translation>🌙 다크</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="486"/>
-        <source>🔄 New Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>🔍 Enable Deep Scan (Slower)</source>
+      <translation>🔍 심층 스캔 활성화 (느림)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="506"/>
-        <source>⚙️ Recordings Settings</source>
-        <translation type="unfinished"></translation>
+      <source>📁 Change Recording Directory</source>
+      <translation>📁 녹음 디렉토리 변경</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="568"/>
-        <location filename="../gui/main_window.py" line="1430"/>
-        <source>Change Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🗂️ Open Recording Directory</source>
+      <translation>🗂️ 녹음 디렉토리 열기</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="569"/>
-        <location filename="../gui/main_window.py" line="1431"/>
-        <source>Open Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🔄 New Transcription</source>
+      <translation>🔄 새 전사</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="597"/>
-        <location filename="../gui/main_window.py" line="804"/>
-        <location filename="../gui/main_window.py" line="1434"/>
-        <source>▼ ⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>▼ ⚙️ Settings</source>
+      <translation>▼ ⚙️ 설정</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="626"/>
-        <location filename="../gui/main_window.py" line="1437"/>
-        <source>  ▼ 🎙️ Audio Processing</source>
-        <translation type="unfinished"></translation>
+      <source>▶ ⚙️ Settings</source>
+      <translation>▶ ⚙️ 설정</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="670"/>
-        <location filename="../gui/main_window.py" line="1440"/>
-        <source>  ▼ 📝 Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>▼ 🎨 Theme</source>
+      <translation>▼ 🎨 테마</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="807"/>
-        <source>▶ ⚙️ Settings</source>
-        <translation type="unfinished"></translation>
+      <source>▶ 🎨 Theme</source>
+      <translation>▶ 🎨 테마</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="509"/>
-        <source>Recordings save to:</source>
-        <translation type="unfinished"></translation>
+      <source>Recordings save to:</source>
+      <translation>녹음 저장 위치:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="532"/>
-        <location filename="../gui/main_window.py" line="1459"/>
-        <source>Change Folder</source>
-        <translation type="unfinished"></translation>
+      <source>📂 Change Folder</source>
+      <translation>📂 폴더 변경</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="537"/>
-        <location filename="../gui/main_window.py" line="1462"/>
-        <source>Open Folder</source>
-        <translation type="unfinished"></translation>
+      <source>🗂️ Open Folder</source>
+      <translation>🗂️ 폴더 열기</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="566"/>
-        <location filename="../gui/main_window.py" line="1429"/>
-        <source>New Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>New Transcription</source>
+      <translation>새 전사</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1526"/>
-        <source>🎤 Start Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Change Recordings Folder</source>
+      <translation>녹음 폴더 변경</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1042"/>
-        <location filename="../gui/main_window.py" line="1405"/>
-        <source>Transcribe Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Open Recordings Folder</source>
+      <translation>녹음 폴더 열기</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1091"/>
-        <source>💾 Save Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Start Recording</source>
+      <translation>🎤 녹음 시작</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1097"/>
-        <source>✖ Cancel Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Transcribe Recording</source>
+      <translation>녹음 전사</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1205"/>
-        <source>Close</source>
-        <translation type="unfinished"></translation>
+      <source>💾 Save Transcription</source>
+      <translation>💾 전사 저장</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="981"/>
-        <location filename="../gui/main_window.py" line="1393"/>
-        <location filename="../gui/main_window.py" line="1465"/>
-        <source>Recording will use the system&apos;s default microphone and audio output.</source>
-        <translation type="unfinished"></translation>
+      <source>✖ Cancel Transcription</source>
+      <translation>✖ 전사 취소</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="964"/>
-        <source>💡 Files automatically transcribe when dropped or selected</source>
-        <translation type="unfinished"></translation>
+      <source>Close</source>
+      <translation>닫기</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1036"/>
-        <source>💡 After stopping, the recording is saved but NOT automatically transcribed
-💡 Click &apos;Transcribe Recording&apos; to manually start transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Recording will use the system's default microphone and audio output.</source>
+      <translation>녹음은 시스템의 기본 마이크와 오디오 출력을 사용합니다.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1075"/>
-        <location filename="../gui/main_window.py" line="1408"/>
-        <source>Transcription text will appear here...</source>
-        <translation type="unfinished"></translation>
+      <source>💡 Files automatically transcribe when dropped or selected</source>
+      <translation>💡 파일을 드롭하거나 선택하면 자동으로 전사됩니다</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="992"/>
-        <location filename="../gui/main_window.py" line="1372"/>
-        <location filename="../gui/main_window.py" line="1451"/>
-        <source>Microphone</source>
-        <translation type="unfinished"></translation>
+      <source>💡 After stopping, the recording is saved but NOT automatically transcribed
+💡 Click 'Transcribe Recording' to manually start transcription</source>
+      <translation>💡 중지 후 녹음은 저장되지만 자동으로 전사되지 않습니다
+💡 수동으로 전사를 시작하려면 '녹음 전사'를 클릭하세요</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="993"/>
-        <location filename="../gui/main_window.py" line="1374"/>
-        <location filename="../gui/main_window.py" line="1453"/>
-        <source>Speaker</source>
-        <translation type="unfinished"></translation>
+      <source>Transcription text will appear here...</source>
+      <translation>전사 텍스트가 여기에 표시됩니다...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1005"/>
-        <location filename="../gui/main_window.py" line="1337"/>
-        <location filename="../gui/main_window.py" line="1412"/>
-        <source>Start Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Duration: 0:00</source>
+      <translation>길이: 0:00</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1015"/>
-        <location filename="../gui/main_window.py" line="1300"/>
-        <location filename="../gui/main_window.py" line="1415"/>
-        <source>00:00:00</source>
-        <translation type="unfinished"></translation>
+      <source>Microphone</source>
+      <translation>마이크</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1183"/>
-        <source>🎙️ Audio Setup Guide for {platform_display}</source>
-        <translation type="unfinished"></translation>
+      <source>Speaker</source>
+      <translation>스피커</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1280"/>
-        <source>Stop Recording</source>
-        <translation type="unfinished"></translation>
+      <source>🔴 Recording from Microphone + Speaker...</source>
+      <translation>🔴 마이크 + 스피커에서 녹음 중...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1305"/>
-        <source>🔴 Recording from Microphone + Speaker...</source>
-        <translation type="unfinished"></translation>
+      <source>Recording in progress...</source>
+      <translation>녹음 진행 중...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1306"/>
-        <source>Recording in progress...</source>
-        <translation type="unfinished"></translation>
+      <source>Processing recording...</source>
+      <translation>녹음 처리 중...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1353"/>
-        <location filename="../gui/main_window.py" line="1354"/>
-        <source>Processing recording...</source>
-        <translation type="unfinished"></translation>
+      <source>Starting…</source>
+      <translation>시작 중…</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1381"/>
-        <source>Enhance Audio</source>
-        <translation type="unfinished"></translation>
+      <source>Select Video or Audio File</source>
+      <translation>비디오 또는 오디오 파일 선택</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1389"/>
-        <source>Deep Scan</source>
-        <translation type="unfinished"></translation>
+      <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
+      <translation>미디어 파일 (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;모든 파일 (*.*)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1402"/>
-        <location filename="../gui/main_window.py" line="1443"/>
-        <source>Drag and drop video/audio file</source>
-        <translation type="unfinished"></translation>
+      <source>Select Recordings Folder</source>
+      <translation>녹음 폴더 선택</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1609"/>
-        <source>Starting…</source>
-        <translation type="unfinished"></translation>
+      <source>Save Transcription</source>
+      <translation>전사 저장</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="2025"/>
-        <source>Ready for new transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
+      <translation>텍스트 파일 (*.txt);;SRT 자막 (*.srt);;VTT 자막 (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="2055"/>
-        <source>Switched to {tab_names.get(index, self.tr(&apos;Unknown&apos;))} tab</source>
-        <translation type="unfinished"></translation>
+      <source>No Microphone Found</source>
+      <translation>마이크를 찾을 수 없음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1115"/>
-        <source>Select Video or Audio File</source>
-        <translation type="unfinished"></translation>
+      <source>No audio input device detected!</source>
+      <translation>오디오 입력 장치가 감지되지 않았습니다!</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1118"/>
-        <source>Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
+      <source>Device Found</source>
+      <translation>장치 발견됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1538"/>
-        <source>Select Recordings Folder</source>
-        <translation type="unfinished"></translation>
+      <source>No Recording</source>
+      <translation>녹음 없음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1722"/>
-        <source>Save Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>No recording available. Please record first.</source>
+      <translation>사용 가능한 녹음이 없습니다. 먼저 녹음하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1725"/>
-        <source>Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)</source>
-        <translation type="unfinished"></translation>
+      <source>No File</source>
+      <translation>파일 없음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1245"/>
-        <source>No Microphone Found</source>
-        <translation type="unfinished"></translation>
+      <source>Please select a file first.</source>
+      <translation>먼저 파일을 선택하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1246"/>
-        <source>No audio input device detected!</source>
-        <translation type="unfinished"></translation>
+      <source>No Transcription</source>
+      <translation>전사 없음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1265"/>
-        <source>Device Found</source>
-        <translation type="unfinished"></translation>
+      <source>Please transcribe a file first.</source>
+      <translation>먼저 파일을 전사하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1047"/>
-        <source>No Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Saved Successfully</source>
+      <translation>성공적으로 저장됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1592"/>
-        <source>No File</source>
-        <translation type="unfinished"></translation>
+      <source>Settings Updated</source>
+      <translation>설정 업데이트됨</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1717"/>
-        <source>No Transcription</source>
-        <translation type="unfinished"></translation>
+      <source>Save Error</source>
+      <translation>저장 오류</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1741"/>
-        <source>Saved Successfully</source>
-        <translation type="unfinished"></translation>
+      <source>Could Not Open Folder</source>
+      <translation>폴더를 열 수 없음</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1554"/>
-        <source>Settings Updated</source>
-        <translation type="unfinished"></translation>
+      <source>Transcription Error</source>
+      <translation>전사 오류</translation>
     </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1745"/>
-        <source>Save Error</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1579"/>
-        <source>Could Not Open Folder</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1968"/>
-        <source>Transcription Error</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
+  </context>
+  <context>
     <name>MultiLanguageChoiceDialog</name>
     <message>
-        <location filename="../gui/dialogs.py" line="232"/>
-        <source>Language Mode</source>
-        <translation type="unfinished"></translation>
+      <source>Language Mode</source>
+      <translation>언어 모드</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="240"/>
-        <source>Is your file multi-language?</source>
-        <translation type="unfinished"></translation>
+      <source>Is your file multi-language?</source>
+      <translation>파일이 다국어입니까?</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="248"/>
-        <source>Select language type:</source>
-        <translation type="unfinished"></translation>
+      <source>Select language type:</source>
+      <translation>언어 유형 선택:</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="253"/>
-        <source>English (uses optimized .en model)</source>
-        <translation type="unfinished"></translation>
+      <source>English (uses optimized .en model)</source>
+      <translation>영어 (최적화된 .en 모델 사용)</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="258"/>
-        <source>Other language (uses multilingual model)</source>
-        <translation type="unfinished"></translation>
+      <source>Other language (uses multilingual model)</source>
+      <translation>기타 언어 (다국어 모델 사용)</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="265"/>
-        <source>Select one language type before confirming.</source>
-        <translation type="unfinished"></translation>
+      <source>Select one language type before confirming.</source>
+      <translation>확인하기 전에 언어 유형을 하나 선택하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="274"/>
-        <source>Select languages present (check all that apply):</source>
-        <translation type="unfinished"></translation>
+      <source>Select languages present (check all that apply):</source>
+      <translation>존재하는 언어 선택 (해당되는 모든 항목 체크):</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="292"/>
-        <source>At least one language must be selected before confirming.</source>
-        <translation type="unfinished"></translation>
+      <source>At least one language must be selected before confirming.</source>
+      <translation>확인하기 전에 최소 하나의 언어를 선택해야 합니다.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="298"/>
-        <source>Multi-Language</source>
-        <translation type="unfinished"></translation>
+      <source>Multi-Language</source>
+      <translation>다국어</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="352"/>
-        <source>Confirm Languages</source>
-        <translation type="unfinished"></translation>
+      <source>Confirm Languages</source>
+      <translation>언어 확인</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="299"/>
-        <source>Single-Language</source>
-        <translation type="unfinished"></translation>
+      <source>Single-Language</source>
+      <translation>단일 언어</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="368"/>
-        <source>Confirm Selection</source>
-        <translation type="unfinished"></translation>
+      <source>Confirm Selection</source>
+      <translation>선택 확인</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="338"/>
-        <source>Cancel to decide later.</source>
-        <translation type="unfinished"></translation>
+      <source>Cancel to decide later.</source>
+      <translation>나중에 결정하려면 취소하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="357"/>
-        <source>No Languages Selected</source>
-        <translation type="unfinished"></translation>
+      <source>No Languages Selected</source>
+      <translation>언어가 선택되지 않음</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="372"/>
-        <source>No Language Type Selected</source>
-        <translation type="unfinished"></translation>
+      <source>Select at least one language to proceed.</source>
+      <translation>계속하려면 최소 하나의 언어를 선택하세요.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="372"/>
-        <source>Please select either English or Other language.</source>
-        <translation type="unfinished"></translation>
+      <source>No Language Type Selected</source>
+      <translation>언어 유형이 선택되지 않음</translation>
     </message>
-</context>
-<context>
+    <message>
+      <source>Please select either English or Other language.</source>
+      <translation>영어 또는 기타 언어를 선택하세요.</translation>
+    </message>
+    <message>
+      <source>English</source>
+      <translation>영어</translation>
+    </message>
+    <message>
+      <source>Czech</source>
+      <translation>체코어</translation>
+    </message>
+    <message>
+      <source>German</source>
+      <translation>독일어</translation>
+    </message>
+    <message>
+      <source>French</source>
+      <translation>프랑스어</translation>
+    </message>
+    <message>
+      <source>Spanish</source>
+      <translation>스페인어</translation>
+    </message>
+    <message>
+      <source>Italian</source>
+      <translation>이탈리아어</translation>
+    </message>
+    <message>
+      <source>Polish</source>
+      <translation>폴란드어</translation>
+    </message>
+    <message>
+      <source>Russian</source>
+      <translation>러시아어</translation>
+    </message>
+    <message>
+      <source>Chinese</source>
+      <translation>중국어</translation>
+    </message>
+    <message>
+      <source>Japanese</source>
+      <translation>일본어</translation>
+    </message>
+    <message>
+      <source>Korean</source>
+      <translation>한국어</translation>
+    </message>
+    <message>
+      <source>Arabic</source>
+      <translation>아랍어</translation>
+    </message>
+  </context>
+  <context>
     <name>RecordingDialog</name>
     <message>
-        <location filename="../gui/dialogs.py" line="29"/>
-        <source>Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>Audio Recording</source>
+      <translation>오디오 녹음</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="43"/>
-        <source>🎤 Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Audio Recording</source>
+      <translation>🎤 오디오 녹음</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="49"/>
-        <source><byte value="x1f"/>3a4 Audio Recording</source>
-        <translation type="unfinished"></translation>
+      <source>What will be recorded:</source>
+      <translation>녹음될 내용:</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="50"/>
-        <source>What will be recorded:</source>
-        <translation type="unfinished"></translation>
+      <source>🎤 Microphone: Your voice and ambient sounds</source>
+      <translation>🎤 마이크: 당신의 음성과 주변 소리</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="51"/>
-        <source>🎤 Microphone: Your voice and ambient sounds</source>
-        <translation type="unfinished"></translation>
+      <source>🔊 Speaker: System audio, music, video calls</source>
+      <translation>🔊 스피커: 시스템 오디오, 음악, 화상 통화</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="52"/>
-        <source>🔊 Speaker: System audio, music, video calls</source>
-        <translation type="unfinished"></translation>
+      <source>📝 Both sources mixed into one recording</source>
+      <translation>📝 두 소스가 하나의 녹음으로 혼합됨</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="53"/>
-        <source>📝 Both sources mixed into one recording</source>
-        <translation type="unfinished"></translation>
+      <source>🔴 Start Recording</source>
+      <translation>🔴 녹음 시작</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="57"/>
-        <source>Ready to record</source>
-        <translation type="unfinished"></translation>
+      <source>⏹️ Stop Recording</source>
+      <translation>⏹️ 녹음 중지</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="67"/>
-        <source>🎤 Microphone</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="68"/>
-        <source>🔊 Speaker/System</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="79"/>
-        <source>Duration: 0:00</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="86"/>
-        <source>🔴 Start Recording</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="87"/>
-        <source>⏹️ Stop Recording</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="89"/>
-        <source>Close</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/dialogs.py" line="101"/>
-        <source>💡 Perfect for video calls, meetings, or any scenario where you need both
+      <source>💡 Perfect for video calls, meetings, or any scenario where you need both
 your voice and system audio captured.</source>
-        <translation type="unfinished"></translation>
+      <translation>💡 화상 통화, 회의 또는 음성과 시스템 오디오를 모두
+캡처해야 하는 모든 시나리오에 완벽합니다.</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="152"/>
-        <source>⏹️ Stopping recording...</source>
-        <translation type="unfinished"></translation>
+      <source>⏹️ Stopping recording...</source>
+      <translation>⏹️ 녹음 중지 중...</translation>
+    </message>
+  </context>
+  <context>
+    <name>TranscriptionWorker</name>
+    <message>
+      <source>Extracting audio...</source>
+      <translation>오디오 추출 중...</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="181"/>
-        <source>No Microphone Found</source>
-        <translation type="unfinished"></translation>
+      <source>Transcribing...</source>
+      <translation>전사 중...</translation>
     </message>
     <message>
-        <location filename="../gui/dialogs.py" line="182"/>
-        <source>No audio input device detected!</source>
-        <translation type="unfinished"></translation>
+      <source>Finishing up...</source>
+      <translation>마무리 중...</translation>
     </message>
-</context>
+    <message>
+      <source>Finalizing transcription...</source>
+      <translation>전사 최종화 중...</translation>
+    </message>
+    <message>
+      <source>Transcription complete!</source>
+      <translation>전사 완료!</translation>
+    </message>
+  </context>
 </TS>
