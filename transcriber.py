@@ -240,11 +240,11 @@ class Transcriber:
             except TypeError:
                 # Callback doesn't accept arguments, skip
                 pass
-        
+
         logger.info(f"Transcribing audio: {audio_path}")
         if initial_prompt:
             logger.info(f"Using initial prompt: {initial_prompt[:100]}...")
-        
+
         # Set up progress interception if callback provided
         original_stderr = sys.stderr
         try:
@@ -262,11 +262,27 @@ class Transcriber:
             if initial_prompt:
                 transcribe_kwargs['initial_prompt'] = initial_prompt
 
+            # For MPS device, pre-load audio as float32 to avoid float64 conversion errors
+            audio_input = audio_path
+            if self.device == 'mps':
+                try:
+                    import librosa
+                    import numpy as np
+                    logger.info("Pre-loading audio as float32 for MPS compatibility...")
+                    # Load audio at 16kHz (Whisper's expected sample rate) as float32
+                    audio_data, sr = librosa.load(audio_path, sr=16000, mono=True, dtype=np.float32)
+                    audio_input = audio_data
+                    logger.info(f"Audio loaded: {len(audio_data)} samples at {sr}Hz (float32)")
+                except ImportError:
+                    logger.warning("librosa not available, passing file path to Whisper (may cause MPS dtype issues)")
+                except Exception as e:
+                    logger.warning(f"Failed to pre-load audio: {e}, passing file path to Whisper")
+
             # Intercept stderr to capture tqdm progress if callback provided
             if progress_callback:
                 sys.stderr = ProgressInterceptor(original_stderr, progress_callback, base_percent=50, range_percent=45)
 
-            result = self.model.transcribe(audio_path, **transcribe_kwargs)
+            result = self.model.transcribe(audio_input, **transcribe_kwargs)
 
             # Restore stderr
             if progress_callback:

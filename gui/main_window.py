@@ -125,7 +125,7 @@ class FonixFlowQt(QMainWindow):
     def load_settings(self):
         """Load settings from config file."""
         default_settings = {
-            "recordings_dir": str(Path.home() / "Video2Text" / "Recordings"),
+            "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
             "theme_mode": "dark",  # auto, light, dark (default: dark)
             "enable_audio_filters": True,  # Audio processing filters (default ON)
             "enable_deep_scan": False  # Deep scan for transcription (default OFF)
@@ -256,65 +256,23 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'collapsible_sidebar'):
             self.collapsible_sidebar.update_theme(self.is_dark_mode)
 
-        # Update settings sidebar theme
-        if hasattr(self, 'settings_sidebar'):
-            self.settings_sidebar.update_theme(self.is_dark_mode)
-
-            # Update settings section button
-            if hasattr(self, 'settings_section_btn'):
-                self.settings_section_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Theme.get('text_primary', self.is_dark_mode)};
-                        border: none;
-                        border-radius: 6px;
-                        padding: 8px 12px;
-                        text-align: left;
-                        font-size: 14px;
-                        font-weight: bold;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                    }}
-                """)
-
-            # Update theme section button
-            if hasattr(self, 'theme_section_btn'):
-                self.theme_section_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Theme.get('text_secondary', self.is_dark_mode)};
-                        border: none;
-                        border-radius: 6px;
-                        padding: 6px 12px 6px 16px;
-                        text-align: left;
-                        font-size: 13px;
-                        font-weight: 600;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                    }}
-                """)
-
-            # Update theme option buttons
-            for btn in [getattr(self, 'theme_auto_btn', None),
-                       getattr(self, 'theme_light_btn', None),
-                       getattr(self, 'theme_dark_btn', None)]:
-                if btn:
-                    btn.setStyleSheet(f"""
-                        QPushButton {{
-                            background-color: transparent;
-                            color: {Theme.get('text_primary', self.is_dark_mode)};
-                            border: none;
-                            border-radius: 6px;
-                            padding: 8px 12px 8px 32px;
-                            text-align: left;
-                            font-size: 13px;
-                        }}
-                        QPushButton:hover {{
-                            background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-                        }}
-                    """)
+        # Update settings section button styles
+        if hasattr(self, 'settings_section_btn'):
+            self.settings_section_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {Theme.get('text_primary', self.is_dark_mode)};
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    text-align: left;
+                    font-size: 14px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+                }}
+            """)
 
         # Update DropZone theme
         if hasattr(self, 'drop_zone'):
@@ -584,14 +542,20 @@ class FonixFlowQt(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Left collapsible sidebar with actions
+        # Left collapsible sidebar with actions and settings
         self.collapsible_sidebar = CollapsibleSidebar(self.is_dark_mode)
+
+        # Quick actions
         self.collapsible_sidebar.add_action("🔄", "New Transcription", self.clear_for_new_transcription)
         self.collapsible_sidebar.add_separator()
-        self.collapsible_sidebar.add_action("📂", "Change Recordings Folder", self.change_recordings_directory)
-        self.collapsible_sidebar.add_action("🗂️", "Open Recordings Folder", self.open_recordings_folder)
-        # Start collapsed by default
-        self.collapsible_sidebar.toggle_collapse()
+        self.collapsible_sidebar.add_action("📂", "Change Folder", self.change_recordings_directory)
+        self.collapsible_sidebar.add_action("🗂️", "Open Folder", self.open_recordings_folder)
+
+        # Settings section
+        self.collapsible_sidebar.add_separator()
+        self._add_settings_to_sidebar(self.collapsible_sidebar)
+
+        # Start expanded by default to show settings
         main_layout.addWidget(self.collapsible_sidebar)
 
         # Tab content stack - order: Record, Upload, Transcript
@@ -606,6 +570,126 @@ class FonixFlowQt(QMainWindow):
         main_layout.addWidget(self.tab_bar)
 
         return container
+
+    def _add_settings_to_sidebar(self, sidebar):
+        """Add settings sections to the left sidebar."""
+        from PySide6.QtWidgets import QPushButton
+
+        # Settings section header (clickable to expand/collapse)
+        self.settings_section_expanded = True
+        self.settings_section_btn = QPushButton("▼ ⚙️ Settings")
+        self.settings_section_btn.setCursor(Qt.PointingHandCursor)
+        self.settings_section_btn.setMinimumHeight(40)
+        self.settings_section_btn.clicked.connect(self.toggle_settings_section)
+        self.settings_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_primary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                text-align: left;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_section_btn)
+
+        # Settings content container
+        self.settings_content_widget = QWidget()
+        settings_content_layout = QVBoxLayout(self.settings_content_widget)
+        settings_content_layout.setContentsMargins(0, 0, 0, 0)
+        settings_content_layout.setSpacing(2)
+
+        # Audio Processing section (nested under Settings)
+        self.audio_section_expanded = True
+        audio_section_btn = QPushButton("  ▼ 🎙️ Audio Processing")
+        audio_section_btn.setCursor(Qt.PointingHandCursor)
+        audio_section_btn.setMinimumHeight(36)
+        audio_section_btn.clicked.connect(self.toggle_audio_section)
+        audio_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_secondary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px 6px 16px;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        settings_content_layout.addWidget(audio_section_btn)
+
+        # Audio options container
+        self.audio_options_widget = QWidget()
+        audio_options_layout = QVBoxLayout(self.audio_options_widget)
+        audio_options_layout.setContentsMargins(0, 0, 0, 0)
+        audio_options_layout.setSpacing(2)
+
+        # Audio filters toggle
+        audio_filter_btn = self.create_toggle_option_btn(
+            "🎚️", "Enhance Audio",
+            self.enable_audio_filters,
+            self.toggle_audio_filters,
+            indent=32
+        )
+        audio_filter_btn.setToolTip("Removes noise, boosts clarity")
+        audio_options_layout.addWidget(audio_filter_btn)
+
+        settings_content_layout.addWidget(self.audio_options_widget)
+
+        # Add spacing
+        settings_content_layout.addSpacing(8)
+
+        # Transcription section (nested under Settings)
+        self.transcription_section_expanded = True
+        transcription_section_btn = QPushButton("  ▼ 📝 Transcription")
+        transcription_section_btn.setCursor(Qt.PointingHandCursor)
+        transcription_section_btn.setMinimumHeight(36)
+        transcription_section_btn.clicked.connect(self.toggle_transcription_section)
+        transcription_section_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.get('text_secondary', self.is_dark_mode)};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px 6px 16px;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
+            }}
+        """)
+        settings_content_layout.addWidget(transcription_section_btn)
+
+        # Transcription options container
+        self.transcription_options_widget = QWidget()
+        transcription_options_layout = QVBoxLayout(self.transcription_options_widget)
+        transcription_options_layout.setContentsMargins(0, 0, 0, 0)
+        transcription_options_layout.setSpacing(2)
+
+        # Deep scan toggle
+        deep_scan_btn = self.create_toggle_option_btn(
+            "🔍", "Deep Scan",
+            self.enable_deep_scan,
+            self.toggle_deep_scan,
+            indent=32
+        )
+        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
+        transcription_options_layout.addWidget(deep_scan_btn)
+
+        settings_content_layout.addWidget(self.transcription_options_widget)
+
+        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_content_widget)
 
     def create_vertical_tab_bar(self):
         """Create vertical tab bar on the right side."""
@@ -694,195 +778,6 @@ class FonixFlowQt(QMainWindow):
         self.basic_tab_stack.setCurrentIndex(index)
         logger.info(f"Switched to tab index {index}")
 
-    def create_settings_sidebar(self):
-        """Create right sidebar with settings."""
-        from PySide6.QtWidgets import QPushButton
-        sidebar = CollapsibleSidebar(self.is_dark_mode, side='right')
-
-        # Settings section button (clickable to expand/collapse)
-        self.settings_section_expanded = True
-        self.settings_section_btn = QPushButton("▼ ⚙️ Settings")
-        self.settings_section_btn.setCursor(Qt.PointingHandCursor)
-        self.settings_section_btn.setMinimumHeight(40)
-        self.settings_section_btn.clicked.connect(self.toggle_settings_section)
-        self.settings_section_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 8px 12px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-        """)
-        sidebar.content_layout.insertWidget(0, self.settings_section_btn)
-
-        # Settings content container
-        self.settings_content_widget = QWidget()
-        settings_content_layout = QVBoxLayout(self.settings_content_widget)
-        settings_content_layout.setContentsMargins(0, 0, 0, 0)
-        settings_content_layout.setSpacing(2)
-
-        # Theme section header (clickable to expand/collapse) - nested under Settings
-        self.theme_section_expanded = True
-        self.theme_section_btn = QPushButton("  ▼ 🎨 Theme")  # Indented with spaces
-        self.theme_section_btn.setCursor(Qt.PointingHandCursor)
-        self.theme_section_btn.setMinimumHeight(36)
-        self.theme_section_btn.clicked.connect(self.toggle_theme_section)
-        self.theme_section_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Theme.get('text_secondary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px 6px 16px;
-                text-align: left;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-        """)
-        settings_content_layout.addWidget(self.theme_section_btn)
-
-        # Theme options container - nested under Theme
-        self.theme_options_widget = QWidget()
-        theme_options_layout = QVBoxLayout(self.theme_options_widget)
-        theme_options_layout.setContentsMargins(0, 0, 0, 0)
-        theme_options_layout.setSpacing(2)
-
-        # Create theme option buttons (further indented)
-        self.theme_auto_btn = self.create_theme_option_btn("🔄", "Auto", "auto", indent=32)
-        self.theme_light_btn = self.create_theme_option_btn("☀️", "Light", "light", indent=32)
-        self.theme_dark_btn = self.create_theme_option_btn("🌙", "Dark", "dark", indent=32)
-
-        theme_options_layout.addWidget(self.theme_auto_btn)
-        theme_options_layout.addWidget(self.theme_light_btn)
-        theme_options_layout.addWidget(self.theme_dark_btn)
-
-        settings_content_layout.addWidget(self.theme_options_widget)
-
-        # Add spacing
-        settings_content_layout.addSpacing(8)
-
-        # Audio Processing section (nested under Settings)
-        self.audio_section_expanded = True
-        audio_section_btn = QPushButton("  ▼ 🎙️ Audio Processing")
-        audio_section_btn.setCursor(Qt.PointingHandCursor)
-        audio_section_btn.setMinimumHeight(36)
-        audio_section_btn.clicked.connect(self.toggle_audio_section)
-        audio_section_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Theme.get('text_secondary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px 6px 16px;
-                text-align: left;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-        """)
-        settings_content_layout.addWidget(audio_section_btn)
-
-        # Audio options container
-        self.audio_options_widget = QWidget()
-        audio_options_layout = QVBoxLayout(self.audio_options_widget)
-        audio_options_layout.setContentsMargins(0, 0, 0, 0)
-        audio_options_layout.setSpacing(2)
-
-        # Audio filters toggle
-        audio_filter_btn = self.create_toggle_option_btn(
-            "🎚️", "Noise Reduction & Filters",
-            self.enable_audio_filters,
-            self.toggle_audio_filters,
-            indent=32
-        )
-        audio_filter_btn.setToolTip("Removes noise, boosts clarity")
-        audio_options_layout.addWidget(audio_filter_btn)
-
-        settings_content_layout.addWidget(self.audio_options_widget)
-
-        # Add spacing
-        settings_content_layout.addSpacing(8)
-
-        # Transcription section (nested under Settings)
-        self.transcription_section_expanded = True
-        transcription_section_btn = QPushButton("  ▼ 📝 Transcription")
-        transcription_section_btn.setCursor(Qt.PointingHandCursor)
-        transcription_section_btn.setMinimumHeight(36)
-        transcription_section_btn.clicked.connect(self.toggle_transcription_section)
-        transcription_section_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Theme.get('text_secondary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px 6px 16px;
-                text-align: left;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-        """)
-        settings_content_layout.addWidget(transcription_section_btn)
-
-        # Transcription options container
-        self.transcription_options_widget = QWidget()
-        transcription_options_layout = QVBoxLayout(self.transcription_options_widget)
-        transcription_options_layout.setContentsMargins(0, 0, 0, 0)
-        transcription_options_layout.setSpacing(2)
-
-        # Deep scan toggle
-        deep_scan_btn = self.create_toggle_option_btn(
-            "🔍", "Deep Scan (Slower, More Accurate)",
-            self.enable_deep_scan,
-            self.toggle_deep_scan,
-            indent=32
-        )
-        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
-        transcription_options_layout.addWidget(deep_scan_btn)
-
-        settings_content_layout.addWidget(self.transcription_options_widget)
-
-        sidebar.content_layout.insertWidget(sidebar.content_layout.count() - 1, self.settings_content_widget)
-
-        return sidebar
-
-    def create_theme_option_btn(self, icon, label, mode, indent=24):
-        """Create a theme option button."""
-        from PySide6.QtWidgets import QPushButton
-        btn = QPushButton(f"  {icon} {label}")
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setMinimumHeight(36)
-        btn.clicked.connect(lambda: self.set_theme_mode(mode))
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Theme.get('text_primary', self.is_dark_mode)};
-                border: none;
-                border-radius: 6px;
-                padding: 8px 12px 8px {indent}px;
-                text-align: left;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
-            }}
-        """)
-        return btn
-
     def toggle_settings_section(self):
         """Toggle settings section visibility."""
         self.settings_section_expanded = not self.settings_section_expanded
@@ -895,19 +790,6 @@ class FonixFlowQt(QMainWindow):
             self.settings_content_widget.hide()
 
         logger.info(f"Settings section {'expanded' if self.settings_section_expanded else 'collapsed'}")
-
-    def toggle_theme_section(self):
-        """Toggle theme section visibility."""
-        self.theme_section_expanded = not self.theme_section_expanded
-
-        if self.theme_section_expanded:
-            self.theme_section_btn.setText("  ▼ 🎨 Theme")
-            self.theme_options_widget.show()
-        else:
-            self.theme_section_btn.setText("  ▶ 🎨 Theme")
-            self.theme_options_widget.hide()
-
-        logger.info(f"Theme section {'expanded' if self.theme_section_expanded else 'collapsed'}")
 
     def toggle_audio_section(self):
         """Toggle audio processing section visibility."""
@@ -966,9 +848,9 @@ class FonixFlowQt(QMainWindow):
         # Update button visual
         checkmark = "✅" if self.enable_audio_filters else "⬜"
         for child in self.audio_options_widget.findChildren(QPushButton):
-            if "Noise Reduction" in child.text():
+            if "Enhance Audio" in child.text():
                 icon = child.property("icon") or "🎚️"
-                label = child.property("label") or "Noise Reduction & Filters"
+                label = child.property("label") or "Enhance Audio"
                 child.setText(f"  {checkmark} {icon} {label}")
                 break
 
@@ -984,7 +866,7 @@ class FonixFlowQt(QMainWindow):
         for child in self.transcription_options_widget.findChildren(QPushButton):
             if "Deep Scan" in child.text():
                 icon = child.property("icon") or "🔍"
-                label = child.property("label") or "Deep Scan (Slower, More Accurate)"
+                label = child.property("label") or "Deep Scan"
                 child.setText(f"  {checkmark} {icon} {label}")
                 break
 
@@ -1110,14 +992,14 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(button_container)
         layout.addSpacing(10)
 
-        # Recording duration (shown during recording, hidden otherwise)
-        self.recording_duration_label = QLabel("Duration: 0:00")
-        self.recording_duration_label.setStyleSheet(
-            f"font-size: 18px; font-weight: bold; color: {Theme.get('error', self.is_dark_mode)};"
+        # Recording timer (HH:MM:SS format only, no "Duration:" label)
+        self.recording_time_label = QLabel("00:00:00")
+        self.recording_time_label.setStyleSheet(
+            f"font-size: 24px; font-weight: bold; color: {Theme.get('error', self.is_dark_mode)};"
         )
-        self.recording_duration_label.setAlignment(Qt.AlignCenter)
-        self.recording_duration_label.hide()
-        layout.addWidget(self.recording_duration_label)
+        self.recording_time_label.setAlignment(Qt.AlignCenter)
+        self.recording_time_label.hide()
+        layout.addWidget(self.recording_time_label)
 
         layout.addStretch(1)
 
@@ -1395,8 +1277,9 @@ class FonixFlowQt(QMainWindow):
         # Disable drop zone and device selection during recording
         self.drop_zone.setEnabled(False)
 
-        # Show duration label
-        self.recording_duration_label.show()
+        # Show and start recording timer
+        self.recording_time_label.setText("00:00:00")
+        self.recording_time_label.show()
         self.recording_timer.start(1000)  # Update every second
 
         # Update status
@@ -1439,8 +1322,8 @@ class FonixFlowQt(QMainWindow):
         # Re-enable controls
         self.drop_zone.setEnabled(True)
 
-        # Hide duration label
-        self.recording_duration_label.hide()
+        # Hide recording timer
+        self.recording_time_label.hide()
 
         # Show progress bar for processing
         self.basic_record_progress_bar.show()
@@ -1460,8 +1343,8 @@ class FonixFlowQt(QMainWindow):
             hours = elapsed // 3600
             mins = (elapsed % 3600) // 60
             secs = elapsed % 60
-            # Just show time in HH:MM:SS format, no red dot or "Recording" text
-            self.recording_duration_label.setText(f"{hours:02d}:{mins:02d}:{secs:02d}")
+            # Show time in HH:MM:SS format (no "Duration:" label)
+            self.recording_time_label.setText(f"{hours:02d}:{mins:02d}:{secs:02d}")
 
     def start_audio_preview(self):
         """Start the audio preview worker for continuous VU meter updates."""
@@ -1519,10 +1402,10 @@ class FonixFlowQt(QMainWindow):
         # Reset recording state
         self.is_recording = False
         self.recording_timer.stop()
+        self.recording_time_label.hide()
         self.basic_record_btn.setText("🎤 Start Recording")
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
-        self.recording_duration_label.hide()
 
         # Restart audio preview worker for VU meters
         self.start_audio_preview()
@@ -2025,6 +1908,9 @@ class FonixFlowQt(QMainWindow):
         # Hide manual transcribe button if present
         if hasattr(self, 'transcribe_recording_btn'):
             self.transcribe_recording_btn.hide()
+
+        # Restart audio preview worker for VU meters
+        self.start_audio_preview()
 
     # ---------- Tab activation management ----------
     def on_basic_tab_changed(self, index: int):
