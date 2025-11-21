@@ -324,7 +324,8 @@ class FonixFlowQt(QMainWindow):
         try:
             import shutil as _shutil
             from pydub import AudioSegment  # type: ignore
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Could not import FFmpeg dependencies: {e}")
             return
 
         # If ffmpeg is on PATH, set converter and return
@@ -1472,8 +1473,8 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'basic_upload_progress_bar'):
             try:
                 self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not update progress bar: {e}")
         # Timing / ETA overlay
         if getattr(self, 'transcription_start_time', None) and percentage > 0:
             elapsed = time.time() - self.transcription_start_time
@@ -1487,8 +1488,8 @@ class FonixFlowQt(QMainWindow):
         # Status bar
         try:
             self.statusBar().showMessage(message)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
 
     def on_transcription_complete(self, result: dict):
         """Handle successful transcription completion (worker signal)."""
@@ -1595,8 +1596,8 @@ class FonixFlowQt(QMainWindow):
         # Status
         try:
             self.statusBar().showMessage(f"Transcription complete ({segment_count} segments, {lang_info})")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
         # Logging
         if has_multilang:
             logger.info(f"Multi-language transcription complete: {len(language_segments)} language segments detected")
@@ -1620,12 +1621,12 @@ class FonixFlowQt(QMainWindow):
             self.cancel_transcription_btn.hide()
         try:
             self.statusBar().showMessage("Transcription failed")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
         try:
             QMessageBox.critical(self, "Transcription Error", f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details.")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not show error dialog: {e}")
         logger.error(f"Transcription failed: {error_message}")
 
         # Clear file field after error (ready for retry or new file)
@@ -1663,8 +1664,8 @@ class FonixFlowQt(QMainWindow):
         self.multi_language_mode = None
         try:
             self.statusBar().showMessage("Ready for new transcription")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
         # Hide manual transcribe button if present
         if hasattr(self, 'transcribe_recording_btn'):
             self.transcribe_recording_btn.hide()
@@ -1676,8 +1677,8 @@ class FonixFlowQt(QMainWindow):
             # Switch stacked widget
             if hasattr(self, 'basic_tab_stack'):
                 self.basic_tab_stack.setCurrentIndex(index)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not switch tab index: {e}")
 
         # If recording is ongoing and user navigates away, stop recording gracefully
         if index != 0 and getattr(self, 'is_recording', False):
@@ -1690,8 +1691,8 @@ class FonixFlowQt(QMainWindow):
         try:
             tab_names = {0: "Record", 1: "Upload", 2: "Transcript"}
             self.statusBar().showMessage(f"Switched to {tab_names.get(index, 'Unknown')} tab")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
 
     # Override refresh_audio_devices to avoid auto preview start when not on Record tab
     def refresh_audio_devices(self):
