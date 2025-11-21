@@ -323,7 +323,6 @@ class FonixFlowQt(QMainWindow):
         """Configure pydub to use an available ffmpeg binary without requiring shell restart."""
         try:
             import shutil as _shutil
-            from pathlib import Path as _Path
             from pydub import AudioSegment  # type: ignore
         except Exception:
             return
@@ -341,12 +340,12 @@ class FonixFlowQt(QMainWindow):
         candidates = [
             r"C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
             r"C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe",
-            str(_Path.home() / "scoop" / "apps" / "ffmpeg" / "current" / "bin" / "ffmpeg.exe"),
-            str(_Path(os.environ.get('LOCALAPPDATA', '')) / "Microsoft" / "WinGet" / "Packages" / "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "ffmpeg-8.0-full_build" / "bin" / "ffmpeg.exe"),
+            str(Path.home() / "scoop" / "apps" / "ffmpeg" / "current" / "bin" / "ffmpeg.exe"),
+            str(Path(os.environ.get('LOCALAPPDATA', '')) / "Microsoft" / "WinGet" / "Packages" / "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "ffmpeg-8.0-full_build" / "bin" / "ffmpeg.exe"),
         ]
         for p in candidates:
             try:
-                if _Path(p).exists():
+                if Path(p).exists():
                     try:
                         AudioSegment.converter = p
                         logger.info(f"pydub configured to use ffmpeg at: {p}")
@@ -1308,9 +1307,6 @@ class FonixFlowQt(QMainWindow):
         recordings_dir.mkdir(parents=True, exist_ok=True)
 
         # Open in file explorer (cross-platform)
-        import subprocess
-        import platform
-
         try:
             if platform.system() == "Windows":
                 os.startfile(str(recordings_dir))
