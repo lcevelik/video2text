@@ -32,7 +32,7 @@ TRANSLATABLE_STRINGS = [
     ("FonixFlowQt", "🔄 Auto"),
     ("FonixFlowQt", "☀️ Light"),
     ("FonixFlowQt", "🌙 Dark"),
-    ("FonixFlowQt", "🔍 Enable Deep Scan (Slower)"),
+    ("FonixFlowQt", "Enable Deep Scan (Slower)"),
     ("FonixFlowQt", "📁 Change Recording Directory"),
     ("FonixFlowQt", "🗂️ Open Recording Directory"),
     ("FonixFlowQt", "🔄 New Transcription"),
@@ -52,7 +52,7 @@ TRANSLATABLE_STRINGS = [
     ("FonixFlowQt", "Open Recordings Folder"),
 
     # Buttons
-    ("FonixFlowQt", "🎤 Start Recording"),
+    ("FonixFlowQt", "Start Recording"),
     ("FonixFlowQt", "Transcribe Recording"),
     ("FonixFlowQt", "💾 Save Transcription"),
     ("FonixFlowQt", "✖ Cancel Transcription"),
@@ -102,10 +102,10 @@ TRANSLATABLE_STRINGS = [
 
     # Recording Dialog
     ("RecordingDialog", "Audio Recording"),
-    ("RecordingDialog", "🎤 Audio Recording"),
+    ("RecordingDialog", "Audio Recording"),
     ("RecordingDialog", "What will be recorded:"),
-    ("RecordingDialog", "🎤 Microphone: Your voice and ambient sounds"),
-    ("RecordingDialog", "🔊 Speaker: System audio, music, video calls"),
+    ("RecordingDialog", "Microphone: Your voice and ambient sounds"),
+    ("RecordingDialog", "Speaker: System audio, music, video calls"),
     ("RecordingDialog", "📝 Both sources mixed into one recording"),
     ("RecordingDialog", "🔴 Start Recording"),
     ("RecordingDialog", "⏹️ Stop Recording"),

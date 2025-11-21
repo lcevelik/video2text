@@ -48,25 +48,25 @@ from gui.utils import get_audio_devices
 
 mics, speakers = get_audio_devices()
 
-print(f"\n📱 MICROPHONES ({len(mics)}):")
+print(f"\nMICROPHONES ({len(mics)}):")
 for idx, name in mics:
     print(f"  [{idx}] {name}")
 
-print(f"\n🔊 SYSTEM AUDIO / SPEAKERS ({len(speakers)}):")
+print(f"\nSYSTEM AUDIO / SPEAKERS ({len(speakers)}):")
 for idx, name in speakers:
     print(f"  [{idx}] {name}")
 
 print("\n=== Recommendations ===")
 print("\nFor recording MICROPHONE:")
 if mics:
-    print(f"  ✅ Use device index: {mics[0][0]} ({mics[0][1]})")
+    print(f"  Use device index: {mics[0][0]} ({mics[0][1]})")
 else:
-    print("  ❌ No microphone found!")
+    print("  No microphone found!")
 
 print("\nFor recording SYSTEM AUDIO (YouTube, meetings, etc.):")
 if speakers:
-    print(f"  ✅ Use device index: {speakers[0][0]} ({speakers[0][1]})")
+    print(f"  Use device index: {speakers[0][0]} ({speakers[0][1]})")
     print("     This device can capture what you hear on your computer")
 else:
-    print("  ❌ No system audio device found!")
+    print("  No system audio device found!")
     print("     You may need to enable 'Stereo Mix' or install a virtual audio cable")

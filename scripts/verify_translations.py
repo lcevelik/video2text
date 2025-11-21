@@ -165,13 +165,13 @@ def print_summary_report(results: List[Dict]):
 
         # Calculate status
         if stats['completion_rate'] == 100 and stats['missing_count'] == 0:
-            status = "✅ COMPLETE"
+            status = "COMPLETE"
             fully_translated.append(stats)
         elif stats['completion_rate'] >= 50:
-            status = "⚠️ PARTIAL"
+            status = "PARTIAL"
             partially_translated.append(stats)
         else:
-            status = "❌ INCOMPLETE"
+            status = "INCOMPLETE"
             not_translated.append(stats)
 
         # Check if file has correct number of strings
@@ -187,9 +187,9 @@ def print_summary_report(results: List[Dict]):
 
     # Summary statistics
     print("SUMMARY:")
-    print(f"  ✅ Fully translated: {len(fully_translated)} languages")
-    print(f"  ⚠️ Partially translated: {len(partially_translated)} languages")
-    print(f"  ❌ Incomplete: {len(not_translated)} languages")
+    print(f"  Fully translated: {len(fully_translated)} languages")
+    print(f"  Partially translated: {len(partially_translated)} languages")
+    print(f"  Incomplete: {len(not_translated)} languages")
     print()
 
     return fully_translated, partially_translated, not_translated
@@ -251,9 +251,9 @@ def print_detailed_report(results: List[Dict]):
         if issues:
             print(f"  Issues:")
             for issue in issues:
-                print(f"    ⚠️ {issue}")
+                print(f"    {issue}")
         else:
-            print(f"  ✅ No issues found!")
+            print(f"  No issues found!")
 
         # Show missing strings if any
         if stats['missing_strings']:
@@ -294,13 +294,13 @@ def main():
 
     # Return exit code based on results
     if incomplete:
-        print("\n⚠️ Some translations are incomplete. Please review the report above.")
+        print("\nSome translations are incomplete. Please review the report above.")
         return 1
     elif partial:
-        print("\n⚠️ Some translations are partially complete.")
+        print("\nSome translations are partially complete.")
         return 0
     else:
-        print("\n✅ All translations are complete!")
+        print("\nAll translations are complete!")
         return 0
 
 

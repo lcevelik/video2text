@@ -21,7 +21,7 @@ def translate_file(ts_file: Path, lang_code: str) -> tuple:
     translations = get_translations_dict(lang_code)
 
     if not translations:
-        print(f"❌ No translations available for {lang_code}")
+        print(f"No translations available for {lang_code}")
         return (0, 0)
 
     tree = ET.parse(ts_file)
@@ -47,7 +47,7 @@ def translate_file(ts_file: Path, lang_code: str) -> tuple:
                         del translation.attrib['type']  # Remove unfinished attribute
                         translated_count += 1
                     else:
-                        print(f"  ⚠️ Missing translation for: {source_text[:50]}")
+                        print(f"  Missing translation for: {source_text[:50]}")
 
     # Format XML with proper indentation
     xml_str = ET.tostring(root, encoding='unicode')
@@ -103,7 +103,7 @@ def main():
         ts_file = i18n_dir / f'fonixflow_{lang_code}.ts'
 
         if not ts_file.exists():
-            print(f"❌ {lang_names.get(lang_code, lang_code)}: File not found")
+            print(f"{lang_names.get(lang_code, lang_code)}: File not found")
             continue
 
         lang_name = lang_names.get(lang_code, lang_code)
@@ -114,9 +114,9 @@ def main():
         total_unfinished += unfinished
 
         if translated == unfinished:
-            print(f"✅ {translated}/{unfinished} strings translated")
+            print(f"{translated}/{unfinished} strings translated")
         else:
-            print(f"⚠️ {translated}/{unfinished} strings translated")
+            print(f"{translated}/{unfinished} strings translated")
 
         results.append({
             'lang': lang_name,
@@ -133,16 +133,16 @@ def main():
     print("=" * 80)
 
     for result in results:
-        status = "✅ Complete" if result['translated'] == result['unfinished'] else f"⚠️ Partial"
+        status = "Complete" if result['translated'] == result['unfinished'] else f"Partial"
         print(f"{result['lang']:<35} {result['translated']}/{result['unfinished']:<10} {status:<15}")
 
     print("=" * 80)
     print(f"\nTotal strings translated: {total_translated}/{total_unfinished}")
 
     if total_translated == total_unfinished:
-        print("\n🎉 All translations completed successfully!")
+        print("\nAll translations completed successfully!")
     else:
-        print(f"\n⚠️ {total_unfinished - total_translated} strings still need translation")
+        print(f"\n{total_unfinished - total_translated} strings still need translation")
 
     print("\nNext steps:")
     print("1. Verify translations: python scripts/verify_translations.py")

@@ -169,7 +169,7 @@ class WASAPILoopbackCapture:
             logger.warning("WASAPI capture already running")
             return
 
-        logger.info("🔴 Starting WASAPI loopback capture...")
+        logger.info("Starting WASAPI loopback capture...")
 
         try:
             # Initialize COM
@@ -249,10 +249,10 @@ class WASAPILoopbackCapture:
             self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
             self.capture_thread.start()
 
-            logger.info("✅ WASAPI loopback capture started successfully")
+            logger.info("WASAPI loopback capture started successfully")
 
         except Exception as e:
-            logger.error(f"❌ Failed to start WASAPI capture: {e}", exc_info=True)
+            logger.error(f"Failed to start WASAPI capture: {e}", exc_info=True)
             self.cleanup()
             raise
 
@@ -312,7 +312,7 @@ class WASAPILoopbackCapture:
 
                             # Log first few chunks for debugging
                             if len(self.audio_chunks) <= 3:
-                                logger.info(f"📥 WASAPI chunk #{len(self.audio_chunks)}: "
+                                logger.info(f"WASAPI chunk #{len(self.audio_chunks)}: "
                                           f"{audio_data.shape}, "
                                           f"min={audio_data.min():.6f}, "
                                           f"max={audio_data.max():.6f}")
@@ -342,7 +342,7 @@ class WASAPILoopbackCapture:
         Returns:
             numpy array of captured audio data, shape (samples, channels)
         """
-        logger.info("⏹️  Stopping WASAPI capture...")
+        logger.info(" Stopping WASAPI capture...")
 
         self.is_capturing = False
 
@@ -363,7 +363,7 @@ class WASAPILoopbackCapture:
         # Concatenate all chunks
         if self.audio_chunks:
             audio_data = np.concatenate(self.audio_chunks, axis=0)
-            logger.info(f"✅ WASAPI capture stopped. Captured {len(self.audio_chunks)} chunks, "
+            logger.info(f"WASAPI capture stopped. Captured {len(self.audio_chunks)} chunks, "
                        f"total shape: {audio_data.shape}")
             return audio_data
         else:
@@ -419,15 +419,15 @@ def test_wasapi_capture():
         print(f"  RMS level: {rms:.6f}")
 
         if rms > 0.001:
-            print("\n✅ Successfully captured system audio!")
+            print("\nSuccessfully captured system audio!")
         else:
-            print("\n⚠️  Captured audio but signal is very quiet. Make sure audio is playing.")
+            print("\n Captured audio but signal is very quiet. Make sure audio is playing.")
 
     except KeyboardInterrupt:
         print("\nStopping...")
         audio_data = capture.stop()
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         import traceback
         traceback.print_exc()
 

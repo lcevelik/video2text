@@ -91,10 +91,10 @@ class SoundDeviceBackend(RecordingBackend):
                 self._start_wasapi_loopback()
                 wasapi_success = True
             except ImportError as e:
-                logger.warning(f"⚠️  WASAPI loopback not available: {e}")
+                logger.warning(f" WASAPI loopback not available: {e}")
                 logger.info("Falling back to Stereo Mix detection...")
             except Exception as e:
-                logger.error(f"❌ Failed to start WASAPI loopback: {e}", exc_info=True)
+                logger.error(f"Failed to start WASAPI loopback: {e}", exc_info=True)
                 logger.info("Falling back to Stereo Mix detection...")
 
             # If WASAPI failed, try to find Stereo Mix or other loopback device
@@ -103,18 +103,18 @@ class SoundDeviceBackend(RecordingBackend):
                 if loopback_device is not None:
                     self._open_loopback_stream(loopback_device, devices)
                 else:
-                    logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
+                    logger.warning(" No loopback device found - system audio will NOT be recorded!")
         else:
             # On macOS/Linux, use traditional loopback/monitor devices
             loopback_device = self._find_loopback_device(devices, mic_device)
             if loopback_device is not None:
                 self._open_loopback_stream(loopback_device, devices)
             else:
-                logger.warning("⚠️  No loopback device found - system audio will NOT be recorded!")
+                logger.warning(" No loopback device found - system audio will NOT be recorded!")
 
         self.is_recording = True
         self.record_start_time = time.time()
-        logger.info(f"🔴 Recording started at {self.record_start_time}")
+        logger.info(f"Recording started at {self.record_start_time}")
 
     def _find_microphone_device(self, devices) -> int:
         """Find suitable microphone device."""
@@ -174,7 +174,7 @@ class SoundDeviceBackend(RecordingBackend):
                 )
                 self.mic_stream.start()
                 self.mic_sample_rate = int(rate)
-                logger.info(f"✅ Mic stream opened: device {mic_device}, rate {rate}Hz")
+                logger.info(f"Mic stream opened: device {mic_device}, rate {rate}Hz")
                 return
             except Exception as e:
                 open_errors.append(str(e))
@@ -241,7 +241,7 @@ class SoundDeviceBackend(RecordingBackend):
                                                            'soundflower'])
                             if device.get('max_input_channels', 0) > 0 and matches_loopback:
                                 loopback_device = idx
-                                logger.info(f"✅ Auto-detected loopback device (monitor/input): "
+                                logger.info(f"Auto-detected loopback device (monitor/input): "
                                           f"[{idx}] {device.get('name','')}")
                                 break
                             elif matches_loopback:
@@ -271,7 +271,7 @@ class SoundDeviceBackend(RecordingBackend):
 
                             if is_stereo_mix and has_input:
                                 loopback_device = idx
-                                logger.info(f"✅ Found Stereo Mix device: [{idx}] {device.get('name','')}")
+                                logger.info(f"Found Stereo Mix device: [{idx}] {device.get('name','')}")
                                 break
                         except Exception as e:
                             logger.debug(f"  Error checking device {idx}: {e}")
@@ -279,7 +279,7 @@ class SoundDeviceBackend(RecordingBackend):
 
                 # 3) If still no device found, inform user
                 if loopback_device is None:
-                    logger.warning("⚠️  No loopback device found for Windows system audio!")
+                    logger.warning(" No loopback device found for Windows system audio!")
                     logger.warning("System audio capture requires one of the following:")
                     logger.warning("  1. Enable 'Stereo Mix' in Windows Sound settings:")
                     logger.warning("     - Right-click speaker icon → Sounds → Recording tab")
@@ -315,7 +315,7 @@ class SoundDeviceBackend(RecordingBackend):
                     mono_data = indata
                 self.speaker_chunks.append(mono_data.copy())
                 if len(self.speaker_chunks) <= 3:
-                    logger.info(f"📥 Speaker chunk #{len(self.speaker_chunks)} captured: {mono_data.shape}, "
+                    logger.info(f"Speaker chunk #{len(self.speaker_chunks)} captured: {mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
         try:
@@ -406,11 +406,11 @@ class SoundDeviceBackend(RecordingBackend):
             self.speaker_stream.start()
             self.speaker_sample_rate = speaker_rate
 
-            logger.info(f"✅ Speaker stream opened successfully: device {target_device}, "
+            logger.info(f"Speaker stream opened successfully: device {target_device}, "
                        f"rate {speaker_rate}Hz, channels {loopback_channels}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to open loopback stream on device {loopback_device}: {e}", exc_info=True)
+            logger.error(f"Failed to open loopback stream on device {loopback_device}: {e}", exc_info=True)
             logger.warning("Recording will continue with microphone only")
 
     def _start_wasapi_loopback(self) -> None:
@@ -444,7 +444,7 @@ class SoundDeviceBackend(RecordingBackend):
                 self.speaker_chunks.append(mono_data.copy())
 
                 if len(self.speaker_chunks) <= 3:
-                    logger.info(f"📥 WASAPI chunk #{len(self.speaker_chunks)} captured: "
+                    logger.info(f"WASAPI chunk #{len(self.speaker_chunks)} captured: "
                               f"{mono_data.shape}, "
                               f"min={mono_data.min():.6f}, max={mono_data.max():.6f}")
 
@@ -455,7 +455,7 @@ class SoundDeviceBackend(RecordingBackend):
         # Store sample rate
         self.speaker_sample_rate = self.wasapi_capture.get_sample_rate()
 
-        logger.info(f"✅ WASAPI loopback started: {self.speaker_sample_rate}Hz, "
+        logger.info(f"WASAPI loopback started: {self.speaker_sample_rate}Hz, "
                    f"{self.wasapi_capture.get_channels()}ch")
 
     def stop_recording(self) -> RecordingResult:
@@ -465,7 +465,7 @@ class SoundDeviceBackend(RecordingBackend):
         self.is_recording = False
         duration = time.time() - self.record_start_time if self.record_start_time else 0
 
-        logger.info(f"⏹️  Recording stopped. Duration: {duration:.1f}s")
+        logger.info(f" Recording stopped. Duration: {duration:.1f}s")
         logger.info(f"Mic callbacks fired: {self.mic_callback_count}")
         logger.info(f"Mic chunks collected: {len(self.mic_chunks)}")
         logger.info(f"Speaker chunks collected: {len(self.speaker_chunks)}")

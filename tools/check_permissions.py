@@ -10,47 +10,47 @@ import platform
 def check_macos_version():
     """Check if macOS version supports ScreenCaptureKit."""
     if platform.system() != 'Darwin':
-        print("❌ Not running on macOS")
+        print("Not running on macOS")
         return False
 
     version = platform.mac_ver()[0]
     major, minor, *_ = map(int, version.split('.'))
 
     if major < 12 or (major == 12 and minor < 3):
-        print(f"❌ macOS {version} detected")
+        print(f"macOS {version} detected")
         print("   ScreenCaptureKit requires macOS 12.3 (Monterey) or later")
         print("   Your options:")
         print("   1. Upgrade to macOS 12.3+")
         print("   2. Use BlackHole for system audio (brew install blackhole-2ch)")
         return False
 
-    print(f"✅ macOS {version} - ScreenCaptureKit supported")
+    print(f"macOS {version} - ScreenCaptureKit supported")
     return True
 
 def check_pyobjc():
     """Check if PyObjC frameworks are installed."""
     try:
         import ScreenCaptureKit
-        print("✅ ScreenCaptureKit framework available")
+        print("ScreenCaptureKit framework available")
         pyobjc_ok = True
     except ImportError:
-        print("❌ ScreenCaptureKit framework NOT available")
+        print("ScreenCaptureKit framework NOT available")
         print("   Install with:")
         print("   pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa")
         pyobjc_ok = False
 
     try:
         import AVFoundation
-        print("✅ AVFoundation framework available")
+        print("AVFoundation framework available")
     except ImportError:
-        print("❌ AVFoundation framework NOT available")
+        print("AVFoundation framework NOT available")
         pyobjc_ok = False
 
     try:
         from Cocoa import NSApplication
-        print("✅ Cocoa framework available")
+        print("Cocoa framework available")
     except ImportError:
-        print("❌ Cocoa framework NOT available")
+        print("Cocoa framework NOT available")
         pyobjc_ok = False
 
     return pyobjc_ok
@@ -92,11 +92,11 @@ def main():
     # Check PyObjC
     if not check_pyobjc():
         print()
-        print("❌ Setup incomplete - install PyObjC frameworks first")
+        print("Setup incomplete - install PyObjC frameworks first")
         sys.exit(1)
 
     print()
-    print("✅ All dependencies installed!")
+    print("All dependencies installed!")
     print()
 
     # Info about permissions
