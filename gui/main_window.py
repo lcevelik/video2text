@@ -286,6 +286,14 @@ class FonixFlowQt(QMainWindow):
     def closeEvent(self, event):
         """Ensure background threads stop cleanly on window close."""
         try:
+            # Stop audio preview worker if running
+            if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
+                try:
+                    self.audio_preview_worker.stop()
+                except Exception as e:
+                    logger.warning(f"Error stopping audio preview worker: {e}")
+                self.audio_preview_worker.wait(1500)
+                self.audio_preview_worker = None
             # Stop recording worker if running
             if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
                 try:
@@ -294,6 +302,15 @@ class FonixFlowQt(QMainWindow):
                     logger.warning(f"Error stopping recording worker: {e}")
                 self.recording_worker.wait(1500)
                 self.recording_worker = None
+            # Stop transcription worker if running
+            if hasattr(self, 'transcription_worker') and self.transcription_worker and self.transcription_worker.isRunning():
+                try:
+                    self.transcription_worker.cancel()
+                    self.transcription_worker.quit()
+                    self.transcription_worker.wait(1500)
+                except Exception as e:
+                    logger.warning(f"Error stopping transcription worker: {e}")
+                self.transcription_worker = None
         except Exception as e:
             logger.warning(f"Error while shutting down workers: {e}")
         super().closeEvent(event)
@@ -486,7 +503,7 @@ class FonixFlowQt(QMainWindow):
 
     def create_settings_card(self):
         """Create settings card for recordings directory."""
-        card = Card("⚙️ Recordings Settings", self.is_dark_mode)
+        card = Card(self.tr("⚙️ Recordings Settings"), self.is_dark_mode)
 
         # Current directory display
         dir_label = QLabel(self.tr("Recordings save to:"))
@@ -512,14 +529,14 @@ class FonixFlowQt(QMainWindow):
         btn_row.setSpacing(10)
 
         # Change directory button
-        change_dir_btn = ModernButton(self.tr("📂 Change Folder"))
-        change_dir_btn.clicked.connect(self.change_recordings_directory)
-        btn_row.addWidget(change_dir_btn)
+        self.change_dir_btn = ModernButton(self.tr("📂 Change Folder"))
+        self.change_dir_btn.clicked.connect(self.change_recordings_directory)
+        btn_row.addWidget(self.change_dir_btn)
 
         # Open folder button
-        open_folder_btn = ModernButton(self.tr("🗂️ Open Folder"))
-        open_folder_btn.clicked.connect(self.open_recordings_folder)
-        btn_row.addWidget(open_folder_btn)
+        self.open_folder_btn = ModernButton(self.tr("🗂️ Open Folder"))
+        self.open_folder_btn.clicked.connect(self.open_recordings_folder)
+        btn_row.addWidget(self.open_folder_btn)
 
         card.content_layout.addLayout(btn_row)
 
@@ -577,7 +594,7 @@ class FonixFlowQt(QMainWindow):
 
         # Settings section header (clickable to expand/collapse)
         self.settings_section_expanded = True
-        self.settings_section_btn = QPushButton("▼ ⚙️ Settings")
+        self.settings_section_btn = QPushButton(self.tr("▼ ⚙️ Settings"))
         self.settings_section_btn.setCursor(Qt.PointingHandCursor)
         self.settings_section_btn.setMinimumHeight(40)
         self.settings_section_btn.clicked.connect(self.toggle_settings_section)
@@ -606,11 +623,11 @@ class FonixFlowQt(QMainWindow):
 
         # Audio Processing section (nested under Settings)
         self.audio_section_expanded = True
-        audio_section_btn = QPushButton("  ▼ 🎙️ Audio Processing")
-        audio_section_btn.setCursor(Qt.PointingHandCursor)
-        audio_section_btn.setMinimumHeight(36)
-        audio_section_btn.clicked.connect(self.toggle_audio_section)
-        audio_section_btn.setStyleSheet(f"""
+        self.audio_section_btn = QPushButton(self.tr("  ▼ 🎙️ Audio Processing"))
+        self.audio_section_btn.setCursor(Qt.PointingHandCursor)
+        self.audio_section_btn.setMinimumHeight(36)
+        self.audio_section_btn.clicked.connect(self.toggle_audio_section)
+        self.audio_section_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 color: {Theme.get('text_secondary', self.is_dark_mode)};
@@ -625,7 +642,7 @@ class FonixFlowQt(QMainWindow):
                 background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
             }}
         """)
-        settings_content_layout.addWidget(audio_section_btn)
+        settings_content_layout.addWidget(self.audio_section_btn)
 
         # Audio options container
         self.audio_options_widget = QWidget()
@@ -650,11 +667,11 @@ class FonixFlowQt(QMainWindow):
 
         # Transcription section (nested under Settings)
         self.transcription_section_expanded = True
-        transcription_section_btn = QPushButton("  ▼ 📝 Transcription")
-        transcription_section_btn.setCursor(Qt.PointingHandCursor)
-        transcription_section_btn.setMinimumHeight(36)
-        transcription_section_btn.clicked.connect(self.toggle_transcription_section)
-        transcription_section_btn.setStyleSheet(f"""
+        self.transcription_section_btn = QPushButton(self.tr("  ▼ 📝 Transcription"))
+        self.transcription_section_btn.setCursor(Qt.PointingHandCursor)
+        self.transcription_section_btn.setMinimumHeight(36)
+        self.transcription_section_btn.clicked.connect(self.toggle_transcription_section)
+        self.transcription_section_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 color: {Theme.get('text_secondary', self.is_dark_mode)};
@@ -669,7 +686,7 @@ class FonixFlowQt(QMainWindow):
                 background-color: {Theme.get('bg_tertiary', self.is_dark_mode)};
             }}
         """)
-        settings_content_layout.addWidget(transcription_section_btn)
+        settings_content_layout.addWidget(self.transcription_section_btn)
 
         # Transcription options container
         self.transcription_options_widget = QWidget()
@@ -983,7 +1000,7 @@ class FonixFlowQt(QMainWindow):
         button_layout = QHBoxLayout(button_container)
         button_layout.setAlignment(Qt.AlignCenter)
 
-        self.basic_record_btn = ModernButton("Start Recording", primary=True)
+        self.basic_record_btn = ModernButton(self.tr("Start Recording"), primary=True)
         self.basic_record_btn.setMinimumHeight(50)
         self.basic_record_btn.setMinimumWidth(220)
         self.basic_record_btn.clicked.connect(self.toggle_basic_recording)
@@ -993,7 +1010,7 @@ class FonixFlowQt(QMainWindow):
         layout.addSpacing(10)
 
         # Recording timer (HH:MM:SS format only, no "Duration:" label)
-        self.recording_time_label = QLabel("00:00:00")
+        self.recording_time_label = QLabel(self.tr("00:00:00"))
         self.recording_time_label.setStyleSheet(
             f"font-size: 24px; font-weight: bold; color: {Theme.get('error', self.is_dark_mode)};"
         )
@@ -1045,7 +1062,7 @@ class FonixFlowQt(QMainWindow):
         layout.setContentsMargins(30, 30, 30, 30)
 
         # Language info (shown after transcription)
-        self.basic_transcript_desc = QLabel("")
+        self.basic_transcript_desc = QLabel(self.tr(""))
         self.basic_transcript_desc.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(self.basic_transcript_desc)
 
@@ -1161,7 +1178,7 @@ class FonixFlowQt(QMainWindow):
         layout = QVBoxLayout()
 
         # Title
-        title = QLabel(f"🎙️ Audio Setup Guide for {platform_display}")
+        title = QLabel(self.tr(f"🎙️ Audio Setup Guide for {platform_display}"))
         title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
         layout.addWidget(title)
 
@@ -1328,6 +1345,7 @@ class FonixFlowQt(QMainWindow):
         # Show progress bar for processing
         self.basic_record_progress_bar.show()
         self.basic_record_progress_bar.setValue(0)
+            # self.retranslate_ui()  # Only call in __init__ for startup translation
 
         # Update status
         self.statusBar().showMessage(self.tr("Processing recording..."))
@@ -1345,6 +1363,106 @@ class FonixFlowQt(QMainWindow):
             secs = elapsed % 60
             # Show time in HH:MM:SS format (no "Duration:" label)
             self.recording_time_label.setText(f"{hours:02d}:{mins:02d}:{secs:02d}")
+
+    def retranslate_ui(self):
+        # Update Microphone and Speaker labels
+        if hasattr(self, 'mic_vu_meter') and hasattr(self.mic_vu_meter, 'label'):
+            self.mic_vu_meter.label.setText(self.tr("Microphone"))
+        if hasattr(self, 'speaker_vu_meter') and hasattr(self.speaker_vu_meter, 'label'):
+            self.speaker_vu_meter.label.setText(self.tr("Speaker"))
+        # Update Enhance Audio toggle
+        if hasattr(self, 'audio_options_widget'):
+            for child in self.audio_options_widget.findChildren(QPushButton):
+                if "Enhance Audio" in child.text():
+                    icon = child.property("icon") or "🎚️"
+                    label = self.tr("Enhance Audio")
+                    checkmark = "✅" if self.enable_audio_filters else "⬜"
+                    child.setText(f"  {checkmark} {icon} {label}")
+        # Update Deep Scan toggle
+        if hasattr(self, 'transcription_options_widget'):
+            for child in self.transcription_options_widget.findChildren(QPushButton):
+                if "Deep Scan" in child.text():
+                    icon = child.property("icon") or "🔍"
+                    label = self.tr("Deep Scan")
+                    checkmark = "✅" if self.enable_deep_scan else "⬜"
+                    child.setText(f"  {checkmark} {icon} {label}")
+        # Update info label in record tab
+        if hasattr(self, 'info_label'):
+            self.info_label.setText(self.tr("Recording will use the system's default microphone and audio output."))
+        # Update info label in record tab (after stopping)
+        if hasattr(self, 'basic_record_progress_label'):
+            self.basic_record_progress_label.setText(self.tr("Ready to record"))
+        # Update info label in record tab (after stopping)
+        if hasattr(self, 'basic_upload_progress_label'):
+            self.basic_upload_progress_label.setText(self.tr("Ready to transcribe"))
+        # Update after stopping info
+        if hasattr(self, 'drop_zone') and hasattr(self.drop_zone, 'text_label'):
+            self.drop_zone.text_label.setText(self.tr("Drag and drop video/audio file"))
+        # Update after stopping info (manual transcription)
+        if hasattr(self, 'transcribe_recording_btn'):
+            self.transcribe_recording_btn.set_label(self.tr("Transcribe Recording"))
+        # Update info tip in record tab
+        if hasattr(self, 'basic_result_text'):
+            self.basic_result_text.setPlaceholderText(self.tr("Transcription text will appear here..."))
+        """Retranslate all UI elements after installing a translator."""
+        # Record button
+        if hasattr(self, 'basic_record_btn'):
+            self.basic_record_btn.set_label(self.tr("Start Recording"))
+        # Recording time label
+        if hasattr(self, 'recording_time_label'):
+            self.recording_time_label.setText(self.tr("00:00:00"))
+        # Window title
+        self.setWindowTitle(self.tr("FonixFlow - Whisper Transcription"))
+        # Status bar
+        if hasattr(self, 'statusBar'):
+            self.statusBar().showMessage(self.tr("Ready"))
+        # Main tab bar (vertical tab buttons)
+        if hasattr(self, 'tab_buttons'):
+            tab_labels = [self.tr("Record"), self.tr("Upload"), self.tr("Transcript")]
+            for i, btn in enumerate(self.tab_buttons):
+                icon = "🎙️" if i == 0 else ("📁" if i == 1 else "📄")
+                btn.setText(f"{icon}\n{tab_labels[i]}")
+        # Sidebar
+        if hasattr(self, 'collapsible_sidebar'):
+            self.collapsible_sidebar.update_action_label("New Transcription", self.tr("New Transcription"))
+            self.collapsible_sidebar.update_action_label("Change Folder", self.tr("Change Folder"))
+            self.collapsible_sidebar.update_action_label("Open Folder", self.tr("Open Folder"))
+        # Settings section
+        if hasattr(self, 'settings_section_btn'):
+            self.settings_section_btn.setText(self.tr("▼ ⚙️ Settings"))
+        # Audio section
+        if hasattr(self, 'audio_section_btn'):
+            self.audio_section_btn.setText(self.tr("  ▼ 🎙️ Audio Processing"))
+        # Transcription section
+        if hasattr(self, 'transcription_section_btn'):
+            self.transcription_section_btn.setText(self.tr("  ▼ 📝 Transcription"))
+        # Drop zone
+        if hasattr(self, 'drop_zone'):
+            self.drop_zone.setText(self.tr("Drag and drop video/audio file"))
+        # Progress labels
+        if hasattr(self, 'basic_upload_progress_label'):
+            self.basic_upload_progress_label.setText(self.tr("Ready to transcribe"))
+        if hasattr(self, 'basic_record_progress_label'):
+            self.basic_record_progress_label.setText(self.tr("Ready to record"))
+        # Recording labels
+        if hasattr(self, 'mic_vu_meter'):
+            self.mic_vu_meter.label.setText(self.tr("Microphone"))
+        if hasattr(self, 'speaker_vu_meter'):
+            self.speaker_vu_meter.label.setText(self.tr("Speaker"))
+        # Directory label
+        if hasattr(self, 'recordings_dir_display'):
+            self.recordings_dir_display.setText(self.settings["recordings_dir"])
+        # Change folder button
+        if hasattr(self, 'change_dir_btn'):
+            self.change_dir_btn.set_label(self.tr("📂 Change Folder"))
+        # Open folder button
+        if hasattr(self, 'open_folder_btn'):
+            self.open_folder_btn.set_label(self.tr("🗂️ Open Folder"))
+        # Info labels
+        if hasattr(self, 'info_label'):
+            self.info_label.setText(self.tr("Recording will use the system's default microphone and audio output."))
+        # Add more widget retranslation logic here as needed
+        # Add more widget retranslation logic here as needed
 
     def start_audio_preview(self):
         """Start the audio preview worker for continuous VU meter updates."""
