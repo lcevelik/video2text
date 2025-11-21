@@ -87,12 +87,12 @@ class FonixFlowQt(QMainWindow):
         if hasattr(self, 'cancel_transcription_btn'):
             try:
                 self.cancel_transcription_btn.setEnabled(False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not disable cancel button: {e}")
         try:
             self.statusBar().showMessage("Cancel requested…")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not update status bar: {e}")
 
     def center_window(self):
         """Center the main window on the primary screen."""
@@ -311,8 +311,8 @@ class FonixFlowQt(QMainWindow):
             if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
                 try:
                     self.recording_worker.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error stopping recording worker: {e}")
                 self.recording_worker.wait(1500)
                 self.recording_worker = None
         except Exception as e:
@@ -332,8 +332,8 @@ class FonixFlowQt(QMainWindow):
             try:
                 AudioSegment.converter = 'ffmpeg'
                 logger.info("pydub configured to use ffmpeg from PATH")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not set ffmpeg converter: {e}")
             return
 
         # Try common install locations, including winget default cache
@@ -349,11 +349,13 @@ class FonixFlowQt(QMainWindow):
                     try:
                         AudioSegment.converter = p
                         logger.info(f"pydub configured to use ffmpeg at: {p}")
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Could not set AudioSegment.converter, using FFMPEG_BINARY instead: {e}")
                         os.environ['FFMPEG_BINARY'] = p
                         logger.info(f"Set FFMPEG_BINARY for pydub: {p}")
                     break
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Could not check path {p}: {e}")
                 continue
 
     def update_all_cards_theme(self):
@@ -1289,8 +1291,8 @@ class FonixFlowQt(QMainWindow):
             if hasattr(self, 'recordings_dir_display') and self.recordings_dir_display is not None:
                 try:
                     self.recordings_dir_display.setText(new_dir)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not update recordings directory display: {e}")
             self.save_settings()
             logger.info(f"Recordings directory changed to: {new_dir}")
             QMessageBox.information(

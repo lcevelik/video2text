@@ -324,8 +324,8 @@ try:
                     if default_input is not None and default_input >= 0:
                         if devices[default_input]['max_input_channels'] > 0:
                             mic_device = default_input
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not auto-detect microphone device: {e}")
 
                 if mic_device is None:
                     for idx, device in enumerate(devices):
@@ -566,8 +566,8 @@ try:
                 try:
                     self.mic_stream.stop()
                     self.mic_stream.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error closing microphone stream: {e}")
 
             if self.screen_stream:
                 try:
