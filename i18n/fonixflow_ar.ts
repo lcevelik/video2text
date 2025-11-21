@@ -92,11 +92,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="481"/>
-        <source>🗂️ Open Recording Directory</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../gui/main_window.py" line="486"/>
         <source>🔄 New Transcription</source>
         <translation type="unfinished"></translation>
@@ -150,13 +145,13 @@
     <message>
         <location filename="../gui/main_window.py" line="532"/>
         <location filename="../gui/main_window.py" line="1459"/>
-        <source>📂 Change Folder</source>
+        <source>Change Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="537"/>
         <location filename="../gui/main_window.py" line="1462"/>
-        <source>🗂️ Open Folder</source>
+        <source>Open Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -241,11 +236,6 @@
         <location filename="../gui/main_window.py" line="1300"/>
         <location filename="../gui/main_window.py" line="1415"/>
         <source>00:00:00</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui/main_window.py" line="1067"/>
-        <source></source>
         <translation type="unfinished"></translation>
     </message>
     <message>
