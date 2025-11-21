@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (  # type: ignore
     QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
     QComboBox, QCheckBox, QGroupBox
 )
-from PySide6.QtCore import Qt, QTimer, QEvent  # type: ignore
+from PySide6.QtCore import Qt, QTimer, QEvent, QCoreApplication  # type: ignore
 from PySide6.QtGui import QPalette  # type: ignore
 
 from gui.theme import Theme
@@ -35,7 +35,7 @@ class FonixFlowQt(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("FonixFlow - Whisper Transcription")
+        self.setWindowTitle(self.tr("FonixFlow - Whisper Transcription"))
         self.setMinimumSize(1000, 700)
 
         # Set application icon
@@ -398,7 +398,7 @@ class FonixFlowQt(QMainWindow):
         main_layout.addWidget(content_area, 1)
 
         # Status bar
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(self.tr("Ready"))
         self.statusBar().setStyleSheet("background-color: #F5F5F5; color: #666; padding: 5px;")
 
     def create_top_bar(self):
@@ -435,38 +435,38 @@ class FonixFlowQt(QMainWindow):
         menu = QMenu(self)
 
         # Settings submenu
-        settings_menu = menu.addMenu("⚙️ Settings")
+        settings_menu = menu.addMenu(self.tr("⚙️ Settings"))
 
         # Theme submenu under Settings
-        theme_menu = settings_menu.addMenu("🎨 Theme")
+        theme_menu = settings_menu.addMenu(self.tr("🎨 Theme"))
 
         # Theme options
-        auto_action = theme_menu.addAction("🔄 Auto (System)")
+        auto_action = theme_menu.addAction(self.tr("🔄 Auto (System)"))
         auto_action.setCheckable(True)
         auto_action.setChecked(self.theme_mode == "auto")
         auto_action.triggered.connect(lambda: self.set_theme_mode("auto"))
 
-        light_action = theme_menu.addAction("☀️ Light")
+        light_action = theme_menu.addAction(self.tr("☀️ Light"))
         light_action.setCheckable(True)
         light_action.setChecked(self.theme_mode == "light")
         light_action.triggered.connect(lambda: self.set_theme_mode("light"))
 
-        dark_action = theme_menu.addAction("🌙 Dark")
+        dark_action = theme_menu.addAction(self.tr("🌙 Dark"))
         dark_action.setCheckable(True)
         dark_action.setChecked(self.theme_mode == "dark")
         dark_action.triggered.connect(lambda: self.set_theme_mode("dark"))
 
         # Recording Settings under Settings
         settings_menu.addSeparator()
-        rec_dir_action = settings_menu.addAction("📁 Change Recording Directory")
+        rec_dir_action = settings_menu.addAction(self.tr("📁 Change Recording Directory"))
         rec_dir_action.triggered.connect(self.change_recordings_directory)
 
-        open_dir_action = settings_menu.addAction("🗂️ Open Recording Directory")
+        open_dir_action = settings_menu.addAction(self.tr("🗂️ Open Recording Directory"))
         open_dir_action.triggered.connect(self.open_recordings_folder)
 
         # New Transcription
         menu.addSeparator()
-        new_trans_action = menu.addAction("🔄 New Transcription")
+        new_trans_action = menu.addAction(self.tr("🔄 New Transcription"))
         new_trans_action.triggered.connect(self.clear_for_new_transcription)
 
         # Show menu at button position
@@ -489,7 +489,7 @@ class FonixFlowQt(QMainWindow):
         card = Card("⚙️ Recordings Settings", self.is_dark_mode)
 
         # Current directory display
-        dir_label = QLabel("Recordings save to:")
+        dir_label = QLabel(self.tr("Recordings save to:"))
         dir_label.setStyleSheet("font-size: 12px; color: #666;")
         card.content_layout.addWidget(dir_label)
 
@@ -512,12 +512,12 @@ class FonixFlowQt(QMainWindow):
         btn_row.setSpacing(10)
 
         # Change directory button
-        change_dir_btn = ModernButton("📂 Change Folder")
+        change_dir_btn = ModernButton(self.tr("📂 Change Folder"))
         change_dir_btn.clicked.connect(self.change_recordings_directory)
         btn_row.addWidget(change_dir_btn)
 
         # Open folder button
-        open_folder_btn = ModernButton("🗂️ Open Folder")
+        open_folder_btn = ModernButton(self.tr("🗂️ Open Folder"))
         open_folder_btn.clicked.connect(self.open_recordings_folder)
         btn_row.addWidget(open_folder_btn)
 
@@ -546,10 +546,10 @@ class FonixFlowQt(QMainWindow):
         self.collapsible_sidebar = CollapsibleSidebar(self.is_dark_mode)
 
         # Quick actions
-        self.collapsible_sidebar.add_action("🔄", "New Transcription", self.clear_for_new_transcription)
+        self.collapsible_sidebar.add_action("🔄", self.tr("New Transcription"), self.clear_for_new_transcription)
         self.collapsible_sidebar.add_separator()
-        self.collapsible_sidebar.add_action("📂", "Change Folder", self.change_recordings_directory)
-        self.collapsible_sidebar.add_action("🗂️", "Open Folder", self.open_recordings_folder)
+        self.collapsible_sidebar.add_action("📂", self.tr("Change Folder"), self.change_recordings_directory)
+        self.collapsible_sidebar.add_action("🗂️", self.tr("Open Folder"), self.open_recordings_folder)
 
         # Settings section
         self.collapsible_sidebar.add_separator()
@@ -709,9 +709,9 @@ class FonixFlowQt(QMainWindow):
 
         # Create tab buttons
         tabs = [
-            ("🎙️", "Record", 0),
-            ("📁", "Upload", 1),
-            ("📄", "Transcript", 2)
+            ("🎙️", self.tr("Record"), 0),
+            ("📁", self.tr("Upload"), 1),
+            ("📄", self.tr("Transcript"), 2)
         ]
 
         for icon, label, index in tabs:
@@ -932,7 +932,7 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(self.drop_zone)
 
         # Progress section
-        self.basic_upload_progress_label = QLabel("Ready to transcribe")
+        self.basic_upload_progress_label = QLabel(self.tr("Ready to transcribe"))
         self.basic_upload_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(self.basic_upload_progress_label)
 
@@ -942,7 +942,7 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(self.basic_upload_progress_bar)
 
         # Info tip
-        info = QLabel("💡 Files automatically transcribe when dropped or selected")
+        info = QLabel(self.tr("💡 Files automatically transcribe when dropped or selected"))
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
         layout.addWidget(info)
 
@@ -959,7 +959,7 @@ class FonixFlowQt(QMainWindow):
 
         # Simplified UI: No device selection, just a record button.
         # The worker will use the system's default devices.
-        info_label = QLabel("Recording will use the system's default microphone and audio output.")
+        info_label = QLabel(self.tr("Recording will use the system's default microphone and audio output."))
         info_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
@@ -970,8 +970,8 @@ class FonixFlowQt(QMainWindow):
         vu_layout.setSpacing(10)
         vu_layout.setContentsMargins(20, 10, 20, 10)
 
-        self.mic_vu_meter = VUMeter(label="Microphone")
-        self.speaker_vu_meter = VUMeter(label="Speaker")
+        self.mic_vu_meter = VUMeter(label=self.tr("Microphone"))
+        self.speaker_vu_meter = VUMeter(label=self.tr("Speaker"))
         vu_layout.addWidget(self.mic_vu_meter)
         vu_layout.addWidget(self.speaker_vu_meter)
 
@@ -1004,7 +1004,7 @@ class FonixFlowQt(QMainWindow):
         layout.addStretch(1)
 
         # Progress section
-        self.basic_record_progress_label = QLabel("Ready to record")
+        self.basic_record_progress_label = QLabel(self.tr("Ready to record"))
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('text_secondary', self.is_dark_mode)};")
         layout.addWidget(self.basic_record_progress_label)
 
@@ -1014,18 +1014,18 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(self.basic_record_progress_bar)
 
         # Info tip
-        info = QLabel("💡 After stopping, the recording is saved but NOT automatically transcribed\n💡 Click 'Transcribe Recording' to manually start transcription")
+        info = QLabel(self.tr("💡 After stopping, the recording is saved but NOT automatically transcribed\n💡 Click 'Transcribe Recording' to manually start transcription"))
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
         info.setWordWrap(True)
         layout.addWidget(info)
 
         # Manual transcription button (appears after a recording completes)
-        self.transcribe_recording_btn = ModernButton("Transcribe Recording", primary=True)
+        self.transcribe_recording_btn = ModernButton(self.tr("Transcribe Recording"), primary=True)
         self.transcribe_recording_btn.setMinimumHeight(42)
         self.transcribe_recording_btn.hide()
         def _start_transcribe_recording():
             if not self.video_path:
-                QMessageBox.information(self, "No Recording", "No recording available. Please record first.")
+                QMessageBox.information(self, self.tr("No Recording"), "No recording available. Please record first.")
                 return
             # Reset multi-language choice so dialog appears for each manual transcription
             self.multi_language_mode = None
@@ -1053,7 +1053,7 @@ class FonixFlowQt(QMainWindow):
 
         # Result text
         self.basic_result_text = QTextEdit()
-        self.basic_result_text.setPlaceholderText("Transcription text will appear here...")
+        self.basic_result_text.setPlaceholderText(self.tr("Transcription text will appear here..."))
         self.basic_result_text.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Theme.get('input_bg', self.is_dark_mode)};
@@ -1069,13 +1069,13 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(self.basic_result_text, 1)
 
         # Save button
-        self.basic_save_btn = ModernButton("💾 Save Transcription", primary=True)
+        self.basic_save_btn = ModernButton(self.tr("💾 Save Transcription"), primary=True)
         self.basic_save_btn.setEnabled(False)
         self.basic_save_btn.clicked.connect(self.save_transcription)
         layout.addWidget(self.basic_save_btn)
 
         # Cancel transcription button (shown only while active)
-        self.cancel_transcription_btn = ModernButton("✖ Cancel Transcription")
+        self.cancel_transcription_btn = ModernButton(self.tr("✖ Cancel Transcription"))
         self.cancel_transcription_btn.setEnabled(False)
         self.cancel_transcription_btn.hide()
         self.cancel_transcription_btn.clicked.connect(self.cancel_transcription)
@@ -1093,9 +1093,9 @@ class FonixFlowQt(QMainWindow):
         """Browse for video/audio file."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Video or Audio File",
+            self.tr("Select Video or Audio File"),
             "",
-            "Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)"
+            self.tr("Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)")
         )
 
         if file_path:
@@ -1183,7 +1183,7 @@ class FonixFlowQt(QMainWindow):
         layout.addWidget(help_display)
 
         # Close button
-        close_btn = ModernButton("Close", primary=True)
+        close_btn = ModernButton(self.tr("Close"), primary=True)
         close_btn.clicked.connect(dialog.accept)
         layout.addWidget(close_btn)
 
@@ -1223,8 +1223,8 @@ class FonixFlowQt(QMainWindow):
         """Show dialog when no audio device is found."""
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("No Microphone Found")
-        msg.setText("No audio input device detected!")
+        msg.setWindowTitle(self.tr("No Microphone Found"))
+        msg.setText(self.tr("No audio input device detected!"))
         msg.setInformativeText(
             "Please:\n"
             "1. Connect a microphone\n"
@@ -1243,7 +1243,7 @@ class FonixFlowQt(QMainWindow):
             if self.check_audio_devices():
                 QMessageBox.information(
                     self,
-                    "Device Found",
+                    self.tr("Device Found"),
                     "✅ Audio input device detected!\n\nYou can now start recording."
                 )
                 # Automatically start recording
@@ -1283,8 +1283,8 @@ class FonixFlowQt(QMainWindow):
         self.recording_timer.start(1000)  # Update every second
 
         # Update status
-        self.statusBar().showMessage("🔴 Recording from Microphone + Speaker...")
-        self.basic_record_progress_label.setText("Recording in progress...")
+        self.statusBar().showMessage(self.tr("🔴 Recording from Microphone + Speaker..."))
+        self.basic_record_progress_label.setText(self.tr("Recording in progress..."))
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('error', self.is_dark_mode)}; font-weight: bold;")
 
         logger.info(f"Started basic mode recording (mic: default, speaker: default/system)")
@@ -1330,8 +1330,8 @@ class FonixFlowQt(QMainWindow):
         self.basic_record_progress_bar.setValue(0)
 
         # Update status
-        self.statusBar().showMessage("Processing recording...")
-        self.basic_record_progress_label.setText("Processing recording...")
+        self.statusBar().showMessage(self.tr("Processing recording..."))
+        self.basic_record_progress_label.setText(self.tr("Processing recording..."))
         self.basic_record_progress_label.setStyleSheet(f"font-size: 13px; color: {Theme.get('warning', self.is_dark_mode)};")
 
         logger.info("Stopped basic mode recording")
@@ -1403,7 +1403,7 @@ class FonixFlowQt(QMainWindow):
         self.is_recording = False
         self.recording_timer.stop()
         self.recording_time_label.hide()
-        self.basic_record_btn.setText("🎤 Start Recording")
+        self.basic_record_btn.setText(self.tr("🎤 Start Recording"))
         self.basic_record_btn.primary = True
         self.basic_record_btn.apply_style()
 
@@ -1415,7 +1415,7 @@ class FonixFlowQt(QMainWindow):
         current_dir = self.settings["recordings_dir"]
         new_dir = QFileDialog.getExistingDirectory(
             self,
-            "Select Recordings Folder",
+            self.tr("Select Recordings Folder"),
             current_dir,
             QFileDialog.ShowDirsOnly
         )
@@ -1431,7 +1431,7 @@ class FonixFlowQt(QMainWindow):
             logger.info(f"Recordings directory changed to: {new_dir}")
             QMessageBox.information(
                 self,
-                "Settings Updated",
+                self.tr("Settings Updated"),
                 f"Recordings will now be saved to:\n{new_dir}"
             )
 
@@ -1456,7 +1456,7 @@ class FonixFlowQt(QMainWindow):
             logger.error(f"Could not open recordings folder: {e}")
             QMessageBox.warning(
                 self,
-                "Could Not Open Folder",
+                self.tr("Could Not Open Folder"),
                 f"Please navigate manually to:\n{recordings_dir}"
             )
 
@@ -1469,7 +1469,7 @@ class FonixFlowQt(QMainWindow):
     def start_transcription(self):
         """Start transcription process."""
         if not self.video_path:
-            QMessageBox.warning(self, "No File", "Please select a file first.")
+            QMessageBox.warning(self, self.tr("No File"), "Please select a file first.")
             return
 
         # Disable buttons and clear results
@@ -1486,7 +1486,7 @@ class FonixFlowQt(QMainWindow):
             self.performance_overlay = QLabel("")
             self.performance_overlay.setStyleSheet("font-size:12px; color:#888; font-family:Consolas;")
             self.statusBar().addPermanentWidget(self.performance_overlay)
-        self.performance_overlay.setText("Starting…")
+        self.performance_overlay.setText(self.tr("Starting…"))
 
         # Create model name label if not exists
         if not self.model_name_label:
@@ -1594,14 +1594,14 @@ class FonixFlowQt(QMainWindow):
     def save_transcription(self):
         """Save current transcription (Video2TextQt scope)."""
         if not getattr(self, 'transcription_result', None):
-            QMessageBox.warning(self, "No Transcription", "Please transcribe a file first.")
+            QMessageBox.warning(self, self.tr("No Transcription"), "Please transcribe a file first.")
             return
         default_name = Path(self.video_path).stem if self.video_path else "transcription"
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Save Transcription",
+            self.tr("Save Transcription"),
             default_name,
-            "Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)"
+            self.tr("Text Files (*.txt);;SRT Subtitles (*.srt);;VTT Subtitles (*.vtt)")
         )
         if not file_path:
             return
@@ -1618,11 +1618,11 @@ class FonixFlowQt(QMainWindow):
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             self.statusBar().showMessage(f"Saved to: {file_path}")
-            QMessageBox.information(self, "Saved Successfully", f"Transcription saved to:\n{file_path}")
+            QMessageBox.information(self, self.tr("Saved Successfully"), f"Transcription saved to:\n{file_path}")
             logger.info(f"Transcription saved to: {file_path}")
         except Exception as e:
             logger.error(f"Failed to save transcription: {e}")
-            QMessageBox.critical(self, "Save Error", f"Failed to save transcription:\n\n{e}")
+            QMessageBox.critical(self, self.tr("Save Error"), f"Failed to save transcription:\n\n{e}")
 
     def cancel_transcription(self):
         """User-triggered cancellation for active transcription."""
@@ -1845,7 +1845,7 @@ class FonixFlowQt(QMainWindow):
         except Exception as e:
             logger.debug(f"Could not update status bar: {e}")
         try:
-            QMessageBox.critical(self, "Transcription Error", f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details.")
+            QMessageBox.critical(self, self.tr("Transcription Error"), f"Transcription failed:\n\n{error_message}\n\nPlease check the logs for more details.")
         except Exception as e:
             logger.warning(f"Could not show error dialog: {e}")
         logger.error(f"Transcription failed: {error_message}")

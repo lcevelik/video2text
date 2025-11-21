@@ -377,7 +377,7 @@ class TranscriptionWorker(QThread):
             from transcription.enhanced import EnhancedTranscriber
 
             # Stage 1: Audio extraction (1-2%)
-            self.progress_update.emit("Extracting audio...", 1)
+            self.progress_update.emit(self.tr("Extracting audio..."), 1)
             if self.cancel_requested:
                 self.transcription_error.emit("Transcription cancelled.")
                 return
@@ -461,7 +461,7 @@ class TranscriptionWorker(QThread):
                             estimated_pct = 5 + min(93, int(elapsed / 3))
                             if estimated_pct > last_progress_pct:
                                 last_progress_pct = estimated_pct
-                                self.progress_update.emit("Transcribing...", estimated_pct)
+                                self.progress_update.emit(self.tr("Transcribing..."), estimated_pct)
 
             # Start auto-progress thread
             auto_thread = threading.Thread(target=auto_progress_updater, daemon=True)
@@ -538,13 +538,13 @@ class TranscriptionWorker(QThread):
             auto_progress_active = False
 
             # Stage 4: Finishing up (98-99%)
-            self.progress_update.emit("Finishing up...", 98)
+            self.progress_update.emit(self.tr("Finishing up..."), 98)
             time.sleep(0.2)  # Brief pause for visual feedback
-            self.progress_update.emit("Finalizing transcription...", 99)
+            self.progress_update.emit(self.tr("Finalizing transcription..."), 99)
 
             # Stage 5: Complete (99-100%)
             logger.info(f"About to emit progress 100%")
-            self.progress_update.emit("Transcription complete!", 100)
+            self.progress_update.emit(self.tr("Transcription complete!"), 100)
 
             logger.info(f"About to emit transcription_complete signal. "
                        f"Result keys: {result.keys() if result else 'None'}")
