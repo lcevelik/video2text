@@ -106,10 +106,8 @@ class EnhancedTranscriber(Transcriber):
         'unknown': 'Unknown'
     }
 
-    # CLASS-LEVEL model cache (shared across all instances for maximum performance)
-    # This allows models loaded at app startup to be reused by all transcription workers
-    _model_cache = {}  # Dict[str, Transcriber] - keyed by model size
-    _model_cache_lock = threading.Lock()  # Thread-safe access to cache
+    # CLASS-LEVEL model cache is now handled in the base Transcriber class
+    # This ensures ALL instances share the same loaded models automatically
 
     def __init__(self, model_size='base', enable_diagnostics=True):
         """
@@ -212,7 +210,7 @@ class EnhancedTranscriber(Transcriber):
                     # Pass 1: Base model (not tiny!) detects language boundaries
                     # Pass 2: Accurate main model transcribes each segment
                     # Note: Base is faster than medium but more accurate than tiny (doesn't drop words)
-                    chunk_size = 2.0
+                    chunk_size = 3.0
                     self.language_segments = self._comprehensive_audio_segmentation_twopass(
                         audio_path=audio_path,
                         total_duration=total_duration,
@@ -222,6 +220,33 @@ class EnhancedTranscriber(Transcriber):
                         transcription_model=self.model_size,  # Use main model for transcription
                         progress_callback=progress_callback
                     )
+                    
+                    # FALLBACK: If two-pass failed to find ANY segments (e.g. due to silence or strict filtering),
+                    # fall back to standard single-pass transcription to ensure we return SOMETHING.
+                    if not self.language_segments:
+                        logger.warning("Two-pass segmentation returned NO segments! Falling back to standard single-pass transcription.")
+                        if progress_callback:
+                            progress_callback("Two-pass detection failed, falling back to standard transcription...")
+                        
+                        fallback_result = self.transcribe(
+                            audio_path,
+                            language=None,
+                            initial_prompt=initial_prompt,
+                            progress_callback=progress_callback
+                        )
+                        
+                        # Convert standard result to language segments format
+                        fallback_text = fallback_result.get('text', '').strip()
+                        fallback_lang = fallback_result.get('language', 'unknown')
+                        
+                        if fallback_text:
+                            self.language_segments = [{
+                                'language': fallback_lang,
+                                'start': 0.0,
+                                'end': total_duration,
+                                'text': fallback_text
+                            }]
+                    
                     chunk_count = len(self.language_segments)
 
                     # Two-pass already returns merged segments with accurate transcription
@@ -433,6 +458,88 @@ class EnhancedTranscriber(Transcriber):
 
         return result
 
+    def _get_language_heuristics(self):
+        """Return stopwords and diacritics for supported languages."""
+        stopwords = {
+            'en': frozenset(["the","and","is","are","to","of","in","that","for","you","it","on","with","this","be","have","at","or","as","i","we","they","was","were","will","would","can","could","a","an","from","by","about","what","which","who","how","do","does","did","not","if","there","their","them","our","your"]),
+            'es': frozenset(["el","la","los","las","un","una","unos","unas","de","y","en","a","que","por","con","para","como","es","su","al","lo","se","del","más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me","hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso","ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra"]),
+            'fr': frozenset(["le","la","les","un","une","des","du","de","et","en","à","que","il","elle","nous","vous","ils","elles","au","aux","avec","par","sur","pas","plus","mais","ou","comme","son","sa","ses","leur","leurs","est","sont","été","être","a","ont","avait","avais","avais","fut","fûmes","fûtes","furent"]),
+            'de': frozenset(["der","die","das","ein","eine","eines","einer","einem","den","dem","des","und","zu","mit","auf","für","von","im","ist","war","wurde","werden","wie","als","auch","an","bei","nach","vor","aus","durch","über","unter","zwischen","gegen","ohne","um","am","aber","nur","noch","schon","man","sein","ihre","ihr","seine","uns","euch","sie","wir","du","er","es"]),
+            'it': frozenset(["il","lo","la","i","gli","le","un","una","uno","di","a","da","in","con","su","per","tra","fra","che","non","più","ma","come","se","quando","dove","chi","quale","quelli","questo","questa","questi","queste","sono","era","erano","essere","avere","ha","hanno","abbiamo","avete","avevano"]),
+            'pt': frozenset(["o","a","os","as","um","uma","uns","umas","de","da","do","das","dos","em","por","para","com","sem","sobre","entre","mas","ou","se","que","quando","como","onde","quem","qual","quais","este","esta","estes","estas","aquele","aquela","aqueles","aquelas","foi","eram","ser","ter","tem","têm","tinha","tínhamos","tinham"]),
+            'pl': frozenset(["i","w","z","na","do","od","za","po","przez","dla","o","u","pod","nad","przed","bez","czy","nie","tak","ale","lub","albo","to","ten","ta","te","ci","co","który","która","które","którzy","być","jest","są","był","była","było","byli","były"]),
+            'nl': frozenset(["de","het","een","en","van","op","in","naar","met","voor","door","over","onder","tussen","tegen","zonder","om","maar","of","als","ook","bij","tot","uit","aan","te","er","je","jij","hij","zij","wij","jullie","zij","ik","ben","is","zijn","was","waren"]),
+            'ru': frozenset(["и","в","во","не","что","он","на","я","с","со","как","а","то","все","она","так","его","но","да","ты","к","у","же","вы","за","бы","по","ее","мне","было","вот","от","меня","еще","нет","о","из","ему","теперь","когда","даже","ну","вдруг","ли","если","уже","или","ни","быть","был","него","до","вас","нибудь","опять","уж","вам","ведь","там","потом","себя","ничего","ей","может","они","тут","где","есть","надо","ней","для","мы","тебя","их","чем","была","сам","чтоб","без","будто","чего","раз","тоже","себе","под","будет","ж","тогда","кто","этот"]),
+            'cs': frozenset(["a","i","že","co","jak","když","ale","už","proto","tak","by","byl","byla","bylo","byli","aby","jsem","jsme","jste","jsi","být","mít","ten","to","ta","tento","tato","toto","se","si","na","v","ve","z","ze","do","s","o","u","k","pro","který","která","které","kteří","protože","je","není","může","tady","tam","taky","ještě","než","jen","nebo","ani","bez","pod","při","kde","kdo","nic","vše","všechno","své","svůj","svá","mezi","před","za","po","od","proti","nad","podle","až","kdy","kde","kam","odkud","proč","jaký","jaká","jaké","kterou","kterým","kterých","kterými","jeho","její","jejich","můj","tvůj","náš","váš","já","ty","on","ona","ono","my","vy","oni","one","ona"]),
+        }
+        diacritics = {
+            'en': frozenset(),
+            'es': frozenset("áéíóúüñÁÉÍÓÚÜÑ"),
+            'fr': frozenset("àâäéèêëîïôöùûüÿçÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
+            'de': frozenset("äöüßÄÖÜ"),
+            'it': frozenset("àèéìîòóùÀÈÉÌÎÒÓÙ"),
+            'pt': frozenset("áâãàçéêíóôõúÁÂÃÀÇÉÊÍÓÔÕÚ"),
+            'pl': frozenset("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ"),
+            'nl': frozenset("éèëïöüÉÈËÏÖÜ"),
+            'ru': frozenset(),
+            'cs': frozenset("áéíóúůýčďěňřšťžÁÉÍÓÚŮÝČĎĚŇŘŠŤŽ"),
+        }
+        return stopwords, diacritics
+
+    def _correct_language_from_text(self, text: str, detected_lang: str, allowed_languages: Optional[List[str]] = None) -> str:
+        """
+        Use text heuristics (stopwords, diacritics) to correct the language label.
+        This is crucial for short chunks (1.0s) where audio detection is unreliable
+        but transcription is correct.
+        """
+        if not text or len(text.strip()) < 2:
+            return detected_lang
+
+        stopwords, diacritics = self._get_language_heuristics()
+        
+        # Filter by allowed languages if provided
+        if allowed_languages:
+            stopwords = {k: v for k, v in stopwords.items() if k in allowed_languages}
+            diacritics = {k: v for k, v in diacritics.items() if k in allowed_languages}
+        
+        lower_text = text.lower()
+        words = [w.strip(".,!?;:\"'") for w in lower_text.split() if w.strip()]
+        text_set = set(text)
+        
+        scores = {}
+        candidates = stopwords.keys()
+        
+        for lang in candidates:
+            stop_hits = sum(1 for w in words if w in stopwords.get(lang, frozenset()))
+            diacritic_hits = len(text_set & diacritics.get(lang, frozenset()))
+            
+            # Strong weight on unique characters and stopwords
+            scores[lang] = (stop_hits * 3) + (diacritic_hits * 2)
+            
+        if not scores:
+            return detected_lang
+            
+        best_lang = max(scores, key=scores.get)
+        best_score = scores[best_lang]
+        
+        # If the detected language has a decent score, stick with it (bias towards model)
+        # But if another language has a MUCH higher score, switch.
+        current_score = scores.get(detected_lang, 0)
+        
+        # Threshold: New language must be better than current
+        if best_score > 0 and best_lang != detected_lang:
+            # If current score is 0 (no evidence for model's choice) and best > 0, switch.
+            if current_score == 0:
+                logger.info(f"Correcting language {detected_lang} -> {best_lang} based on text (score {best_score} vs 0): '{text[:30]}...'")
+                return best_lang
+            # RELAXED: If best score is higher than current score, switch.
+            # Previously required 2x, but that was too strict for mixed languages.
+            if best_score > current_score:
+                logger.info(f"Correcting language {detected_lang} -> {best_lang} (score {best_score} vs {current_score}) based on text: '{text[:30]}...'")
+                return best_lang
+                
+        return detected_lang
+
     def _detect_language_from_transcript(self, segments: List[Dict[str, Any]], chunk_size: float = 2.0, audio_path: Optional[str] = None) -> List[Dict[str, Any]]:
         """Heuristic segmentation using existing segment text (no extra audio passes).
 
@@ -448,32 +555,7 @@ class EnhancedTranscriber(Transcriber):
             t += chunk_size
 
         # Define stopwords and diacritics for many languages (fast heuristic path)
-        stopwords = {
-            'en': frozenset(["the","and","is","are","to","of","in","that","for","you","it","on","with","this","be","have","at","or","as","i","we","they","was","were","will","would","can","could","a","an","from","by","about","what","which","who","how","do","does","did","not","if","there","their","them","our","your"]),
-            'es': frozenset(["el","la","los","las","un","una","unos","unas","de","y","en","a","que","por","con","para","como","es","su","al","lo","se","del","más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me","hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso","ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra"]),
-            'fr': frozenset(["le","la","les","un","une","des","du","de","et","en","à","que","il","elle","nous","vous","ils","elles","au","aux","avec","par","sur","pas","plus","mais","ou","comme","son","sa","ses","leur","leurs","est","sont","été","être","a","ont","avait","avais","avais","fut","fûmes","fûtes","furent"]),
-            'de': frozenset(["der","die","das","ein","eine","eines","einer","einem","den","dem","des","und","zu","mit","auf","für","von","im","ist","war","wurde","werden","wie","als","auch","an","bei","nach","vor","aus","durch","über","unter","zwischen","gegen","ohne","um","am","aber","nur","noch","schon","man","sein","ihre","ihr","seine","uns","euch","sie","wir","du","er","es"]),
-            'it': frozenset(["il","lo","la","i","gli","le","un","una","uno","di","a","da","in","con","su","per","tra","fra","che","non","più","ma","come","se","quando","dove","chi","quale","quelli","questo","questa","questi","queste","sono","era","erano","essere","avere","ha","hanno","abbiamo","avete","avevano"]),
-            'pt': frozenset(["o","a","os","as","um","uma","uns","umas","de","da","do","das","dos","em","por","para","com","sem","sobre","entre","mas","ou","se","que","quando","como","onde","quem","qual","quais","este","esta","estes","estas","aquele","aquela","aqueles","aquelas","foi","eram","ser","ter","tem","têm","tinha","tínhamos","tinham"]),
-            'pl': frozenset(["i","w","z","na","do","od","za","po","przez","dla","o","u","pod","nad","przed","bez","czy","nie","tak","ale","lub","albo","to","ten","ta","te","ci","co","który","która","które","którzy","być","jest","są","był","była","było","byli","były"]),
-            'nl': frozenset(["de","het","een","en","van","op","in","naar","met","voor","door","over","onder","tussen","tegen","zonder","om","maar","of","als","ook","bij","tot","uit","aan","te","er","je","jij","hij","zij","wij","jullie","zij","ik","ben","is","zijn","was","waren"]),
-            'ru': frozenset(["и","в","во","не","что","он","на","я","с","со","как","а","то","все","она","так","его","но","да","ты","к","у","же","вы","за","бы","по","ее","мне","было","вот","от","меня","еще","нет","о","из","ему","теперь","когда","даже","ну","вдруг","ли","если","уже","или","ни","быть","был","него","до","вас","нибудь","опять","уж","вам","ведь","там","потом","себя","ничего","ей","может","они","тут","где","есть","надо","ней","для","мы","тебя","их","чем","была","сам","чтоб","без","будто","чего","раз","тоже","себе","под","будет","ж","тогда","кто","этот"]),
-            'cs': frozenset(["a","i","že","co","jak","když","ale","už","proto","tak","by","byl","byla","bylo","byli","aby","jsem","jsme","jste","jsi","být","mít","ten","to","ta","tento","tato","toto","se","si","na","v","ve","z","ze","do","s","o","u","k","pro","který","která","které","kteří","protože","je","není","může","tady","tam","taky","ještě"]),
-            # Add more languages as needed
-        }
-        diacritics = {
-            'en': frozenset(),
-            'es': frozenset("áéíóúüñÁÉÍÓÚÜÑ"),
-            'fr': frozenset("àâäéèêëîïôöùûüÿçÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
-            'de': frozenset("äöüßÄÖÜ"),
-            'it': frozenset("àèéìîòóùÀÈÉÌÎÒÓÙ"),
-            'pt': frozenset("áâãàçéêíóôõúÁÂÃÀÇÉÊÍÓÔÕÚ"),
-            'pl': frozenset("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ"),
-            'nl': frozenset("éèëïöüÉÈËÏÖÜ"),
-            'ru': frozenset(),
-            'cs': frozenset("áéíóúůýčďěňřšťžÁÉÍÓÚŮÝČĎĚŇŘŠŤŽ"),
-            # Add more languages as needed
-        }
+        stopwords, diacritics = self._get_language_heuristics()
         # Removed cs_common special scoring to ensure all languages compete fairly
         # cs_common = frozenset({"že","který","jsem","jsme","není","může","proto","tak","ale","by","když","už","je","co","jak"})
         allowed = getattr(self, 'allowed_languages', None)
@@ -1522,6 +1604,11 @@ class EnhancedTranscriber(Transcriber):
             detected_lang = chunk_result.get('language', 'unknown')
             transcribed_text = chunk_result.get('text', '').strip()
 
+            # CORRECT: Use text heuristics to fix language label if model was wrong
+            detected_lang = self._correct_language_from_text(
+                transcribed_text, detected_lang, allowed_languages
+            )
+
             # Only include if language is in allowed list and has text
             if (not allowed_languages or detected_lang in allowed_languages) and transcribed_text:
                 return {
@@ -1548,7 +1635,7 @@ class EnhancedTranscriber(Transcriber):
         audio_path: str,
         total_duration: float,
         allowed_languages: Optional[List[str]],
-        chunk_size: float = 2.0,
+        chunk_size: float = 3.0,
         detection_model: str = 'base',
         transcription_model: str = 'medium',
         progress_callback=None
@@ -1600,15 +1687,10 @@ class EnhancedTranscriber(Transcriber):
         final_segments = []
         pass2_error = None  # To capture errors from Pass 2 thread
 
-        # Create transcription model (Pass 2) using class-level cache for reuse across all instances
-        # ALWAYS use class cache to prevent duplicate loading
-        with self._model_cache_lock:
-            if transcription_model not in self._model_cache:
-                logger.info(f"Creating {transcription_model} model instance (will be cached for reuse)...")
-                self._model_cache[transcription_model] = Transcriber(model_size=transcription_model)
-            else:
-                logger.info(f"Reusing cached {transcription_model} model instance from class cache")
-            transcription_engine = self._model_cache[transcription_model]
+        # Create transcription model (Pass 2)
+        # The base Transcriber class now handles global caching of the heavy model object,
+        # so we can safely instantiate a new Transcriber here without performance penalty.
+        transcription_engine = Transcriber(model_size=transcription_model)
 
         # CRITICAL: Preload the transcription model BEFORE starting Pass 2 thread
         # This prevents ~20 second delay when Pass 2 receives its first segment
@@ -1678,9 +1760,15 @@ class EnhancedTranscriber(Transcriber):
 
                             transcribed_text = segment_result.get('text', '').strip()
 
+                            # CORRECT: Use text heuristics to fix language label if model was wrong (Pass 2)
+                            # This was missing! It blindly trusted Pass 1 language.
+                            detected_lang = self._correct_language_from_text(
+                                transcribed_text, language, allowed_languages
+                            )
+
                             if transcribed_text:
                                 final_segments.append({
-                                    'language': language,
+                                    'language': detected_lang,  # Use corrected language
                                     'start': start_time,
                                     'end': end_time,
                                     'text': transcribed_text
@@ -1720,14 +1808,10 @@ class EnhancedTranscriber(Transcriber):
 
         logger.info(f"PASS 1: Fast language detection with {detection_model} model (chunk_size={chunk_size}s)")
 
-        # Create detection model instance using class-level cache for reuse across all instances
-        with self._model_cache_lock:
-            if detection_model not in self._model_cache:
-                logger.info(f"Creating {detection_model} model instance (will be cached for reuse)...")
-                self._model_cache[detection_model] = Transcriber(model_size=detection_model)
-            else:
-                logger.info(f"Reusing cached {detection_model} model instance from class cache")
-            detection_engine = self._model_cache[detection_model]
+        # Create detection model instance
+        # The base Transcriber class now handles global caching of the heavy model object,
+        # so we can safely instantiate a new Transcriber here without performance penalty.
+        detection_engine = Transcriber(model_size=detection_model)
 
         # Preload the detection model before starting Pass 1
         logger.info(f"Preloading {detection_model} model for Pass 1...")
@@ -1926,8 +2010,14 @@ class EnhancedTranscriber(Transcriber):
                 detected_lang = chunk_result.get('language', 'unknown')
                 transcribed_text = chunk_result.get('text', '').strip()
 
-                # Only include if language is in allowed list and has text
-                if (not allowed_languages or detected_lang in allowed_languages) and transcribed_text:
+                # CORRECT: Use text heuristics to fix language label if model was wrong
+                # This is critical for short chunks (1.0s) where audio detection fails
+                detected_lang = self._correct_language_from_text(
+                    transcribed_text, detected_lang, allowed_languages
+                )
+
+                # Only include if language is in allowed list (even if text is empty, Pass 2 might find it)
+                if (not allowed_languages or detected_lang in allowed_languages):
                     return {
                         'language': detected_lang,
                         'start': chunk_start,
@@ -1995,8 +2085,13 @@ class EnhancedTranscriber(Transcriber):
             detected_lang = chunk_result.get('language', 'unknown')
             transcribed_text = chunk_result.get('text', '').strip()
 
-            # Only include if language is in allowed list and has text
-            if (not allowed_languages or detected_lang in allowed_languages) and transcribed_text:
+            # CORRECT: Use text heuristics to fix language label if model was wrong
+            detected_lang = self._correct_language_from_text(
+                transcribed_text, detected_lang, allowed_languages
+            )
+
+            # Only include if language is in allowed list (even if text is empty, Pass 2 might find it)
+            if (not allowed_languages or detected_lang in allowed_languages):
                 return {
                     'language': detected_lang,
                     'start': chunk_start,

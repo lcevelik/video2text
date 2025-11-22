@@ -230,6 +230,37 @@ class FonixFlowQt(QMainWindow):
             logger.debug(f"Could not import FFmpeg dependencies: {e}")
             return
 
+        # Check for bundled ffmpeg in macOS app package
+        logger.info(f"sys.executable: {sys.executable}")
+        possible_ffmpeg_paths = [
+            os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'ffmpeg')),
+            os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'Resources', 'ffmpeg')),
+        ]
+        # Try NSBundle for macOS app bundle launches
+        try:
+            import objc
+            from Foundation import NSBundle
+            bundle = NSBundle.mainBundle()
+            resources_path = str(bundle.resourcePath())
+            nsbundle_ffmpeg = os.path.join(resources_path, 'ffmpeg')
+            possible_ffmpeg_paths.append(nsbundle_ffmpeg)
+            logger.info(f"NSBundle resourcePath: {resources_path}")
+            logger.info(f"NSBundle ffmpeg path: {nsbundle_ffmpeg}")
+        except Exception as e:
+            logger.debug(f"Could not use NSBundle for resource path: {e}")
+        logger.info(f"Attempting ffmpeg paths: {possible_ffmpeg_paths}")
+        for bundled_ffmpeg in possible_ffmpeg_paths:
+            logger.info(f"Checking ffmpeg path: {bundled_ffmpeg}")
+            if os.path.exists(bundled_ffmpeg):
+                try:
+                    AudioSegment.converter = bundled_ffmpeg
+                    logger.info(f"pydub configured to use bundled ffmpeg at: {bundled_ffmpeg}")
+                except Exception as e:
+                    logger.debug(f"Could not set AudioSegment.converter, using FFMPEG_BINARY instead: {e}")
+                    os.environ['FFMPEG_BINARY'] = bundled_ffmpeg
+                    logger.info(f"Set FFMPEG_BINARY for pydub: {bundled_ffmpeg}")
+                return
+
         # If ffmpeg is on PATH, set converter and return
         if _shutil.which('ffmpeg'):
             try:
@@ -239,12 +270,15 @@ class FonixFlowQt(QMainWindow):
                 logger.debug(f"Could not set ffmpeg converter: {e}")
             return
 
-        # Try common install locations, including winget default cache
+        # Try common install locations (Windows, Homebrew, MacPorts)
         candidates = [
             r"C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
             r"C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe",
             str(Path.home() / "scoop" / "apps" / "ffmpeg" / "current" / "bin" / "ffmpeg.exe"),
             str(Path(os.environ.get('LOCALAPPDATA', '')) / "Microsoft" / "WinGet" / "Packages" / "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "ffmpeg-8.0-full_build" / "bin" / "ffmpeg.exe"),
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/local/bin/ffmpeg",
         ]
         for p in candidates:
             try:
@@ -1514,13 +1548,29 @@ class FonixFlowQt(QMainWindow):
         multi_mode = self.multi_language_mode
 
         if multi_mode:
-            # Multi-language mode: Use turbo if GPU available, otherwise medium
-            if has_gpu_available():
-                model_size = "turbo"
-                logger.info("GPU detected: Using turbo model for multi-language transcription")
+            # Smart model selection based on user's language choices
+            # Common languages with strong Whisper support (medium model is sufficient)
+            COMMON_LANGUAGES = {'en', 'es', 'fr', 'de', 'it', 'pt'}
+            
+            # Check if user selected any less-common languages
+            requires_large_model = False
+            if hasattr(self, 'allowed_languages') and self.allowed_languages:
+                for lang in self.allowed_languages:
+                    if lang not in COMMON_LANGUAGES:
+                        requires_large_model = True
+                        break
+            
+            # Select model based on language complexity
+            if requires_large_model:
+                model_size = "large-v3"
+                logger.info(f"Less common languages detected {getattr(self, 'allowed_languages', [])}: Using large-v3 for better accuracy")
             else:
                 model_size = "medium"
-                logger.info("No GPU detected: Using medium model for multi-language transcription")
+                if hasattr(self, 'allowed_languages') and self.allowed_languages:
+                    logger.info(f"Common languages detected {self.allowed_languages}: Using medium model")
+                else:
+                    logger.info("No specific languages selected: Using medium model")
+            
             language = None  # Auto-detect
             detect_language_changes = True
             # Use global deep scan toggle; if False use heuristic + conditional fallback
@@ -1548,7 +1598,11 @@ class FonixFlowQt(QMainWindow):
 
         # Update model name display in status bar
         if self.model_name_label:
-            self.model_name_label.setText(f"Model: {model_size}")
+            if detect_language_changes:
+                # Show that we are using two models
+                self.model_name_label.setText(f"Model: Base + {model_size}")
+            else:
+                self.model_name_label.setText(f"Model: {model_size}")
 
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")

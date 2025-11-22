@@ -11,39 +11,44 @@ import subprocess
 import tempfile
 import logging
 from pathlib import Path
+from tools.resource_locator import get_ffmpeg_path, get_ffprobe_path
 
 logger = logging.getLogger(__name__)
 
 
 class AudioExtractor:
     """Extracts audio from video files or prepares audio files for transcription using ffmpeg."""
-    
+
     # Supported video formats
     SUPPORTED_VIDEO_FORMATS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'}
-    
+
     # Supported audio formats (Whisper can handle these directly, but we may need to convert for optimal format)
     SUPPORTED_AUDIO_FORMATS = {'.mp3', '.wav', '.m4a', '.flac', '.ogg', '.wma', '.aac', '.opus', '.mp2'}
-    
+
     # All supported formats
     SUPPORTED_FORMATS = SUPPORTED_VIDEO_FORMATS | SUPPORTED_AUDIO_FORMATS
-    
+
     def __init__(self):
         """Initialize the AudioExtractor."""
+        self.ffmpeg_path = None
+        self.ffprobe_path = None
         self._check_ffmpeg()
     
     def _check_ffmpeg(self):
         """Check if ffmpeg is installed and accessible."""
         try:
+            self.ffmpeg_path = get_ffmpeg_path()
+            self.ffprobe_path = get_ffprobe_path()
             subprocess.run(
-                ['ffmpeg', '-version'],
+                [self.ffmpeg_path, '-version'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True
             )
-            logger.info("ffmpeg is available")
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            logger.info(f"ffmpeg is available at: {self.ffmpeg_path}")
+        except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
             raise RuntimeError(
-                "ffmpeg is not installed or not in PATH. "
+                f"ffmpeg is not available: {e}\n"
                 "Please install ffmpeg: https://ffmpeg.org/download.html"
             )
     
@@ -107,7 +112,7 @@ class AudioExtractor:
         try:
             # Use ffprobe to get media duration (works for both video and audio)
             cmd = [
-                'ffprobe',
+                self.ffprobe_path,
                 '-v', 'error',
                 '-show_entries', 'format=duration',
                 '-of', 'default=noprint_wrappers=1:nokey=1',
@@ -213,7 +218,7 @@ class AudioExtractor:
         # -y: overwrite output file if exists
         # -progress: output progress information
         try:
-            cmd = ['ffmpeg', '-i', str(media_path)]
+            cmd = [self.ffmpeg_path, '-i', str(media_path)]
 
             # Only add -vn for video files
             if self.is_video_file(media_path):

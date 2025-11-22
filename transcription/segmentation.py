@@ -15,6 +15,7 @@ import queue
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
 from app.transcriber import Transcriber
+from tools.resource_locator import get_ffmpeg_path
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +115,9 @@ def retranscribe_segments(
 
         try:
             # Use ffmpeg to extract the specific time range
+            ffmpeg_path = get_ffmpeg_path()
             subprocess.run([
-                'ffmpeg', '-i', audio_path,
+                ffmpeg_path, '-i', audio_path,
                 '-ss', str(start_time),
                 '-t', str(duration),
                 '-ar', '16000',  # Whisper expects 16kHz

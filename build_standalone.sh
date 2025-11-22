@@ -95,7 +95,7 @@ echo "✓ Cleaned"
 echo ""
 echo "Building standalone app..."
 echo "This may take several minutes..."
-pyinstaller FonixFlow.spec
+pyinstaller fonixflow_qt.spec
 
 # Check if build succeeded
 if [ ! -d "dist/FonixFlow.app" ]; then

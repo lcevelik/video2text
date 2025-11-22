@@ -16,8 +16,14 @@ import platform
 from io import StringIO
 
 import whisper
+import threading
 
 logger = logging.getLogger(__name__)
+
+# Global cache for loaded Whisper models to prevent reloading
+# Key: model_size (str), Value: whisper.model object
+_GLOBAL_MODEL_CACHE = {}
+_GLOBAL_CACHE_LOCK = threading.Lock()
 
 
 class ProgressInterceptor:
@@ -197,10 +203,29 @@ class Transcriber:
         logger.info(f"Loading Whisper model: {self.model_size}")
 
         try:
-            self.model = whisper.load_model(
+            # Check global cache first
+            with _GLOBAL_CACHE_LOCK:
+                if self.model_size in _GLOBAL_MODEL_CACHE:
+                    logger.info(f"Reusing cached Whisper model: {self.model_size}")
+                    self.model = _GLOBAL_MODEL_CACHE[self.model_size]
+                    logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully (from cache)")
+                    if progress_callback:
+                        progress_callback("Model loaded successfully")
+                    return self.model
+
+            # Not in cache, load it
+            logger.info(f"Loading new Whisper model into memory: {self.model_size}")
+            model = whisper.load_model(
                 self.model_size,
-                device=self.device
+                device=self.device,
+                download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
             )
+            
+            # Store in cache
+            with _GLOBAL_CACHE_LOCK:
+                _GLOBAL_MODEL_CACHE[self.model_size] = model
+                self.model = model
+                
             logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
 
             if progress_callback:

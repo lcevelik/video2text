@@ -11,6 +11,7 @@ import os
 import subprocess
 from typing import Dict, List, Optional, Any
 from app.transcriber import Transcriber
+from tools.resource_locator import get_ffmpeg_path
 
 logger = logging.getLogger(__name__)
 
@@ -291,8 +292,9 @@ def classify_language_window_audio(
         temp_path = temp_audio.name
 
     try:
+        ffmpeg_path = get_ffmpeg_path()
         ffmpeg_cmd = [
-            'ffmpeg', '-y', '-i', audio_path,
+            ffmpeg_path, '-y', '-i', audio_path,
             '-ss', str(start),
             '-t', str(duration),
             '-ar', '16000', '-ac', '1', temp_path

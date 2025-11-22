@@ -25,7 +25,19 @@
       "Bash(xargs sed:*)",
       "Bash(python:*)",
       "Bash(PYTHONPATH=/Volumes/HomeDisk/Codebase/video2text python3:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(open:*)",
+      "Bash(log show:*)",
+      "Bash(/Volumes/HomeDisk/Codebase/video2text/dist/FonixFlow.app/Contents/Frameworks/ffmpeg -version)",
+      "Bash(/Volumes/HomeDisk/Codebase/video2text/dist/FonixFlow.app/Contents/MacOS/FonixFlow)",
+      "Bash(/usr/libexec/PlistBuddy:*)",
+      "Bash(/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user)",
+      "Bash(system_profiler:*)",
+      "Bash(codesign:*)",
+      "Bash(tccutil reset:*)",
+      "Bash(/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister:*)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []

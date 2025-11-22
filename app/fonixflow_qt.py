@@ -11,6 +11,21 @@ import sys
 import logging
 import os
 import argparse
+import tempfile
+import platform
+import multiprocessing
+
+# Cross-platform file locking
+try:
+    import fcntl  # Unix/macOS
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    try:
+        import msvcrt  # Windows
+        HAS_MSVCRT = True
+    except ImportError:
+        HAS_MSVCRT = False
 
 from PySide6.QtWidgets import QApplication  # type: ignore
 from PySide6.QtGui import QIcon  # type: ignore
@@ -87,8 +102,83 @@ def load_translations(app, override_lang=None):
     return None, locale_name
 
 
+def check_single_instance():
+    """
+    Check if another instance is already running using a lock file.
+    Returns lock file handle if successful, None if another instance is running.
+    """
+    lock_file_path = os.path.join(tempfile.gettempdir(), 'fonixflow.lock')
+    
+    try:
+        # Try to create and lock the lock file
+        lock_file = open(lock_file_path, 'w')
+        try:
+            # Try to acquire exclusive lock (non-blocking)
+            if HAS_FCNTL:
+                # Unix/macOS
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            elif HAS_MSVCRT:
+                # Windows
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                # Fallback: check if file is already locked by checking if PID is still running
+                if os.path.exists(lock_file_path):
+                    try:
+                        with open(lock_file_path, 'r') as f:
+                            old_pid = int(f.read().strip())
+                        # Check if process is still running (Unix/macOS)
+                        if platform.system() != 'Windows':
+                            try:
+                                os.kill(old_pid, 0)  # Signal 0 just checks if process exists
+                                # Process exists, another instance is running
+                                lock_file.close()
+                                logger.warning("Another instance of FonixFlow is already running (PID check)")
+                                return None
+                            except OSError:
+                                # Process doesn't exist, remove stale lock file
+                                pass
+                    except (ValueError, FileNotFoundError):
+                        pass
+            
+            # Write PID to lock file
+            lock_file.write(str(os.getpid()))
+            lock_file.flush()
+            logger.debug(f"Acquired single-instance lock: {lock_file_path}")
+            return lock_file
+        except (IOError, OSError) as e:
+            # Lock failed - another instance is running
+            lock_file.close()
+            logger.warning(f"Another instance of FonixFlow is already running: {e}")
+            return None
+    except Exception as e:
+        logger.debug(f"Could not create lock file: {e}")
+        # If we can't create lock file, continue anyway (might be permission issue)
+        return None
+
+
 def main():
     """Main entry point for Qt application."""
+    # Required for PyInstaller to handle multiprocessing correctly
+    multiprocessing.freeze_support()
+
+    # SINGLE-INSTANCE CHECK: Use lock file to prevent multiple instances
+    lock_file = check_single_instance()
+    if lock_file is None:
+        # Another instance is running - try to bring it to front via QApplication
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            try:
+                for widget in existing_app.allWidgets():
+                    if isinstance(widget, FonixFlowQt):
+                        widget.raise_()
+                        widget.activateWindow()
+                        widget.show()
+                        break
+            except Exception:
+                pass
+        logger.info("Exiting - another instance is already running")
+        sys.exit(0)
+    
     # Parse command-line arguments BEFORE creating QApplication
     # QApplication will consume Qt-specific args, so we parse first
     parser = argparse.ArgumentParser(description='FonixFlow - Audio Transcription Tool')
@@ -97,8 +187,24 @@ def main():
     # Parse only known args to allow Qt args to pass through
     args, remaining = parser.parse_known_args()
 
+    # Also check QApplication instance (in-process check)
+    existing_app = QApplication.instance()
+    if existing_app is not None:
+        logger.warning("QApplication instance already exists. This should not happen.")
+        if lock_file:
+            lock_file.close()
+        sys.exit(1)
+
     # Create QApplication with remaining args
-    app = QApplication([sys.argv[0]] + remaining)
+    # IMPORTANT: Don't use sys.argv[0] in bundled apps - it can cause macOS to launch multiple instances
+    # Use a fixed app name instead to prevent re-launch issues
+    app_name_for_qt = 'FonixFlow'
+    if hasattr(sys, 'frozen') and sys.frozen:
+        # Running as bundled app - use app name instead of sys.argv[0]
+        app = QApplication([app_name_for_qt] + remaining)
+    else:
+        # Running from source - use sys.argv[0] normally
+        app = QApplication([sys.argv[0]] + remaining)
     app.setStyle("Fusion")  # Modern cross-platform style
 
     # Set application metadata
@@ -130,7 +236,20 @@ def main():
         window.retranslate_ui()
     window.show()
 
-    sys.exit(app.exec())
+    try:
+        exit_code = app.exec()
+    finally:
+        # Release lock file when app exits
+        if lock_file:
+            try:
+                lock_file.close()
+                lock_file_path = os.path.join(tempfile.gettempdir(), 'fonixflow.lock')
+                if os.path.exists(lock_file_path):
+                    os.remove(lock_file_path)
+            except Exception as e:
+                logger.debug(f"Could not remove lock file: {e}")
+    
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

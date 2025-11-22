@@ -18,16 +18,28 @@ from pathlib import Path
 # Application name
 app_name = 'FonixFlow'
 
-# Detect ffmpeg location (supports both Apple Silicon and Intel Macs)
+# Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
 ffmpeg_paths = [
     '/opt/homebrew/bin/ffmpeg',  # Apple Silicon (M1/M2)
     '/usr/local/bin/ffmpeg',      # Intel Mac (Homebrew)
     '/opt/local/bin/ffmpeg',      # MacPorts
 ]
+ffprobe_paths = [
+    '/opt/homebrew/bin/ffprobe',  # Apple Silicon (M1/M2)
+    '/usr/local/bin/ffprobe',     # Intel Mac (Homebrew)
+    '/opt/local/bin/ffprobe',     # MacPorts
+]
+
 ffmpeg_binary = None
 for path in ffmpeg_paths:
     if os.path.exists(path):
         ffmpeg_binary = path
+        break
+
+ffprobe_binary = None
+for path in ffprobe_paths:
+    if os.path.exists(path):
+        ffprobe_binary = path
         break
 
 binaries = []
@@ -36,6 +48,13 @@ if ffmpeg_binary:
     print(f"✓ Found ffmpeg at: {ffmpeg_binary}")
 else:
     print("⚠ Warning: ffmpeg not found in standard locations")
+    print("  Install with: brew install ffmpeg")
+
+if ffprobe_binary:
+    binaries.append((ffprobe_binary, '.'))
+    print(f"✓ Found ffprobe at: {ffprobe_binary}")
+else:
+    print("⚠ Warning: ffprobe not found in standard locations")
     print("  Install with: brew install ffmpeg")
 
 # Hidden imports - comprehensive list for all dependencies
@@ -125,7 +144,7 @@ exe = EXE(
     upx=True,
     console=False,  # GUI application, no console window
     disable_windowed_traceback=False,
-    argv_emulation=False,  # macOS argv emulation
+    argv_emulation=False,  # Disable macOS argv emulation to prevent multiple instances/multiprocessing issues
     target_arch=None,  # Build for current architecture (x86_64 or arm64)
     codesign_identity=None,  # Set to your Apple Developer ID for distribution
     entitlements_file='entitlements.plist',  # Required for microphone/screen recording
@@ -179,7 +198,7 @@ app = BUNDLE(
         'NSHighResolutionCapable': True,
         'LSApplicationCategoryType': 'public.app-category.productivity',
         'LSMinimumSystemVersion': '12.3',  # macOS 12.3+ required for ScreenCaptureKit
-        'LSMultipleInstancesProhibited': False,  # Allow multiple instances
+        'LSMultipleInstancesProhibited': True,  # Prevent multiple instances (enforced by code too)
 
         # Required permissions with user-facing descriptions
         'NSMicrophoneUsageDescription': 'FonixFlow needs microphone access to record your voice for transcription.',
