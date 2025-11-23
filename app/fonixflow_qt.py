@@ -27,11 +27,9 @@ except ImportError:
     except ImportError:
         HAS_MSVCRT = False
 
-from PySide6.QtWidgets import QApplication  # type: ignore
-from PySide6.QtGui import QIcon  # type: ignore
-from PySide6.QtCore import QTranslator, QLocale  # type: ignore
-
-from gui.main_window import FonixFlowQt
+from PySide6.QtWidgets import QApplication, QSplashScreen, QProgressBar, QVBoxLayout, QWidget, QLabel  # type: ignore
+from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter, QFont  # type: ignore
+from PySide6.QtCore import QTranslator, QLocale, Qt, QTimer  # type: ignore
 
 # Configure logging to ensure output is visible
 logging.basicConfig(
@@ -40,6 +38,78 @@ logging.basicConfig(
     force=True
 )
 logger = logging.getLogger(__name__)
+
+
+class FonixFlowSplash(QSplashScreen):
+    """Custom splash screen with logo and progress bar."""
+    def __init__(self, app_icon_path, logo_path):
+        # Create a pixmap for the background
+        pixmap = QPixmap(450, 300)
+        pixmap.fill(QColor("#22262F"))  # Dark background matching app theme
+        super().__init__(pixmap)
+        
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
+        
+        # Main layout logic
+        # We use direct drawing for text/logo to ensure it works on the splash pixmap surface
+        # But for the progress bar, we can overlay a widget
+        
+        self.logo_path = logo_path
+        self.app_icon_path = app_icon_path
+        self.progress = 0
+        self.status_text = "Initializing..."
+        
+        # Add Progress Bar
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setGeometry(50, 240, 350, 6)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                background-color: #333;
+                border-radius: 3px;
+            }
+            QProgressBar::chunk {
+                background-color: #3b82f6;
+                border-radius: 3px;
+            }
+        """)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+    def drawContents(self, painter):
+        """Draw the splash screen contents."""
+        # Draw Background (already filled in __init__ but good to be safe)
+        painter.fillRect(self.rect(), QColor("#22262F"))
+        
+        # Draw Logo
+        if os.path.exists(self.logo_path):
+            logo = QPixmap(self.logo_path)
+            if not logo.isNull():
+                # Scale logo to fit nicely
+                target_w = 200
+                logo_scaled = logo.scaledToWidth(target_w, Qt.SmoothTransformation)
+                x = (self.width() - logo_scaled.width()) // 2
+                y = (self.height() - logo_scaled.height()) // 2 - 20
+                painter.drawPixmap(x, y, logo_scaled)
+        
+        # Draw Status Text
+        painter.setPen(QColor("#a1a1aa"))
+        font = QFont("Segoe UI", 10)
+        painter.setFont(font)
+        
+        text_rect = self.rect()
+        text_rect.setTop(255) # Below progress bar
+        text_rect.setHeight(30)
+        painter.drawText(text_rect, Qt.AlignCenter, self.status_text)
+
+    def update_progress(self, value, message=None):
+        if message:
+            self.status_text = message
+        self.progress = value
+        self.progress_bar.setValue(value)
+        self.repaint() # Trigger drawContents
+        QApplication.processEvents()
 
 
 def load_translations(app, override_lang=None):
@@ -163,47 +233,30 @@ def main():
 
     # SINGLE-INSTANCE CHECK: Use lock file to prevent multiple instances
     lock_file = check_single_instance()
+    # Note: Import of FonixFlowQt moved to later to prevent early checking
+    # We need to import it to check instance type if we were doing the "bring to front" logic
+    # But since we want to delay imports, we'll just rely on the lock file for now.
+    # If we really need the raise_() logic, we'd need a lightweight way to find the window.
+    
     if lock_file is None:
-        # Another instance is running - try to bring it to front via QApplication
-        existing_app = QApplication.instance()
-        if existing_app is not None:
-            try:
-                for widget in existing_app.allWidgets():
-                    if isinstance(widget, FonixFlowQt):
-                        widget.raise_()
-                        widget.activateWindow()
-                        widget.show()
-                        break
-            except Exception:
-                pass
         logger.info("Exiting - another instance is already running")
+        # Simple exit for now as we can't easily get the QWindow without importing heavy stuff
         sys.exit(0)
     
     # Parse command-line arguments BEFORE creating QApplication
-    # QApplication will consume Qt-specific args, so we parse first
     parser = argparse.ArgumentParser(description='FonixFlow - Audio Transcription Tool')
     parser.add_argument('--lang', type=str, help='Override system language (e.g., es, fr, de, zh_CN)')
 
     # Parse only known args to allow Qt args to pass through
     args, remaining = parser.parse_known_args()
 
-    # Also check QApplication instance (in-process check)
-    existing_app = QApplication.instance()
-    if existing_app is not None:
-        logger.warning("QApplication instance already exists. This should not happen.")
-        if lock_file:
-            lock_file.close()
-        sys.exit(1)
-
     # Create QApplication with remaining args
-    # IMPORTANT: Don't use sys.argv[0] in bundled apps - it can cause macOS to launch multiple instances
-    # Use a fixed app name instead to prevent re-launch issues
     app_name_for_qt = 'FonixFlow'
     if hasattr(sys, 'frozen') and sys.frozen:
-        # Running as bundled app - use app name instead of sys.argv[0]
+        # Running as bundled app
         app = QApplication([app_name_for_qt] + remaining)
     else:
-        # Running from source - use sys.argv[0] normally
+        # Running from source
         app = QApplication([sys.argv[0]] + remaining)
     app.setStyle("Fusion")  # Modern cross-platform style
 
@@ -211,30 +264,60 @@ def main():
     app.setApplicationName("FonixFlow")
     app.setOrganizationName("FonixFlow")
 
-    # Load translations based on system locale or override
-    # Store translator to prevent garbage collection
-    translator, _ = load_translations(app, override_lang=args.lang)
-    app._translator = translator  # Keep reference on QApplication
+    # Setup paths for splash
+    base_dir = os.path.dirname(__file__)
+    assets_dir = os.path.join(base_dir, '..', 'assets')
+    icon_path = os.path.join(assets_dir, 'fonixflow_icon.png')
+    logo_path = os.path.join(assets_dir, 'fonixflow_logo.png')
 
-    # Set application icon globally (for taskbar, alt-tab, etc.)
-    icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'fonixflow_icon.png')
+    # --- SHOW SPLASH SCREEN ---
+    splash = FonixFlowSplash(icon_path, logo_path)
+    splash.show()
+    splash.update_progress(10, "Starting application...")
+    
+    # Set application icon globally
     if os.path.exists(icon_path):
         app_icon = QIcon(icon_path)
         app.setWindowIcon(app_icon)
-
-        # Windows-specific: Set app user model ID for proper taskbar grouping
+        # Windows-specific taskbar grouping
         try:
             import ctypes
             myappid = 'fonixflow.transcription.app.1.0'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
-            pass  # Not on Windows or failed, continue anyway
+            pass
 
+    # Load translations
+    splash.update_progress(30, "Loading translations...")
+    translator, _ = load_translations(app, override_lang=args.lang)
+    app._translator = translator
+
+    # --- HEAVY IMPORTS START ---
+    splash.update_progress(50, "Loading core modules...")
+    
+    # Import the main window (this triggers imports of torch, whisper, ffmpeg utils, etc.)
+    # We wrap it in a try/except to catch import errors and show them
+    try:
+        from gui.main_window import FonixFlowQt
+    except ImportError as e:
+        logger.error(f"Failed to import main window: {e}")
+        QMessageBox.critical(None, "Startup Error", f"Failed to load application modules:\n{e}")
+        sys.exit(1)
+
+    splash.update_progress(80, "Initializing user interface...")
+    
+    # Initialize main window
     window = FonixFlowQt()
+    
     # Call retranslate_ui after translation is installed
     if hasattr(window, 'retranslate_ui'):
         window.retranslate_ui()
+    
+    splash.update_progress(100, "Ready!")
+    
+    # Show main window and finish splash
     window.show()
+    splash.finish(window)
 
     try:
         exit_code = app.exec()
@@ -250,7 +333,3 @@ def main():
                 logger.debug(f"Could not remove lock file: {e}")
     
     sys.exit(exit_code)
-
-
-if __name__ == "__main__":
-    main()
