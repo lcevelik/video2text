@@ -15,7 +15,9 @@ import tempfile
 import platform
 import multiprocessing
 
-# Cross-platform file locking
+# Add parent directory to sys.path to ensure 'gui' and 'transcription' modules are found
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 try:
     import fcntl  # Unix/macOS
     HAS_FCNTL = True
@@ -51,9 +53,6 @@ class FonixFlowSplash(QSplashScreen):
         self.setWindowFlag(Qt.WindowStaysOnTopHint)
         
         # Main layout logic
-        # We use direct drawing for text/logo to ensure it works on the splash pixmap surface
-        # But for the progress bar, we can overlay a widget
-        
         self.logo_path = logo_path
         self.app_icon_path = app_icon_path
         self.progress = 0
@@ -79,7 +78,7 @@ class FonixFlowSplash(QSplashScreen):
 
     def drawContents(self, painter):
         """Draw the splash screen contents."""
-        # Draw Background (already filled in __init__ but good to be safe)
+        # Draw Background
         painter.fillRect(self.rect(), QColor("#22262F"))
         
         # Draw Logo
@@ -115,17 +114,6 @@ class FonixFlowSplash(QSplashScreen):
 def load_translations(app, override_lang=None):
     """
     Load translation files based on system locale or override.
-
-    Automatically detects the system language and loads the appropriate
-    translation file. Falls back to English if translation not available.
-
-    Args:
-        app: QApplication instance
-        override_lang: Optional language code to override system detection (e.g., 'es', 'fr', 'de')
-                      Useful for testing without changing system language.
-
-    Returns:
-        tuple: (translator, locale_name) or (None, 'en_US') if no translation loaded
     """
     # Get system locale or use override
     if override_lang:
@@ -134,7 +122,7 @@ def load_translations(app, override_lang=None):
         logger.info(f"Language override: {override_lang} (using --lang flag)")
     else:
         system_locale = QLocale.system()
-        locale_name = system_locale.name()  # e.g., 'en_US', 'es_ES', 'fr_FR', 'zh_CN'
+        locale_name = system_locale.name()
         lang_code = locale_name.split('_')[0]
         logger.info(f"System locale detected: {locale_name} (language: {lang_code})")
 
@@ -144,21 +132,18 @@ def load_translations(app, override_lang=None):
         return None, locale_name
 
     # Look for translation file
-    # Try specific locale first (e.g., zh_CN.qm), then language code (e.g., zh.qm)
-    # Also try .ts files as fallback for testing
     i18n_dir = os.path.join(os.path.dirname(__file__), '..', 'i18n')
     translation_files = [
-        os.path.join(i18n_dir, f"fonixflow_{locale_name}.qm"),  # Specific: es_ES.qm
-        os.path.join(i18n_dir, f"fonixflow_{lang_code}.qm"),    # General: es.qm
-        os.path.join(i18n_dir, f"fonixflow_{locale_name}.ts"),  # Fallback: es_ES.ts
-        os.path.join(i18n_dir, f"fonixflow_{lang_code}.ts"),    # Fallback: es.ts
+        os.path.join(i18n_dir, f"fonixflow_{locale_name}.qm"),
+        os.path.join(i18n_dir, f"fonixflow_{lang_code}.qm"),
+        os.path.join(i18n_dir, f"fonixflow_{locale_name}.ts"),
+        os.path.join(i18n_dir, f"fonixflow_{lang_code}.ts"),
     ]
 
     translator = None
     for translation_file in translation_files:
         if os.path.exists(translation_file):
             translator = QTranslator()
-            # QTranslator can load both .qm and .ts files
             if translator.load(translation_file):
                 app.installTranslator(translator)
                 file_type = "compiled (.qm)" if translation_file.endswith('.qm') else "source (.ts)"
@@ -167,7 +152,6 @@ def load_translations(app, override_lang=None):
             else:
                 logger.warning(f"Failed to load translation: {translation_file}")
 
-    # No translation found, fall back to English
     logger.info(f"No translation found for {locale_name}, using English")
     return None, locale_name
 
@@ -175,54 +159,41 @@ def load_translations(app, override_lang=None):
 def check_single_instance():
     """
     Check if another instance is already running using a lock file.
-    Returns lock file handle if successful, None if another instance is running.
     """
     lock_file_path = os.path.join(tempfile.gettempdir(), 'fonixflow.lock')
     
     try:
-        # Try to create and lock the lock file
         lock_file = open(lock_file_path, 'w')
         try:
-            # Try to acquire exclusive lock (non-blocking)
             if HAS_FCNTL:
-                # Unix/macOS
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             elif HAS_MSVCRT:
-                # Windows
                 msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
             else:
-                # Fallback: check if file is already locked by checking if PID is still running
                 if os.path.exists(lock_file_path):
                     try:
                         with open(lock_file_path, 'r') as f:
                             old_pid = int(f.read().strip())
-                        # Check if process is still running (Unix/macOS)
                         if platform.system() != 'Windows':
                             try:
-                                os.kill(old_pid, 0)  # Signal 0 just checks if process exists
-                                # Process exists, another instance is running
+                                os.kill(old_pid, 0)
                                 lock_file.close()
                                 logger.warning("Another instance of FonixFlow is already running (PID check)")
                                 return None
                             except OSError:
-                                # Process doesn't exist, remove stale lock file
                                 pass
                     except (ValueError, FileNotFoundError):
                         pass
             
-            # Write PID to lock file
             lock_file.write(str(os.getpid()))
             lock_file.flush()
-            logger.debug(f"Acquired single-instance lock: {lock_file_path}")
             return lock_file
         except (IOError, OSError) as e:
-            # Lock failed - another instance is running
             lock_file.close()
             logger.warning(f"Another instance of FonixFlow is already running: {e}")
             return None
     except Exception as e:
         logger.debug(f"Could not create lock file: {e}")
-        # If we can't create lock file, continue anyway (might be permission issue)
         return None
 
 
@@ -233,14 +204,9 @@ def main():
 
     # SINGLE-INSTANCE CHECK: Use lock file to prevent multiple instances
     lock_file = check_single_instance()
-    # Note: Import of FonixFlowQt moved to later to prevent early checking
-    # We need to import it to check instance type if we were doing the "bring to front" logic
-    # But since we want to delay imports, we'll just rely on the lock file for now.
-    # If we really need the raise_() logic, we'd need a lightweight way to find the window.
     
     if lock_file is None:
         logger.info("Exiting - another instance is already running")
-        # Simple exit for now as we can't easily get the QWindow without importing heavy stuff
         sys.exit(0)
     
     # Parse command-line arguments BEFORE creating QApplication
@@ -253,14 +219,11 @@ def main():
     # Create QApplication with remaining args
     app_name_for_qt = 'FonixFlow'
     if hasattr(sys, 'frozen') and sys.frozen:
-        # Running as bundled app
         app = QApplication([app_name_for_qt] + remaining)
     else:
-        # Running from source
         app = QApplication([sys.argv[0]] + remaining)
-    app.setStyle("Fusion")  # Modern cross-platform style
+    app.setStyle("Fusion")
 
-    # Set application metadata
     app.setApplicationName("FonixFlow")
     app.setOrganizationName("FonixFlow")
 
@@ -275,11 +238,9 @@ def main():
     splash.show()
     splash.update_progress(10, "Starting application...")
     
-    # Set application icon globally
     if os.path.exists(icon_path):
         app_icon = QIcon(icon_path)
         app.setWindowIcon(app_icon)
-        # Windows-specific taskbar grouping
         try:
             import ctypes
             myappid = 'fonixflow.transcription.app.1.0'
@@ -295,13 +256,14 @@ def main():
     # --- HEAVY IMPORTS START ---
     splash.update_progress(50, "Loading core modules...")
     
-    # Import the main window (this triggers imports of torch, whisper, ffmpeg utils, etc.)
-    # We wrap it in a try/except to catch import errors and show them
     try:
         from gui.main_window import FonixFlowQt
     except ImportError as e:
         logger.error(f"Failed to import main window: {e}")
-        QMessageBox.critical(None, "Startup Error", f"Failed to load application modules:\n{e}")
+        # We can't show QMessageBox if app isn't ready? 
+        # Actually we have QApplication now, so we can.
+        # But let's just print/log and exit
+        print(f"CRITICAL ERROR: {e}")
         sys.exit(1)
 
     splash.update_progress(80, "Initializing user interface...")
@@ -309,7 +271,6 @@ def main():
     # Initialize main window
     window = FonixFlowQt()
     
-    # Call retranslate_ui after translation is installed
     if hasattr(window, 'retranslate_ui'):
         window.retranslate_ui()
     
@@ -322,7 +283,6 @@ def main():
     try:
         exit_code = app.exec()
     finally:
-        # Release lock file when app exits
         if lock_file:
             try:
                 lock_file.close()
@@ -333,3 +293,7 @@ def main():
                 logger.debug(f"Could not remove lock file: {e}")
     
     sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()
