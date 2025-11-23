@@ -108,6 +108,16 @@ datas = [
     ('assets/mel_filters.npz', 'whisper/assets'),
     ('assets/gpt2.tiktoken', 'whisper/assets'),
     ('assets/multilingual.tiktoken', 'whisper/assets'),
+    # Whisper model files (all supported)
+    ('assets/models/tiny.pt', 'whisper/assets'),
+    ('assets/models/tiny.en.pt', 'whisper/assets'),
+    ('assets/models/base.pt', 'whisper/assets'),
+    ('assets/models/base.en.pt', 'whisper/assets'),
+    ('assets/models/small.pt', 'whisper/assets'),
+    ('assets/models/small.en.pt', 'whisper/assets'),
+    ('assets/models/medium.pt', 'whisper/assets'),
+    ('assets/models/medium.en.pt', 'whisper/assets'),
+    ('assets/models/large-v3.pt', 'whisper/assets'),
     # App icons and logo
     ('assets/fonixflow_icon.png', 'assets'),
     ('assets/fonixflow_logo.png', 'assets'),
@@ -117,12 +127,7 @@ datas = [
     ('assets/icons/*.svg', 'assets/icons'),
     # Translation files (i18n)
     ('i18n', 'i18n'),
-    # Python source files for gui package (needed for dynamic imports)
-    ('gui/*.py', 'gui'),
-    ('gui/builders/*.py', 'gui/builders'),
-    ('gui/controllers/*.py', 'gui/controllers'),
-    ('gui/managers/*.py', 'gui/managers'),
-    ('gui/recording/*.py', 'gui/recording'),
+    # Do not include raw .py files; let PyInstaller package and compile them as .pyc
 ]
 
 a = Analysis(

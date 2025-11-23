@@ -49,6 +49,9 @@ Thumbs.db
 !WINDOWS_SETUP.md
 Trscription*.txt
 
+# Whisper models
+assets/models/*.pt
+
 # Temporary files
 *.tmp
 *.temp
