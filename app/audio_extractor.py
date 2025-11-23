@@ -28,6 +28,88 @@ class AudioExtractor:
     # All supported formats
     SUPPORTED_FORMATS = SUPPORTED_VIDEO_FORMATS | SUPPORTED_AUDIO_FORMATS
 
+    @staticmethod
+    def configure_ffmpeg_converter():
+        """
+        Configure pydub to use an available ffmpeg binary without requiring shell restart.
+        Checks bundled resources, system PATH, and common install locations.
+        """
+        try:
+            import shutil
+            import sys
+            from pydub import AudioSegment
+        except ImportError as e:
+            logger.debug(f"Could not import dependencies for ffmpeg config: {e}")
+            return
+
+        # Check for bundled ffmpeg in macOS app package or PyInstaller bundle
+        possible_ffmpeg_paths = []
+        if hasattr(sys, 'frozen'):
+            possible_ffmpeg_paths.append(os.path.join(sys._MEIPASS, 'ffmpeg')) # PyInstaller
+            possible_ffmpeg_paths.append(os.path.join(os.path.dirname(sys.executable), 'ffmpeg'))
+
+        possible_ffmpeg_paths.extend([
+            os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'ffmpeg')),
+            os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'Resources', 'ffmpeg')),
+        ])
+
+        # Try NSBundle for macOS app bundle launches
+        if sys.platform == 'darwin':
+            try:
+                from Foundation import NSBundle
+                bundle = NSBundle.mainBundle()
+                resources_path = str(bundle.resourcePath())
+                nsbundle_ffmpeg = os.path.join(resources_path, 'ffmpeg')
+                possible_ffmpeg_paths.append(nsbundle_ffmpeg)
+            except Exception:
+                pass
+
+        # Check potential paths
+        for bundled_ffmpeg in possible_ffmpeg_paths:
+            if os.path.exists(bundled_ffmpeg):
+                try:
+                    # Set for pydub
+                    AudioSegment.converter = bundled_ffmpeg
+                    # Set environment variable for subprocess calls (e.g. in audio_processing.py)
+                    os.environ['FFMPEG_BINARY'] = bundled_ffmpeg
+                    # Also assume ffprobe is in same dir
+                    ffprobe_path = os.path.join(os.path.dirname(bundled_ffmpeg), 'ffprobe')
+                    if os.path.exists(ffprobe_path):
+                        os.environ['FFPROBE_BINARY'] = ffprobe_path
+                    
+                    logger.info(f"Configured ffmpeg at: {bundled_ffmpeg}")
+                    return
+                except Exception as e:
+                    logger.warning(f"Failed to set ffmpeg converter: {e}")
+
+        # If ffmpeg is on PATH, set converter and return
+        if shutil.which('ffmpeg'):
+            try:
+                AudioSegment.converter = 'ffmpeg'
+                logger.info("Configured ffmpeg from PATH")
+            except Exception:
+                pass
+            return
+
+        # Try common install locations (Windows, Homebrew, MacPorts)
+        candidates = [
+            r"C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
+            r"C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe",
+            str(Path.home() / "scoop" / "apps" / "ffmpeg" / "current" / "bin" / "ffmpeg.exe"),
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/local/bin/ffmpeg",
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                try:
+                    AudioSegment.converter = p
+                    os.environ['FFMPEG_BINARY'] = p
+                    logger.info(f"Configured ffmpeg from common location: {p}")
+                    return
+                except Exception:
+                    pass
+
     def __init__(self):
         """Initialize the AudioExtractor."""
         self.ffmpeg_path = None

@@ -19,6 +19,11 @@ TRANSLATABLE_STRINGS = [
     ("FonixFlowQt", "Ready"),
     ("FonixFlowQt", "Ready to transcribe"),
     ("FonixFlowQt", "Ready to record"),
+    ("FonixFlowQt", "Ready for new transcription"),
+    ("FonixFlowQt", "Quick Actions"),
+    ("FonixFlowQt", "Settings Sections"),
+    ("FonixFlowQt", "Unknown"),
+    ("FonixFlowQt", "00:00:00"),
 
     # Tab names
     ("FonixFlowQt", "Record"),
@@ -27,24 +32,35 @@ TRANSLATABLE_STRINGS = [
 
     # Menu items
     ("FonixFlowQt", "⚙️ Settings"),
-    ("FonixFlowQt", "🎨 Theme"),
-    ("FonixFlowQt", "🔄 Auto (System)"),
+    ("FonixFlowQt", "Settings"),
+    ("FonixFlowQt", "Theme"),
+    ("FonixFlowQt", "Auto (System)"),
     ("FonixFlowQt", "🔄 Auto"),
-    ("FonixFlowQt", "☀️ Light"),
-    ("FonixFlowQt", "🌙 Dark"),
+    ("FonixFlowQt", "Light"),
+    ("FonixFlowQt", "Dark"),
     ("FonixFlowQt", "Enable Deep Scan (Slower)"),
-    ("FonixFlowQt", "📁 Change Recording Directory"),
-    ("FonixFlowQt", "🗂️ Open Recording Directory"),
+    ("FonixFlowQt", "Deep Scan"),
+    ("FonixFlowQt", "Enhance Audio"),
+    ("FonixFlowQt", "Change Recording Directory"),
+    ("FonixFlowQt", "Open Recording Directory"),
     ("FonixFlowQt", "🔄 New Transcription"),
 
     # Settings sidebar
-    ("FonixFlowQt", "▼ ⚙️ Settings"),
-    ("FonixFlowQt", "▶ ⚙️ Settings"),
+    ("FonixFlowQt", "▼ Settings"),
+    ("FonixFlowQt", "▶ Settings"),
     ("FonixFlowQt", "▼ 🎨 Theme"),
     ("FonixFlowQt", "▶ 🎨 Theme"),
     ("FonixFlowQt", "Recordings save to:"),
     ("FonixFlowQt", "📂 Change Folder"),
+    ("FonixFlowQt", "Change Folder"),
     ("FonixFlowQt", "🗂️ Open Folder"),
+    ("FonixFlowQt", "Open Folder"),
+    ("FonixFlowQt", "  ▼ Audio Processing"),
+    ("FonixFlowQt", "  ▼ Transcription"),
+    ("FonixFlowQt", "Audio Processing"),
+    ("FonixFlowQt", "Recordings Settings"),
+    ("FonixFlowQt", "Transcription"),
+
 
     # Sidebar actions
     ("FonixFlowQt", "New Transcription"),
@@ -55,13 +71,13 @@ TRANSLATABLE_STRINGS = [
     ("FonixFlowQt", "Start Recording"),
     ("FonixFlowQt", "Transcribe Recording"),
     ("FonixFlowQt", "💾 Save Transcription"),
-    ("FonixFlowQt", "✖ Cancel Transcription"),
+    ("FonixFlowQt", "Cancel Transcription"),
     ("FonixFlowQt", "Close"),
 
     # Info labels
     ("FonixFlowQt", "Recording will use the system's default microphone and audio output."),
-    ("FonixFlowQt", "💡 Files automatically transcribe when dropped or selected"),
-    ("FonixFlowQt", "💡 After stopping, the recording is saved but NOT automatically transcribed\n💡 Click 'Transcribe Recording' to manually start transcription"),
+    ("FonixFlowQt", "ℹ️ Files automatically transcribe when dropped or selected"),
+    ("FonixFlowQt", "ℹ️ After stopping, the recording is saved but NOT automatically transcribed\nℹ️ Click 'Transcribe Recording' to manually start transcription"),
     ("FonixFlowQt", "Transcription text will appear here..."),
     ("FonixFlowQt", "Duration: 0:00"),
 
@@ -70,7 +86,7 @@ TRANSLATABLE_STRINGS = [
     ("FonixFlowQt", "Speaker"),
 
     # Recording status
-    ("FonixFlowQt", "🔴 Recording from Microphone + Speaker..."),
+    ("FonixFlowQt", "Recording from Microphone + Speaker..."),
     ("FonixFlowQt", "Recording in progress..."),
     ("FonixFlowQt", "Processing recording..."),
 
@@ -106,11 +122,13 @@ TRANSLATABLE_STRINGS = [
     ("RecordingDialog", "What will be recorded:"),
     ("RecordingDialog", "Microphone: Your voice and ambient sounds"),
     ("RecordingDialog", "Speaker: System audio, music, video calls"),
-    ("RecordingDialog", "📝 Both sources mixed into one recording"),
+    ("RecordingDialog", "Speaker/System"),
+    ("RecordingDialog", "Both sources mixed into one recording"),
     ("RecordingDialog", "🔴 Start Recording"),
-    ("RecordingDialog", "⏹️ Stop Recording"),
-    ("RecordingDialog", "💡 Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured."),
-    ("RecordingDialog", "⏹️ Stopping recording..."),
+    ("RecordingDialog", "Stop Recording"),
+    ("RecordingDialog", "ℹ️ Perfect for video calls, meetings, or any scenario where you need both\nyour voice and system audio captured."),
+    ("RecordingDialog", "Stopping recording..."),
+    ("RecordingDialog", "✅ Audio input device detected!\n\nYou can now start recording."),
 
     # Language Selection Dialog
     ("MultiLanguageChoiceDialog", "Language Mode"),
@@ -147,8 +165,14 @@ TRANSLATABLE_STRINGS = [
 
     # Widgets
     ("DropZone", "Drag and drop video/audio file"),
+    ("ModernButton", "Drag and drop video/audio file"),
 
     # Workers
+    ("AudioPreviewWorker", "Extracting audio..."),
+    ("AudioPreviewWorker", "Transcribing..."),
+    ("AudioPreviewWorker", "Finishing up..."),
+    ("AudioPreviewWorker", "Finalizing transcription..."),
+    ("AudioPreviewWorker", "Transcription complete!"),
     ("TranscriptionWorker", "Extracting audio..."),
     ("TranscriptionWorker", "Transcribing..."),
     ("TranscriptionWorker", "Finishing up..."),

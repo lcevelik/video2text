@@ -16,52 +16,50 @@ class AudioPreviewWorker(QThread):
             self.backend.is_recording = False
 
     def run(self):
-        from gui.utils import get_platform
-        from gui.recording import SoundDeviceBackend, ScreenCaptureKitBackend, HAS_SCREENCAPTUREKIT
-        import sounddevice as sd
-        import numpy as np
-        platform = get_platform()
-        if platform == 'macos':
-            if HAS_SCREENCAPTUREKIT:
-                try:
-                    self.backend = ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
-                    logger.info("AudioPreviewWorker: ScreenCaptureKit backend initialized successfully.")
-                except Exception as e:
-                    logger.error(f"AudioPreviewWorker: Failed to initialize ScreenCaptureKit backend: {e}", exc_info=True)
-                    raise RuntimeError(
-                        f"ScreenCaptureKit backend required for audio preview on macOS but failed to initialize: {e}\n"
-                        "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
-                        "Requires macOS 12.3+ and PyObjC."
-                    )
+        try:
+            from gui.utils import get_platform
+            from gui.recording import SoundDeviceBackend, ScreenCaptureKitBackend, HAS_SCREENCAPTUREKIT
+            import sounddevice as sd
+            import numpy as np
+            platform = get_platform()
+            if platform == 'macos':
+                if HAS_SCREENCAPTUREKIT:
+                    try:
+                        self.backend = ScreenCaptureKitBackend(self.mic_device, self.speaker_device)
+                        logger.info("AudioPreviewWorker: ScreenCaptureKit backend initialized successfully.")
+                    except Exception as e:
+                        logger.error(f"AudioPreviewWorker: Failed to initialize ScreenCaptureKit backend: {e}", exc_info=True)
+                        # Fallback or silent fail - do not raise to avoid crashing app
+                        return
+                else:
+                    logger.error("AudioPreviewWorker: HAS_SCREENCAPTUREKIT is False. ScreenCaptureKit not available.")
+                    return
             else:
-                logger.error("AudioPreviewWorker: HAS_SCREENCAPTUREKIT is False. ScreenCaptureKit not available.")
-                raise RuntimeError(
-                    "ScreenCaptureKit backend required for audio preview on macOS but not available.\n"
-                    "Install dependencies: pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa\n"
-                    "Requires macOS 12.3+ and PyObjC."
-                )
-        else:
-            self.backend = SoundDeviceBackend(self.mic_device, self.speaker_device)
-            logger.info(f"AudioPreviewWorker: Using SoundDeviceBackend for platform {platform}.")
-        self.backend.start_recording()
-        last_mic_level = 0.0
-        last_speaker_level = 0.0
-        while self.is_running:
-            mic_level = 0.0
-            if self.backend.mic_chunks:
-                mic_chunk = self.backend.mic_chunks[-1]
-                mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
-            speaker_level = 0.0
-            if self.backend.speaker_chunks:
-                speaker_chunk = self.backend.speaker_chunks[-1]
-                speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
-            if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
-                self.audio_levels_update.emit(mic_level, speaker_level)
-                last_mic_level = mic_level
-                last_speaker_level = speaker_level
-            sd.sleep(50)
-        if self.backend:
-            self.backend.cleanup()
+                self.backend = SoundDeviceBackend(self.mic_device, self.speaker_device)
+                logger.info(f"AudioPreviewWorker: Using SoundDeviceBackend for platform {platform}.")
+            
+            self.backend.start_recording()
+            last_mic_level = 0.0
+            last_speaker_level = 0.0
+            while self.is_running:
+                mic_level = 0.0
+                if self.backend.mic_chunks:
+                    mic_chunk = self.backend.mic_chunks[-1]
+                    mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                speaker_level = 0.0
+                if self.backend.speaker_chunks:
+                    speaker_chunk = self.backend.speaker_chunks[-1]
+                    speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
+                    self.audio_levels_update.emit(mic_level, speaker_level)
+                    last_mic_level = mic_level
+                    last_speaker_level = speaker_level
+                sd.sleep(50)
+        except Exception as e:
+            logger.error(f"AudioPreviewWorker crashed: {e}", exc_info=True)
+        finally:
+            if self.backend:
+                self.backend.cleanup()
 """
 Qt worker threads for background processing - Refactored with modular backends.
 """

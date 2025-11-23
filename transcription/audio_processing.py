@@ -44,8 +44,9 @@ def sample_languages(
     """
     # Get total duration
     try:
+        ffprobe_bin = os.environ.get('FFPROBE_BINARY', 'ffprobe')
         ffprobe_cmd = [
-            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+            ffprobe_bin, '-v', 'error', '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
         ]
         duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
@@ -54,12 +55,14 @@ def sample_languages(
         logger.warning(f"Duration probe failed: {e}; falling back to single sample")
         total_duration = 0
 
+    ffmpeg_bin = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+    
     if total_duration <= 0:
         # Single probe at start only
         temp_sample = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
         temp_sample.close()
         try:
-            ffmpeg_cmd = ['ffmpeg', '-y', '-i', audio_path, '-t', str(sample_window), '-ar', '16000', '-ac', '1', temp_sample.name]
+            ffmpeg_cmd = [ffmpeg_bin, '-y', '-i', audio_path, '-t', str(sample_window), '-ar', '16000', '-ac', '1', temp_sample.name]
             subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
             r = transcriber.transcribe(temp_sample.name, language=None, word_timestamps=False)
             return ([{'time': 0.0, 'language': r.get('language', 'unknown')}], 0.0)
@@ -84,7 +87,7 @@ def sample_languages(
         temp_sample.close()
         try:
             ffmpeg_cmd = [
-                'ffmpeg', '-y', '-i', audio_path,
+                ffmpeg_bin, '-y', '-i', audio_path,
                 '-ss', str(start_time),
                 '-t', str(sample_window),
                 '-ar', '16000', '-ac', '1', temp_sample.name
@@ -267,9 +270,12 @@ def process_chunk_sequential(
         temp_path = temp_audio.name
 
     try:
+        # Get ffmpeg binary path
+        ffmpeg_bin = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+        
         # Extract chunk using ffmpeg with timeout
         subprocess.run([
-            'ffmpeg', '-y', '-i', audio_path,
+            ffmpeg_bin, '-y', '-i', audio_path,
             '-ss', str(chunk_start),
             '-t', str(chunk_duration),
             '-ar', '16000', '-ac', '1',

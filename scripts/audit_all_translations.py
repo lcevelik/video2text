@@ -9,6 +9,7 @@ Identifies:
 """
 
 import re
+import ast
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from collections import defaultdict
@@ -24,7 +25,7 @@ class SourceCodeAnalyzer:
 
     def extract_tr_strings(self, file_path: Path) -> List[Tuple[str, str, int]]:
         """Extract all .tr() strings with line numbers."""
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
 
         # Find class definitions for context
@@ -41,14 +42,20 @@ class SourceCodeAnalyzer:
         else:
             context = file_path.stem
 
-        # Match .tr() calls - handles self.tr(), window.tr(), widget.tr(), etc.
-        pattern = r'\.tr\(["\']([^"\']*(?:\\.[^"\']*)*)["\']'
+        # Match .tr() calls - capture full string with quotes
+        pattern = r'\.tr\((["\'][^"\']*(?:\\.[^"\']*)*["\'])'
 
         results = []
         for line_num, line in enumerate(lines, 1):
             matches = re.findall(pattern, line)
             for match in matches:
-                results.append((context, match, line_num))
+                try:
+                    # Unescape python string (handles \n, \", etc.)
+                    unescaped = ast.literal_eval(match)
+                    results.append((context, unescaped, line_num))
+                except Exception:
+                    # Fallback if evaluation fails (shouldn't happen with valid python)
+                    pass
 
         return results
 
@@ -143,7 +150,7 @@ class HardcodedStringDetector:
             if '__pycache__' in str(py_file):
                 continue
 
-            with open(py_file, 'r', encoding='utf-8') as f:
+            with open(py_file, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
 
             # Look for QMessageBox with hardcoded strings
@@ -161,7 +168,8 @@ class HardcodedStringDetector:
 
 def main():
     """Run comprehensive translation audit."""
-    base_dir = Path('/home/user/video2text')
+    # Use the script's location to find the project root
+    base_dir = Path(__file__).resolve().parent.parent
     gui_dir = base_dir / 'gui'
     i18n_dir = base_dir / 'i18n'
 

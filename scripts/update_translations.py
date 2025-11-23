@@ -126,18 +126,12 @@ class TranslationUpdater:
                 self.removed_strings.add(f"{key[0]}: {key[1]}")
                 self.updated = True
 
-        # Pretty print XML
-        xml_str = ET.tostring(root, encoding='unicode')
-        dom = minidom.parseString(xml_str)
-        pretty_xml = dom.toprettyxml(indent='  ')
-
-        # Remove extra blank lines
-        lines = [line for line in pretty_xml.split('\n') if line.strip()]
-        pretty_xml = '\n'.join(lines)
-
-        # Write to file
-        with open(self.ts_file_path, 'w', encoding='utf-8') as f:
-            f.write(pretty_xml)
+        # Write to file using ElementTree
+        if hasattr(ET, 'indent'):
+            ET.indent(root, space="  ")
+        
+        tree = ET.ElementTree(root)
+        tree.write(self.ts_file_path, encoding="utf-8", xml_declaration=True)
 
         return True
 
