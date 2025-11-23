@@ -109,18 +109,7 @@ datas = [
     ('assets/icons/*.svg', 'assets/icons'),
     # Translation files (i18n)
     ('i18n', 'i18n'),
-    # Whisper model files (all supported models)
-    ('assets/models/tiny.pt', 'assets/models'),
-    ('assets/models/tiny.en.pt', 'assets/models'),
-    ('assets/models/base.pt', 'assets/models'),
-    ('assets/models/base.en.pt', 'assets/models'),
-    ('assets/models/small.pt', 'assets/models'),
-    ('assets/models/small.en.pt', 'assets/models'),
-    ('assets/models/medium.pt', 'assets/models'),
-    ('assets/models/medium.en.pt', 'assets/models'),
-    ('assets/models/large-v3.pt', 'assets/models'),
-    # Removed raw .py files for code protection
-    # If dynamic imports are needed, use .pyc or package as module
+    # Python source files for gui package (needed for dynamic imports) package as module
 ]
 
 a = Analysis(

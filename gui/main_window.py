@@ -49,7 +49,8 @@ class FonixFlowQt(QMainWindow):
 
         # Set application icon
         from PySide6.QtGui import QIcon
-        icon_path = os.path.join(os.path.dirname(__file__), '../assets/fonixflow_icon.png')
+        from tools.resource_locator import get_resource_path
+        icon_path = get_resource_path('assets/fonixflow_icon.png')
         if os.path.exists(icon_path):
             app_icon = QIcon(icon_path)
             self.setWindowIcon(app_icon)
@@ -268,7 +269,8 @@ class FonixFlowQt(QMainWindow):
         # Logo - scale down to 1/3 of original size
         logo_label = QLabel()
         logo_label.setAlignment(Qt.AlignCenter)
-        logo_path = os.path.join(os.path.dirname(__file__), '../assets/fonixflow_logo.png')
+        from tools.resource_locator import get_resource_path
+        logo_path = get_resource_path('assets/fonixflow_logo.png')
         pixmap = QPixmap(logo_path)
         if not pixmap.isNull():
             # Scale logo down to 1/3 of original size

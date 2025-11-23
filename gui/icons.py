@@ -73,7 +73,8 @@ def get_icon(name, color='#FFFFFF', size=29):
         return _icon_cache[cache_key]
 
     # Get icon path
-    icons_dir = os.path.join(os.path.dirname(__file__), '../assets/icons')
+    from tools.resource_locator import get_resource_path
+    icons_dir = get_resource_path('assets/icons')
     icon_path = os.path.join(icons_dir, f'{name}.svg')
 
     if not os.path.exists(icon_path):
