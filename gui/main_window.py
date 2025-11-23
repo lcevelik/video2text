@@ -1539,6 +1539,37 @@ class FonixFlowQt(QMainWindow):
             self.model_name_label = QLabel("")
             self.model_name_label.setStyleSheet("font-size:12px; color:#0FD2CC; font-weight:bold; font-family:Consolas;")
             self.statusBar().addPermanentWidget(self.model_name_label)
+            # Create hardware status indicator (dot + label) if not exists
+            if not hasattr(self, 'hardware_status_widget'):
+                from PySide6.QtWidgets import QWidget, QHBoxLayout
+                self.hardware_status_widget = QWidget()
+                layout = QHBoxLayout(self.hardware_status_widget)
+                layout.setContentsMargins(0, 0, 0, 0)
+                layout.setSpacing(6)
+                # Dot
+                self.hardware_status_dot = QLabel()
+                self.hardware_status_dot.setFixedSize(12, 12)
+                self.hardware_status_dot.setStyleSheet("border-radius: 6px; background: #BDBDBD; border: 1px solid #888;")
+                layout.addWidget(self.hardware_status_dot)
+                # Label
+                self.hardware_status_label = QLabel("")
+                self.hardware_status_label.setStyleSheet("font-size:12px; font-family:Consolas; color:#888;")
+                layout.addWidget(self.hardware_status_label)
+                self.statusBar().addPermanentWidget(self.hardware_status_widget)
+            self.update_hardware_status_indicator()
+    def update_hardware_status_indicator(self):
+        from gui.utils import has_gpu_available
+        gpu_ok = has_gpu_available()
+        if gpu_ok:
+            # Green dot, label GPU: OK
+            self.hardware_status_dot.setStyleSheet("border-radius: 6px; background: #0FD2CC; border: 1px solid #0CBFB3;")
+            self.hardware_status_label.setText("GPU: OK")
+            self.hardware_status_label.setStyleSheet("font-size:12px; font-family:Consolas; color:#0FD2CC; font-weight:bold;")
+        else:
+            # Red dot, label CPU
+            self.hardware_status_dot.setStyleSheet("border-radius: 6px; background: #E74C3C; border: 1px solid #B22222;")
+            self.hardware_status_label.setText("CPU")
+            self.hardware_status_label.setStyleSheet("font-size:12px; font-family:Consolas; color:#E74C3C; font-weight:bold;")
 
         # Determine mode from dialog selection; fallback to checkbox if user toggled manually beforehand
         if self.multi_language_mode is None:
