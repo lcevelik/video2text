@@ -104,6 +104,7 @@ class RecordingWorker(QThread):
                  speaker_device: Optional[int] = None,
                  backend: Optional[str] = None,
                  enable_filters: bool = True,
+                 time_limit: Optional[float] = None,
                  parent=None):
         """
         Initialize recording worker.
@@ -115,6 +116,7 @@ class RecordingWorker(QThread):
             backend: Force specific backend ('sounddevice' or 'screencapturekit'),
                     or None for auto-select
             enable_filters: Enable audio filters (noise gate, compressor)
+            time_limit: Maximum recording duration in seconds (None = no limit)
             parent: Parent QObject
         """
         super().__init__(parent)
@@ -123,6 +125,7 @@ class RecordingWorker(QThread):
         self.speaker_device = speaker_device
         self.backend_name = backend
         self.enable_filters = enable_filters
+        self.time_limit = time_limit
         self.backend = None
         self.is_recording = True
 
@@ -219,6 +222,20 @@ class RecordingWorker(QThread):
                     self.audio_levels_update.emit(mic_level, speaker_level)
                     last_mic_level = mic_level
                     last_speaker_level = speaker_level
+                
+                # Check time limit
+                if self.time_limit is not None:
+                    import time
+                    if not hasattr(self, '_start_time'):
+                        self._start_time = time.time()
+                    
+                    elapsed = time.time() - self._start_time
+                    if elapsed >= self.time_limit:
+                        logger.info(f"Recording time limit reached ({self.time_limit}s)")
+                        self.status_update.emit("Time limit reached")
+                        self.is_recording = False
+                        break
+
                 sd.sleep(50)
 
             # Stop and collect results

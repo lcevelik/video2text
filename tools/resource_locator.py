@@ -24,13 +24,21 @@ def get_resource_path(relative_path):
     import logging
     logger = logging.getLogger(__name__)
 
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-        logger.info(f"[RESOURCE_LOCATOR] Running in PyInstaller bundle mode, _MEIPASS={base_path}")
-    except AttributeError:
+    if getattr(sys, 'frozen', False):
+        # PyInstaller bundle
+        if hasattr(sys, '_MEIPASS'):
+            # One-file mode
+            base_path = sys._MEIPASS
+            logger.debug(f"[RESOURCE_LOCATOR] Running in PyInstaller one-file mode, _MEIPASS={base_path}")
+        else:
+            # One-dir mode (e.g. macOS .app)
+            # Resources are typically next to the executable
+            base_path = os.path.dirname(os.path.abspath(sys.executable))
+            logger.debug(f"[RESOURCE_LOCATOR] Running in PyInstaller one-dir mode, base_path={base_path}")
+    else:
         # Running in development mode
-        base_path = os.path.dirname(os.path.abspath(__file__))
+        # Assume this file is in tools/ and we want the project root (parent of tools/)
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         logger.debug(f"[RESOURCE_LOCATOR] Running in development mode, base_path={base_path}")
 
     full_path = os.path.join(base_path, relative_path)

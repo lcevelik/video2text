@@ -228,10 +228,18 @@ def main():
     app.setOrganizationName("FonixFlow")
 
     # Setup paths for splash
-    base_dir = os.path.dirname(__file__)
-    assets_dir = os.path.join(base_dir, '..', 'assets')
+    if getattr(sys, 'frozen', False):
+        if hasattr(sys, '_MEIPASS'):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        assets_dir = os.path.join(base_dir, 'assets')
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(base_dir, '..', 'assets')
+
     icon_path = os.path.join(assets_dir, 'fonixflow_icon.png')
-    logo_path = os.path.join(assets_dir, 'fonixflow_logo.png')
+    logo_path = os.path.join(assets_dir, 'logo.png')
 
     # --- SHOW SPLASH SCREEN ---
     splash = FonixFlowSplash(icon_path, logo_path)

@@ -81,10 +81,20 @@ if [ -d "dist/FonixFlow.app" ]; then
     echo "To run directly:"
     echo "  open dist/FonixFlow.app"
     echo ""
-    echo "To create a DMG (optional):"
-    echo "  hdiutil create -volname FonixFlow -srcfolder dist/FonixFlow.app -ov -format UDZO dist/FonixFlow.dmg"
-    echo ""
-
+    # Create custom DMG with background and icon positioning
+    echo "Creating custom DMG package..."
+    
+    DMG_NAME="FonixFlow_macOS_Universal.dmg"
+    
+    # Ensure DMG background exists
+    if [ ! -f "assets/dmg_background.png" ]; then
+        echo "Creating DMG background..."
+        ./scripts/create_dmg_background.sh assets/fonixflow_logo.png assets/dmg_background.png
+    fi
+    
+    # Use custom DMG creator
+    ./scripts/create_custom_dmg.sh "FonixFlow" "dist/FonixFlow.app" "dist/$DMG_NAME" "assets/dmg_background.png"
+    
     # Optional: Code sign the app (requires Apple Developer ID)
     if [ ! -z "$CODESIGN_IDENTITY" ]; then
         echo "Code signing with identity: $CODESIGN_IDENTITY"

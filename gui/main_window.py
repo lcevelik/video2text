@@ -62,6 +62,11 @@ class FonixFlowQt(QMainWindow):
         self.theme_manager = ThemeManager(self, self.settings_manager.get("theme_mode", "dark"))
         self.file_manager = FileManager(self)
 
+        # Check for Free Version
+        self.is_free_version = os.environ.get("FONIXFLOW_EDITION") == "FREE"
+        if self.is_free_version:
+            logger.info("Running in FREE version mode")
+
         # Audio processing settings
         self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", True)
 
@@ -270,7 +275,7 @@ class FonixFlowQt(QMainWindow):
         logo_label = QLabel()
         logo_label.setAlignment(Qt.AlignCenter)
         from tools.resource_locator import get_resource_path
-        logo_path = get_resource_path('assets/fonixflow_logo.png')
+        logo_path = get_resource_path('assets/logo.png')
         pixmap = QPixmap(logo_path)
         if not pixmap.isNull():
             # Scale logo down to 1/3 of original size
@@ -400,6 +405,9 @@ class FonixFlowQt(QMainWindow):
         self.recording_timer.timeout.connect(self.update_recording_duration)
         self.selected_mic_device = None  # User-selected microphone device
         self.selected_speaker_device = None  # User-selected speaker device
+        
+        # Free version limit (Removed 10 min limit)
+        self.recording_time_limit = None
 
         # Main container
         container = QWidget()
@@ -1201,6 +1209,7 @@ class FonixFlowQt(QMainWindow):
             mic_device=None,  # Use default
             speaker_device=None,  # Use default
             enable_filters=self.enable_audio_filters,  # Audio filters setting
+            time_limit=self.recording_time_limit,
             parent=self
         )
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
@@ -1550,6 +1559,15 @@ class FonixFlowQt(QMainWindow):
             detect_language_changes = False
             use_deep_scan = False
 
+        # Free Version Restriction: Force Base Model
+        if getattr(self, 'is_free_version', False):
+            logger.info("Free Version: Forcing 'base' model")
+            model_size = "base"
+            detect_language_changes = False
+            use_deep_scan = False
+            # We keep 'language' as is (None for auto-detect, or specific if we had a way to select it)
+            # Since we forced single_language_type='other' above, language is None (Auto-detect)
+
         # Update model name display in status bar
         if self.model_name_label:
             if detect_language_changes:
@@ -1596,6 +1614,16 @@ class FonixFlowQt(QMainWindow):
             # Already chosen for current file
             self.start_transcription()
             return True
+            
+        # Free Version Restriction: Single Language Only
+        if getattr(self, 'is_free_version', False):
+            logger.info("Free Version: Forcing single-language mode")
+            self.multi_language_mode = False
+            self.allowed_languages = []
+            self.single_language_type = 'other' # Default to auto-detect/other
+            self.start_transcription()
+            return True
+
         dlg = MultiLanguageChoiceDialog(self)
         if dlg.exec() == QDialog.Accepted:
             self.multi_language_mode = dlg.is_multi_language
@@ -1738,6 +1766,15 @@ class FonixFlowQt(QMainWindow):
         from transcription.enhanced import EnhancedTranscriber
         self.transcription_result = result
         text = result.get('text', '')
+
+        # Free version word limit (1000 words)
+        if getattr(self, 'is_free_version', False):
+            words = text.split()
+            if len(words) > 1000:
+                logger.info(f"Free version word limit exceeded ({len(words)} words). Truncating to 1000.")
+                text = " ".join(words[:1000]) + "\n\n[TRUNCATED: Free version limit 1000 words]"
+                result['text'] = text
+
         segments = result.get('segments', [])
         segment_count = len(segments)
         language = result.get('language', 'unknown')
