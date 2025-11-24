@@ -1,3 +1,74 @@
+import webbrowser
+import requests
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout, QApplication
+class LicenseKeyDialog(QDialog):
+    """Dialog for entering and validating LemonSqueezy license key."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Enter License Key"))
+        self.setMinimumSize(400, 180)
+        self.license_key = None
+        self.valid = False
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        label = QLabel(self.tr("Please enter your FonixFlow license key to enable transcription."))
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        self.key_input = QTextEdit()
+        self.key_input.setPlaceholderText(self.tr("Paste your license key here"))
+        self.key_input.setFixedHeight(40)
+        layout.addWidget(self.key_input)
+
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("color: #c00; font-size: 13px;")
+        layout.addWidget(self.status_label)
+
+        btn_layout = QHBoxLayout()
+        self.save_btn = QPushButton(self.tr("Validate & Save"))
+        self.save_btn.clicked.connect(self.validate_and_save)
+        btn_layout.addWidget(self.save_btn)
+
+        self.cancel_btn = QPushButton(self.tr("Cancel"))
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.cancel_btn)
+
+        self.buy_btn = QPushButton(self.tr("Buy License"))
+        self.buy_btn.clicked.connect(lambda: webbrowser.open("https://fonixflow.com/"))
+        self.buy_btn.hide()
+        btn_layout.addWidget(self.buy_btn)
+
+        layout.addLayout(btn_layout)
+
+    def validate_and_save(self):
+        key = self.key_input.toPlainText().strip()
+        if not key:
+            self.status_label.setText(self.tr("License key cannot be empty."))
+            return
+        self.status_label.setText(self.tr("Validating license key..."))
+        QApplication.processEvents()
+        # Validate license key via LemonSqueezy API
+        try:
+            url = "https://api.lemonsqueezy.com/v1/licenses/validate"
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            data = {"license_key": key}
+            resp = requests.post(url, headers=headers, data=data, timeout=10)
+            result = resp.json()
+            if result.get("status") == "active":
+                self.license_key = key
+                self.valid = True
+                self.accept()
+            else:
+                self.status_label.setText(self.tr("Invalid or inactive license key. Please check or purchase a valid license."))
+                self.buy_btn.show()
+        except Exception as e:
+            self.status_label.setText(self.tr(f"Error validating license: {e}"))
+            self.buy_btn.show()
 """
 Dialog windows for the GUI.
 """

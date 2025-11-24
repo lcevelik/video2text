@@ -67,6 +67,12 @@ class FonixFlowQt(QMainWindow):
         if self.is_free_version:
             logger.info("Running in FREE version mode")
 
+        # License key state
+        logger.info(f"License: loading key from settings: {self.settings_manager.get('license_key', None)}")
+        self.license_key = self.settings_manager.get("license_key", None)
+        self.license_valid = False
+        self.check_license_key_on_startup()
+
         # Audio processing settings
         self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", True)
 
@@ -115,7 +121,9 @@ class FonixFlowQt(QMainWindow):
         deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
         transcription_options_layout.addWidget(deep_scan_btn)
 
+        logger.info("Calling setup_ui() in FonixFlowQt __init__")
         self.setup_ui()
+        logger.info("setup_ui() completed in FonixFlowQt __init__")
         self.theme_manager.apply_theme()
         # Ensure ffmpeg is available to pydub across the app
         try:
@@ -137,6 +145,55 @@ class FonixFlowQt(QMainWindow):
         # Start audio preview worker for VU meters
         self.audio_preview_worker = None
         self.start_audio_preview()
+
+    def check_license_key_on_startup(self):
+        """Check license key validity on startup."""
+        logger.info(f"check_license_key_on_startup: key={self.license_key}")
+        if self.license_key:
+            self.license_valid = self.validate_license_key(self.license_key)
+            logger.info(f"License key checked: valid={self.license_valid}")
+        else:
+            self.license_valid = False
+            logger.info("No license key found on startup.")
+
+    def validate_license_key(self, key):
+        """Validate license key via LemonSqueezy API."""
+        import requests
+        logger.info(f"validate_license_key: validating key={key}")
+        try:
+            url = "https://api.lemonsqueezy.com/v1/licenses/validate"
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            data = {"license_key": key}
+            resp = requests.post(url, headers=headers, data=data, timeout=10)
+            result = resp.json()
+            logger.info(f"License API response: {result}")
+            return result.get("status") == "active"
+        except Exception as e:
+            logger.error(f"License validation error: {e}")
+            return False
+
+    def prompt_for_license_key(self):
+        """Prompt user for license key and validate."""
+        from gui.dialogs import LicenseKeyDialog
+        logger.info("Prompting for license key dialog...")
+        dlg = LicenseKeyDialog(self)
+        result = dlg.exec()
+        logger.info(f"License dialog result: {result}, valid={dlg.valid}, key={dlg.license_key}")
+        if result == QDialog.Accepted and dlg.valid:
+            self.license_key = dlg.license_key
+            self.license_valid = True
+            self.settings_manager.save_settings(license_key=self.license_key)
+            logger.info("License key accepted and saved.")
+            return True
+        else:
+            self.license_valid = False
+            logger.info("License key not accepted or invalid.")
+            return False
+
+
 
     def center_window(self):
         """Center the main window on the primary screen."""
@@ -240,6 +297,7 @@ class FonixFlowQt(QMainWindow):
 
     def setup_ui(self):
         """Setup the main UI with modern navigation."""
+        logger.info("setup_ui() started")
         central = QWidget()
         self.setCentralWidget(central)
 
@@ -248,17 +306,24 @@ class FonixFlowQt(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
+
+
         # Top bar with logo
         top_bar = self.create_top_bar()
         main_layout.addWidget(top_bar)
 
         # Content area with sidebar + tabs (tabs moved to right side)
-        content_area = self.create_content_area()
-        main_layout.addWidget(content_area, 1)
+        try:
+            content_area = self.create_content_area()
+            main_layout.addWidget(content_area, 1)
+            logger.info("create_content_area() succeeded")
+        except Exception as e:
+            logger.error(f"create_content_area() failed: {e}")
 
         # Status bar
         self.statusBar().showMessage(self.tr("Ready"))
         self.statusBar().setStyleSheet("background-color: #F5F5F5; color: #666; padding: 5px;")
+        logger.info("setup_ui() finished")
 
     def create_top_bar(self):
         """Create top bar with title."""
@@ -875,6 +940,8 @@ class FonixFlowQt(QMainWindow):
         info.setStyleSheet(f"font-size: 12px; color: {Theme.get('info', self.is_dark_mode)};")
         layout.addWidget(info)
 
+
+
         layout.addStretch()
         widget.setLayout(layout)
         return widget
@@ -961,6 +1028,8 @@ class FonixFlowQt(QMainWindow):
             self.prompt_multi_language_and_transcribe(from_start=True)
         self.transcribe_recording_btn.clicked.connect(_start_transcribe_recording)
         layout.addWidget(self.transcribe_recording_btn)
+
+
 
         layout.addStretch(2)
         widget.setLayout(layout)
@@ -1289,7 +1358,7 @@ class FonixFlowQt(QMainWindow):
             self.basic_record_progress_label.setText(self.tr("Ready to record"))
         # Update info label in record tab (after stopping)
         if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_upload_progress_label.setText(self.tr("Ready to transcribe"))
+            self.basic_record_progress_label.setText(self.tr("Ready to transcribe"))
         # Update after stopping info
         if hasattr(self, 'drop_zone') and hasattr(self.drop_zone, 'text_label'):
             self.drop_zone.text_label.setText(self.tr("Drag and drop video/audio file"))
@@ -1446,6 +1515,18 @@ class FonixFlowQt(QMainWindow):
 
     def start_transcription(self):
         """Start transcription process."""
+
+        # License check before transcription
+        if not self.license_valid:
+            QMessageBox.warning(self, self.tr("License Required"), self.tr("A valid license key is required to use transcription. Please enter your license key."))
+            if not self.prompt_for_license_key():
+                # If still invalid, offer to redirect to pricing page
+                reply = QMessageBox.question(self, self.tr("License Required"), self.tr("No valid license key found. Would you like to visit the pricing page to purchase a license?"), QMessageBox.Yes | QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    import webbrowser
+                    webbrowser.open("https://fonixflow.com/")
+                return
+
         if not self.video_path:
             QMessageBox.warning(self, self.tr("No File"), self.tr("Please select a file first."))
             return
@@ -1719,9 +1800,7 @@ class FonixFlowQt(QMainWindow):
         if not hasattr(self, 'elapsed_time_timer'):
             self.elapsed_time_timer = QTimer(self)
             self.elapsed_time_timer.timeout.connect(self.update_elapsed_time_display)
-            self.elapsed_time_timer.start(500)  # Update every 500ms for smooth display
-
-        # Update progress bar (basic mode - both upload and record tabs)
+            self.elapsed_time_timer.start(500)  # Update every 500ms for smooth display        # Update progress bar (basic mode - both upload and record tabs)
         if hasattr(self, 'basic_upload_progress_bar'):
             try:
                 self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))))

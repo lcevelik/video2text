@@ -26,7 +26,8 @@ class SettingsManager:
             "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
             "theme_mode": "dark",  # auto, light, dark (default: dark)
             "enable_audio_filters": True,  # Audio processing filters (default ON)
-            "enable_deep_scan": False  # Deep scan for transcription (default OFF)
+            "enable_deep_scan": False,  # Deep scan for transcription (default OFF)
+            "license_key": None  # LemonSqueezy license key (default: None)
         }
         self.settings = self.load_settings()
 
