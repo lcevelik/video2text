@@ -121,20 +121,12 @@ hiddenimports = [
 
 # Data files to include
 datas = [
-    # Whisper model assets
+    # Whisper model assets (tokenizer files - required)
     ('assets/mel_filters.npz', 'whisper/assets'),
     ('assets/gpt2.tiktoken', 'whisper/assets'),
     ('assets/multilingual.tiktoken', 'whisper/assets'),
-    # Whisper model files (all supported)
-    ('assets/models/tiny.pt', 'whisper/assets'),
-    ('assets/models/tiny.en.pt', 'whisper/assets'),
-    ('assets/models/base.pt', 'whisper/assets'),
-    ('assets/models/base.en.pt', 'whisper/assets'),
-    ('assets/models/small.pt', 'whisper/assets'),
-    ('assets/models/small.en.pt', 'whisper/assets'),
-    ('assets/models/medium.pt', 'whisper/assets'),
-    ('assets/models/medium.en.pt', 'whisper/assets'),
-    ('assets/models/large-v3.pt', 'whisper/assets'),
+    # NOTE: Whisper model files (.pt) are downloaded on-demand to user's cache
+    # Not bundled to keep executable size reasonable (~150MB instead of ~2GB)
     # App icons and logo
     ('assets/fonixflow_icon.png', 'assets'),
     ('assets/fonixflow_logo.png', 'assets'),
@@ -144,7 +136,6 @@ datas = [
     ('assets/icons/*.svg', 'assets/icons'),
     # Translation files (i18n)
     ('i18n', 'i18n'),
-    # Do not include raw .py files; let PyInstaller package and compile them as .pyc
 ]
 
 a = Analysis(
@@ -166,8 +157,9 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,  # Include binaries for single-file mode
+    a.datas,     # Include data files for single-file mode
     [],
-    exclude_binaries=True,
     name=app_name,
     debug=False,
     bootloader_ignore_signals=False,
@@ -185,12 +177,6 @@ exe = EXE(
     uac_uiaccess=False,
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,  # Disable UPX to avoid antivirus false positives
-    upx_exclude=[],
-    name=app_name,
-)
+# Single-file executable mode - no COLLECT needed
+# The EXE above bundles everything into one FonixFlow.exe file
+# Output will be in dist/FonixFlow.exe

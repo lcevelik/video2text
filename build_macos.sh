@@ -73,27 +73,54 @@ if [ -d "dist/FonixFlow.app" ]; then
     echo "✓ Build successful!"
     echo "================================"
     echo ""
-    echo "Your app is located at: dist/FonixFlow.app"
+
+    # Get app size
+    APP_SIZE=$(du -sh dist/FonixFlow.app | awk '{print $1}')
+    echo "App bundle size: $APP_SIZE"
+    echo "Location: dist/FonixFlow.app"
     echo ""
+
+    # Check if ffmpeg is bundled
+    if [ -f "dist/FonixFlow.app/Contents/MacOS/ffmpeg" ]; then
+        echo "✓ ffmpeg bundled successfully"
+    else
+        echo "⚠ Warning: ffmpeg not found in bundle"
+        echo "  The app may not be able to extract audio from video files"
+    fi
+    echo ""
+
     echo "To install:"
     echo "  cp -r dist/FonixFlow.app /Applications/"
     echo ""
     echo "To run directly:"
     echo "  open dist/FonixFlow.app"
     echo ""
+
     # Create custom DMG with background and icon positioning
     echo "Creating custom DMG package..."
-    
+
     DMG_NAME="FonixFlow_macOS_Universal.dmg"
-    
+
     # Ensure DMG background exists
     if [ ! -f "assets/dmg_background.png" ]; then
         echo "Creating DMG background..."
-        ./scripts/create_dmg_background.sh assets/fonixflow_logo.png assets/dmg_background.png
+        if [ -f "./scripts/create_dmg_background.sh" ]; then
+            ./scripts/create_dmg_background.sh assets/fonixflow_logo.png assets/dmg_background.png
+        else
+            echo "⚠ Warning: create_dmg_background.sh not found, DMG will have no background"
+        fi
     fi
-    
+
     # Use custom DMG creator
-    ./scripts/create_custom_dmg.sh "FonixFlow" "dist/FonixFlow.app" "dist/$DMG_NAME" "assets/dmg_background.png"
+    if [ -f "./scripts/create_custom_dmg.sh" ]; then
+        ./scripts/create_custom_dmg.sh "FonixFlow" "dist/FonixFlow.app" "dist/$DMG_NAME" "assets/dmg_background.png"
+    else
+        echo "⚠ Warning: create_custom_dmg.sh not found, creating basic DMG..."
+        hdiutil create -volname "FonixFlow" -srcfolder "dist/FonixFlow.app" -ov -format UDZO "dist/$DMG_NAME"
+        if [ -f "dist/$DMG_NAME" ]; then
+            echo "✓ Basic DMG created: dist/$DMG_NAME"
+        fi
+    fi
     
     # Optional: Code sign the app (requires Apple Developer ID)
     if [ ! -z "$CODESIGN_IDENTITY" ]; then

@@ -22,28 +22,34 @@ license_file = 'licenses.txt'
 
 
 # Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
-ffmpeg_paths = [
-    '/opt/homebrew/bin/ffmpeg',  # Apple Silicon (M1/M2)
-    '/usr/local/bin/ffmpeg',      # Intel Mac (Homebrew)
-    '/opt/local/bin/ffmpeg',      # MacPorts
-]
-ffprobe_paths = [
-    '/opt/homebrew/bin/ffprobe',  # Apple Silicon (M1/M2)
-    '/usr/local/bin/ffprobe',     # Intel Mac (Homebrew)
-    '/opt/local/bin/ffprobe',     # MacPorts
-]
+import shutil
 
-ffmpeg_binary = None
-for path in ffmpeg_paths:
-    if os.path.exists(path):
-        ffmpeg_binary = path
-        break
+# Try to find ffmpeg in PATH first
+ffmpeg_binary = shutil.which('ffmpeg')
+ffprobe_binary = shutil.which('ffprobe')
 
-ffprobe_binary = None
-for path in ffprobe_paths:
-    if os.path.exists(path):
-        ffprobe_binary = path
-        break
+# If not in PATH, check common installation locations
+if not ffmpeg_binary:
+    ffmpeg_paths = [
+        '/opt/homebrew/bin/ffmpeg',  # Apple Silicon (M1/M2)
+        '/usr/local/bin/ffmpeg',      # Intel Mac (Homebrew)
+        '/opt/local/bin/ffmpeg',      # MacPorts
+    ]
+    for path in ffmpeg_paths:
+        if os.path.exists(path):
+            ffmpeg_binary = path
+            break
+
+if not ffprobe_binary:
+    ffprobe_paths = [
+        '/opt/homebrew/bin/ffprobe',  # Apple Silicon (M1/M2)
+        '/usr/local/bin/ffprobe',     # Intel Mac (Homebrew)
+        '/opt/local/bin/ffprobe',     # MacPorts
+    ]
+    for path in ffprobe_paths:
+        if os.path.exists(path):
+            ffprobe_binary = path
+            break
 
 
 binaries = []
