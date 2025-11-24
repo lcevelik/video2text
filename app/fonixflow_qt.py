@@ -161,7 +161,8 @@ def check_single_instance():
     Check if another instance is already running using a lock file.
     """
     lock_file_path = os.path.join(tempfile.gettempdir(), 'fonixflow.lock')
-    
+    lock_file = None
+
     try:
         lock_file = open(lock_file_path, 'w')
         try:
@@ -184,7 +185,7 @@ def check_single_instance():
                                 pass
                     except (ValueError, FileNotFoundError):
                         pass
-            
+
             lock_file.write(str(os.getpid()))
             lock_file.flush()
             return lock_file
@@ -193,6 +194,11 @@ def check_single_instance():
             logger.warning(f"Another instance of FonixFlow is already running: {e}")
             return None
     except Exception as e:
+        if lock_file is not None:
+            try:
+                lock_file.close()
+            except Exception:
+                pass
         logger.debug(f"Could not create lock file: {e}")
         return None
 

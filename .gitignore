@@ -56,3 +56,5 @@ assets/models/*.pt
 *.tmp
 *.temp
 
+build_arm64/
+/*.dmg

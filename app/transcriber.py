@@ -14,11 +14,11 @@ import torch
 import shutil
 import subprocess
 import platform
-from io import StringIO
+import io
 
 # Ensure sys.stderr is always a valid stream (prevents NoneType errors in frozen apps)
 if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
+    sys.stderr = io.StringIO()  # In-memory null stream, safer than os.devnull
 
 import whisper
 import threading
@@ -83,8 +83,8 @@ class ProgressInterceptor:
                     # Callback only accepts message
                     try:
                         self.progress_callback(f"Transcribing: {whisper_percent}%")
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Progress callback failed: {e}")
 
     def flush(self):
         """Forward flush calls to original stderr."""
@@ -221,35 +221,47 @@ class Transcriber:
         logger.info(f"Loading Whisper model: {self.model_size}")
 
         try:
-            # Check global cache first
+            # Double-checked locking pattern to prevent race condition
+            # First check (without lock for performance)
+            if self.model_size in _GLOBAL_MODEL_CACHE:
+                with _GLOBAL_CACHE_LOCK:
+                    # Second check (with lock for safety)
+                    if self.model_size in _GLOBAL_MODEL_CACHE:
+                        logger.info(f"Reusing cached Whisper model: {self.model_size}")
+                        self.model = _GLOBAL_MODEL_CACHE[self.model_size]
+                        logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully (from cache)")
+                        if progress_callback:
+                            progress_callback("Model loaded successfully")
+                        return self.model
+
+            # Not in cache, acquire lock and load it
             with _GLOBAL_CACHE_LOCK:
+                # Triple check: another thread might have loaded it while we were waiting
                 if self.model_size in _GLOBAL_MODEL_CACHE:
-                    logger.info(f"Reusing cached Whisper model: {self.model_size}")
+                    logger.info(f"Reusing cached Whisper model (loaded by another thread): {self.model_size}")
                     self.model = _GLOBAL_MODEL_CACHE[self.model_size]
-                    logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully (from cache)")
                     if progress_callback:
                         progress_callback("Model loaded successfully")
                     return self.model
 
-            # Not in cache, load it
-            logger.info(f"Loading new Whisper model into memory: {self.model_size}")
-            model = whisper.load_model(
-                self.model_size,
-                device=self.device,
-                download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-            )
-            
-            # Store in cache
-            with _GLOBAL_CACHE_LOCK:
+                # Still not in cache, load it now (holding the lock)
+                logger.info(f"Loading new Whisper model into memory: {self.model_size}")
+                model = whisper.load_model(
+                    self.model_size,
+                    device=self.device,
+                    download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+                )
+
+                # Store in cache
                 _GLOBAL_MODEL_CACHE[self.model_size] = model
                 self.model = model
-                
-            logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
 
-            if progress_callback:
-                progress_callback("Model loaded successfully")
+                logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
 
-            return self.model
+                if progress_callback:
+                    progress_callback("Model loaded successfully")
+
+                return self.model
 
         except Exception as e:
             logger.error(f"Failed to load model: {e}")

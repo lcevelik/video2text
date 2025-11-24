@@ -536,23 +536,23 @@ class SoundDeviceBackend(RecordingBackend):
 
     def cleanup(self) -> None:
         """Clean up resources."""
-        if self.mic_stream:
+        if hasattr(self, 'mic_stream') and self.mic_stream:
             try:
                 self.mic_stream.stop()
                 self.mic_stream.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error closing mic stream: {e}")
 
-        if self.speaker_stream:
+        if hasattr(self, 'speaker_stream') and self.speaker_stream:
             try:
                 self.speaker_stream.stop()
                 self.speaker_stream.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error closing speaker stream: {e}")
 
-        if self.wasapi_capture:
+        if hasattr(self, 'wasapi_capture') and self.wasapi_capture:
             try:
                 self.wasapi_capture.stop()
                 self.wasapi_capture.cleanup()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error cleaning up WASAPI capture: {e}")

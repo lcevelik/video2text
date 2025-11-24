@@ -18,8 +18,11 @@ from pathlib import Path
 
 app_name = 'FonixFlow Free'
 
-# License file (local validation)
+# License file (local validation) - optional
 license_file = 'licenses.txt'
+has_license_file = os.path.exists(license_file)
+if not has_license_file:
+    print("⚠️ Warning: licenses.txt not found - offline license validation will be disabled")
 
 # Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
 ffmpeg_paths = [
@@ -61,8 +64,12 @@ else:
     print("⚠️ Warning: ffprobe not found in standard locations")
     print("  Install with: brew install ffmpeg")
 
-# Include local license file for offline validation
-binaries.append((license_file, '.'))
+# Include local license file for offline validation (if exists)
+if has_license_file:
+    binaries.append((license_file, '.'))
+    print(f"✓ Including license file: {license_file}")
+else:
+    print("⚠️ Skipping license file (not found)")
 
 hiddenimports = [
     # Core Python modules

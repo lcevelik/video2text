@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import logging
+import secrets
 from pathlib import Path
 from typing import Optional, List
 
@@ -24,12 +25,14 @@ logger = logging.getLogger("fonixflow-web")
 app = FastAPI(title="FonixFlow Web API")
 
 # CORS Configuration
+# Read allowed origins from environment variable, default to localhost for development
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origin
+    allow_origins=ALLOWED_ORIGINS,  # Restricted to specific origins for security
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # Only allow necessary methods
+    allow_headers=["Content-Type", "Authorization"],  # Restrict headers
 )
 
 # Global Transcriber instance (lazy loaded)
@@ -68,13 +71,16 @@ async def transcribe_audio(
     Handle audio/video upload and transcription.
     """
     logger.info(f"Received transcription request: {file.filename} (Model: {model_size})")
-    
-    # Create temp file
+
+    # Create temp file with secure filename (prevent path traversal)
     temp_dir = Path("temp_uploads")
     temp_dir.mkdir(exist_ok=True)
-    
-    temp_file_path = temp_dir / file.filename
-    
+
+    # Sanitize filename: remove any path components and add unique prefix
+    safe_filename = Path(file.filename).name  # Remove any directory components
+    unique_filename = f"{secrets.token_hex(8)}_{safe_filename}"
+    temp_file_path = temp_dir / unique_filename
+
     try:
         # Save uploaded file
         with open(temp_file_path, "wb") as buffer:
