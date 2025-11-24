@@ -256,6 +256,12 @@ class AudioExtractor:
         if not media_path.exists():
             raise FileNotFoundError(f"Media file not found: {media_path}")
 
+        # Validate file path doesn't contain suspicious characters (security check)
+        path_str = str(media_path)
+        suspicious_chars = ['|', ';', '&', '$', '`', '\n', '\r']
+        if any(c in path_str for c in suspicious_chars):
+            raise ValueError(f"Invalid characters in file path: {media_path}")
+
         if not self.is_supported_format(media_path):
             raise ValueError(
                 f"Unsupported media format: {media_path.suffix}. "
@@ -320,11 +326,14 @@ class AudioExtractor:
             if progress_callback:
                 progress_callback(f"{action_present} audio... Processing", 15)
 
+            # FFmpeg timeout: 10 minutes for large files
+            FFMPEG_TIMEOUT_SECONDS = 600
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                check=True
+                check=True,
+                timeout=FFMPEG_TIMEOUT_SECONDS
             )
 
             if progress_callback:
@@ -340,6 +349,10 @@ class AudioExtractor:
 
             return output_path
 
+        except subprocess.TimeoutExpired:
+            action = "convert" if self.is_audio_file(media_path) else "extract"
+            logger.error(f"FFmpeg {action} timed out after {FFMPEG_TIMEOUT_SECONDS} seconds")
+            raise RuntimeError(f"Audio {action} timed out after {FFMPEG_TIMEOUT_SECONDS / 60:.1f} minutes. File may be too large or corrupted.")
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode('utf-8', errors='ignore')
             logger.error(f"ffmpeg error: {error_msg}")

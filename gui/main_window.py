@@ -231,6 +231,9 @@ class FonixFlowQt(QMainWindow):
 
     def closeEvent(self, event):
         """Ensure background threads stop cleanly on window close."""
+        # Timeout for waiting for threads to stop (milliseconds)
+        WORKER_SHUTDOWN_TIMEOUT_MS = 1500
+
         try:
             # Stop audio preview worker if running
             if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
@@ -238,25 +241,40 @@ class FonixFlowQt(QMainWindow):
                     self.audio_preview_worker.stop()
                 except Exception as e:
                     logger.warning(f"Error stopping audio preview worker: {e}")
-                self.audio_preview_worker.wait(1500)
+
+                if not self.audio_preview_worker.wait(WORKER_SHUTDOWN_TIMEOUT_MS):
+                    logger.warning("Audio preview worker did not stop in time, terminating...")
+                    self.audio_preview_worker.terminate()
+                    self.audio_preview_worker.wait()
                 self.audio_preview_worker = None
+
             # Stop recording worker if running
             if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
                 try:
                     self.recording_worker.stop()
                 except Exception as e:
                     logger.warning(f"Error stopping recording worker: {e}")
-                self.recording_worker.wait(1500)
+
+                if not self.recording_worker.wait(WORKER_SHUTDOWN_TIMEOUT_MS):
+                    logger.warning("Recording worker did not stop in time, terminating...")
+                    self.recording_worker.terminate()
+                    self.recording_worker.wait()
                 self.recording_worker = None
+
             # Stop transcription worker if running
             if hasattr(self, 'transcription_worker') and self.transcription_worker and self.transcription_worker.isRunning():
                 try:
                     self.transcription_worker.cancel()
                     self.transcription_worker.quit()
-                    self.transcription_worker.wait(1500)
                 except Exception as e:
                     logger.warning(f"Error stopping transcription worker: {e}")
+
+                if not self.transcription_worker.wait(WORKER_SHUTDOWN_TIMEOUT_MS):
+                    logger.warning("Transcription worker did not stop in time, terminating...")
+                    self.transcription_worker.terminate()
+                    self.transcription_worker.wait()
                 self.transcription_worker = None
+
         except Exception as e:
             logger.warning(f"Error while shutting down workers: {e}")
         super().closeEvent(event)

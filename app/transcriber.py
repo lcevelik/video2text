@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import platform
 import io
+from collections import OrderedDict
 
 # Ensure sys.stderr is always a valid stream (prevents NoneType errors in frozen apps)
 if sys.stderr is None:
@@ -37,9 +38,46 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global cache for loaded Whisper models to prevent reloading
+# Using OrderedDict for LRU cache implementation
 # Key: model_size (str), Value: whisper.model object
-_GLOBAL_MODEL_CACHE = {}
+_GLOBAL_MODEL_CACHE = OrderedDict()
 _GLOBAL_CACHE_LOCK = threading.Lock()
+
+# Maximum number of models to cache simultaneously
+# Each model can be 39MB (tiny) to 3GB (large), so limit to 2-3 models
+MAX_CACHED_MODELS = int(os.environ.get('MAX_CACHED_MODELS', '2'))
+
+
+def _cache_model(model_size, model):
+    """
+    Add model to cache with LRU eviction.
+
+    Args:
+        model_size: Size/name of the model
+        model: Loaded whisper model object
+    """
+    global _GLOBAL_MODEL_CACHE
+
+    # If model already exists, move to end (most recently used)
+    if model_size in _GLOBAL_MODEL_CACHE:
+        _GLOBAL_MODEL_CACHE.move_to_end(model_size)
+        _GLOBAL_MODEL_CACHE[model_size] = model
+        return
+
+    # If cache is full, remove least recently used (first item)
+    if len(_GLOBAL_MODEL_CACHE) >= MAX_CACHED_MODELS:
+        evicted_key, evicted_model = _GLOBAL_MODEL_CACHE.popitem(last=False)
+        logger.info(f"Model cache full, evicting least recently used: {evicted_key}")
+        # Explicitly delete the model to free memory
+        del evicted_model
+        import gc
+        gc.collect()  # Trigger garbage collection
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # Clear CUDA cache if using GPU
+
+    # Add new model to cache (at the end, most recently used)
+    _GLOBAL_MODEL_CACHE[model_size] = model
+    logger.info(f"Cached model '{model_size}' (cache size: {len(_GLOBAL_MODEL_CACHE)}/{MAX_CACHED_MODELS})")
 
 
 class ProgressInterceptor:
@@ -252,8 +290,8 @@ class Transcriber:
                     download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
                 )
 
-                # Store in cache
-                _GLOBAL_MODEL_CACHE[self.model_size] = model
+                # Store in cache using LRU cache manager
+                _cache_model(self.model_size, model)
                 self.model = model
 
                 logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
