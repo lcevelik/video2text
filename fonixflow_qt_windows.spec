@@ -15,8 +15,11 @@ import os
 import sys
 from pathlib import Path
 
-# Application name
+
 app_name = 'FonixFlow'
+
+# License file (local validation)
+license_file = 'licenses.txt'
 
 # Detect ffmpeg and ffprobe locations (Windows common paths)
 ffmpeg_paths = [
@@ -51,12 +54,13 @@ if not ffprobe_binary:
             ffprobe_binary = path
             break
 
+
 binaries = []
 if ffmpeg_binary:
     binaries.append((ffmpeg_binary, '.'))
     print(f"✓ Found ffmpeg at: {ffmpeg_binary}")
 else:
-    print("⚠ Warning: ffmpeg not found in PATH or standard locations")
+    print("⚠️ Warning: ffmpeg not found in PATH or standard locations")
     print("  Download from: https://ffmpeg.org/download.html#build-windows")
     print("  Extract to C:\\ffmpeg and add C:\\ffmpeg\\bin to PATH")
 
@@ -64,10 +68,12 @@ if ffprobe_binary:
     binaries.append((ffprobe_binary, '.'))
     print(f"✓ Found ffprobe at: {ffprobe_binary}")
 else:
-    print("⚠ Warning: ffprobe not found in PATH or standard locations")
+    print("⚠️ Warning: ffprobe not found in PATH or standard locations")
     print("  Download from: https://ffmpeg.org/download.html#build-windows")
 
-# Hidden imports - comprehensive list for all dependencies
+# Include local license file for offline validation
+binaries.append((license_file, '.'))
+
 hiddenimports = [
     # Core Python modules
     'json', 'platform', 'logging', 'argparse', 'sys', 'os',
@@ -79,6 +85,17 @@ hiddenimports = [
     # PyTorch and Whisper
     'torch', 'torch._C', 'whisper', 'tqdm', 'tiktoken',
     # PySide6/Qt
+    'PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
+    'PySide6.QtSvg', 'PySide6.QtMultimedia',
+    # Application modules
+    'app', 'app.fonixflow_qt', 'app.transcriber', 'app.audio_extractor',
+    # GUI modules
+    'gui', 'gui.main_window', 'gui.theme', 'gui.widgets', 'gui.workers',
+    'gui.dialogs', 'gui.utils', 'gui.icons', 'gui.audio_filters', 'gui.vu_meter',
+    # License validation dependencies
+    'requests', 'pathlib',
+    # For Python 3.13+ compatibility
+    'pyaudioop',
     'PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
     'PySide6.QtSvg', 'PySide6.QtMultimedia',
     # Application modules

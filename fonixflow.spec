@@ -11,16 +11,15 @@ app_name = 'FonixFlow'
 # Icon file (use PNG for PyInstaller on Windows)
 icon_file = 'assets/fonixflow_icon.ico'
 
-# Hidden imports
 hidden_imports = [
     'PySide6',
     'numpy',
     'sounddevice',
     'transcription',
     'gui',
+    'requests', 'pathlib', 'pyaudioop',
 ]
 
-# Data files (logo, icon, etc.)
 datas = [
     ('assets/fonixflow_logo.png', 'assets'),
     ('assets/fonixflow_icon.png', 'assets'),
@@ -28,6 +27,7 @@ datas = [
     ('assets/mel_filters.npz', 'whisper/assets'),
     ('assets/gpt2.tiktoken', 'whisper/assets'),
     ('assets/multilingual.tiktoken', 'whisper/assets'),
+    ('licenses.txt', '.'),
 ]
 a = Analysis([
     main_script

@@ -52,18 +52,20 @@ chmod +x run_qt.sh
 ./run_qt.sh
 ```
 
+
 ### **Manual Launch**
 ```bash
-# Install PySide6 first
-pip install PySide6>=6.6.0
+# Install dependencies
+pip install -r requirements.txt
 
 # Run the Qt GUI
-python fonixflow_qt.py
+python app/fonixflow_qt.py
 ```
 
 ---
 
 ## 📦 Installation
+
 
 ### **Option 1: Install All Dependencies**
 ```bash
@@ -75,6 +77,17 @@ Note (Python 3.13): Python 3.13 removed the stdlib module `audioop` used by some
 ```bash
 pip install pyaudioop
 ```
+
+---
+
+## 🔑 License System
+
+FonixFlow now supports both online and offline license validation:
+
+- **Local License File**: Add your license key to `licenses.txt` in the app folder for offline validation.
+- **LemonSqueezy API**: If the key is not found locally, the app will check the LemonSqueezy license API.
+
+This allows you to run the app even if the LemonSqueezy store is offline or unavailable.
 
 ### **Option 2: Qt Only**
 ```bash

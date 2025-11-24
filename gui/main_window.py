@@ -157,10 +157,22 @@ class FonixFlowQt(QMainWindow):
             logger.info("No license key found on startup.")
 
     def validate_license_key(self, key):
-        """Validate license key via LemonSqueezy API."""
-        import requests
-        logger.info(f"validate_license_key: validating key={key}")
+        """Validate license key using local file first, then LemonSqueezy API."""
+        from pathlib import Path
+        license_file = Path(__file__).parent.parent / "licenses.txt"
+        logger.info(f"validate_license_key: checking key={key} in {license_file}")
+        if license_file.exists():
+            try:
+                with open(license_file, "r") as f:
+                    valid_keys = [line.strip() for line in f if line.strip()]
+                if key.strip() in valid_keys:
+                    logger.info("License key valid (local file)")
+                    return True
+            except Exception as e:
+                logger.error(f"Error reading local license file: {e}")
+        # If not found locally, check LemonSqueezy API
         try:
+            import requests
             url = "https://api.lemonsqueezy.com/v1/licenses/validate"
             headers = {
                 "Accept": "application/json",
@@ -203,37 +215,7 @@ class FonixFlowQt(QMainWindow):
             frame_geom.moveCenter(screen_center)
             self.move(frame_geom.topLeft())
         except Exception as e:
-            logger.warning(f"Could not center window: {e}")
-
-    def load_settings(self):
-        """Load settings from config file (delegated to SettingsManager)."""
-        return self.settings_manager.load_settings()
-
-    def save_settings(self):
-        """Save settings to config file (delegated to SettingsManager)."""
-        self.settings_manager.save_settings(
-            theme_mode=self.theme_mode,
-            enable_audio_filters=self.enable_audio_filters,
-            enable_deep_scan=self.enable_deep_scan
-        )
-
-    def check_runtime_compat(self):
-        """Warn users on Python 3.13 if pyaudioop is missing (needed for recording)."""
-        if sys.version_info >= (3, 13):
-            try:
-                import audioop
-            except ImportError:
-                try:
-                    import pyaudioop
-                except ImportError:
-                    logger.critical("Python 3.13+ detected but 'audioop' and 'pyaudioop' are missing.")
-                    QMessageBox.critical(
-                        self,
-                        self.tr("Missing Dependency"),
-                        self.tr("Python 3.13 removed the 'audioop' module required for audio recording.\n\n"
-                                "Please install 'pyaudioop' to restore functionality:\n"
-                                "pip install pyaudioop")
-                    )
+            logger.warning(f"Error centering window: {e}")
 
     def detect_system_theme(self):
         """Detect if system is in dark mode (delegated to ThemeManager)."""

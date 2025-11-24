@@ -1,3 +1,4 @@
+
 # macOS Setup Guide - Native System Audio
 
 This guide shows you how to set up **native system audio recording** on macOS using Apple's ScreenCaptureKit framework - **no third-party software required**!
@@ -19,7 +20,13 @@ Use Apple's built-in ScreenCaptureKit for native system audio capture.
 pip install pyobjc-framework-ScreenCaptureKit pyobjc-framework-AVFoundation pyobjc-framework-Cocoa
 
 # Run the application
-python gui_qt.py
+python app/fonixflow_qt.py
+## 🔑 License System
+
+FonixFlow supports both offline and online license validation:
+
+- Add your license key to `licenses.txt` for offline use
+- If not found locally, the app checks LemonSqueezy API
 ```
 
 **First-Time Setup**:

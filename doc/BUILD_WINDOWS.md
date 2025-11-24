@@ -13,11 +13,19 @@ This guide explains how to build FonixFlow as a standalone Windows executable us
    - Extract to `C:\ffmpeg` or add to PATH
 4. **PyInstaller** - Install via pip: `pip install pyinstaller`
 
+
 ### Install Python Dependencies
 
 ```cmd
 pip install -r requirements.txt
 ```
+
+### License System
+
+FonixFlow supports both offline and online license validation:
+
+- Add your license key to `licenses.txt` for offline use
+- If not found locally, the app checks LemonSqueezy API
 
 ## Quick Build
 
@@ -37,11 +45,14 @@ This script will:
 
 If you prefer to build manually:
 
+
 ### 1. Build with PyInstaller
 
 ```cmd
 pyinstaller fonixflow_qt_windows.spec
 ```
+
+Make sure `licenses.txt` is present in the app folder to enable offline license validation.
 
 The build process will:
 - Analyze dependencies from `app/fonixflow_qt.py`

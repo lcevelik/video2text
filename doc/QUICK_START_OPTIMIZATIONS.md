@@ -31,11 +31,19 @@
 - New: Load audio once with librosa, slice in RAM
 - **Impact**: 3-6 seconds saved (more on slow disks)
 
+
 ## ⚙️ Installation
 
 ```bash
 pip install -r requirements.txt
 ```
+
+## 🔑 License System
+
+FonixFlow supports both offline and online license validation:
+
+- Add your license key to `licenses.txt` for offline use
+- If not found locally, the app checks LemonSqueezy API
 
 ## 📖 Usage
 

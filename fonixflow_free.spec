@@ -15,8 +15,11 @@ import os
 import sys
 from pathlib import Path
 
-# Application name
+
 app_name = 'FonixFlow Free'
+
+# License file (local validation)
+license_file = 'licenses.txt'
 
 # Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
 ffmpeg_paths = [
@@ -42,22 +45,25 @@ for path in ffprobe_paths:
         ffprobe_binary = path
         break
 
+
 binaries = []
 if ffmpeg_binary:
     binaries.append((ffmpeg_binary, '.'))
     print(f"✓ Found ffmpeg at: {ffmpeg_binary}")
 else:
-    print("⚠ Warning: ffmpeg not found in standard locations")
+    print("⚠️ Warning: ffmpeg not found in standard locations")
     print("  Install with: brew install ffmpeg")
 
 if ffprobe_binary:
     binaries.append((ffprobe_binary, '.'))
     print(f"✓ Found ffprobe at: {ffprobe_binary}")
 else:
-    print("⚠ Warning: ffprobe not found in standard locations")
+    print("⚠️ Warning: ffprobe not found in standard locations")
     print("  Install with: brew install ffmpeg")
 
-# Hidden imports - comprehensive list for all dependencies
+# Include local license file for offline validation
+binaries.append((license_file, '.'))
+
 hiddenimports = [
     # Core Python modules
     'json', 'platform', 'logging', 'argparse', 'sys', 'os',
@@ -78,7 +84,10 @@ hiddenimports = [
     # GUI modules
     'gui', 'gui.main_window', 'gui.theme', 'gui.widgets', 'gui.workers',
     'gui.dialogs', 'gui.utils', 'gui.icons', 'gui.audio_filters', 'gui.vu_meter',
-    # GUI managers
+    # License validation dependencies
+    'requests', 'pathlib',
+    # For Python 3.13+ compatibility
+    'pyaudioop',
     'gui.managers', 'gui.managers.theme_manager', 'gui.managers.settings_manager',
     'gui.managers.file_manager',
     # GUI builders and controllers

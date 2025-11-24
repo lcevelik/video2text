@@ -1,67 +1,38 @@
 import React from 'react';
-import { Upload, Mic, FileText, X } from 'lucide-react';
+import { Upload, Mic, FileText, Settings } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
+const Sidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'record', label: 'Record', icon: Mic },
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'transcript', label: 'Transcript', icon: FileText },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <>
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
+    <div className="w-[260px] bg-sidebar/80 backdrop-blur-md flex flex-col gap-4 py-8 px-4 shrink-0 border-l border-border">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
 
-      {/* Sidebar */}
-      <div className={`
-        fixed md:relative z-50 h-full w-64 bg-sidebar border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        <div className="p-6 flex justify-between items-center">
-          <div className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent md:hidden">
-            FonixFlow
-          </div>
-          <button onClick={onClose} className="md:hidden text-text-secondary p-1 hover:bg-gray-700 rounded">
-            <X className="w-6 h-6" />
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              w-full flex flex-col items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 border-2 group
+              ${isActive
+                ? 'bg-gradient-to-r from-accent to-success text-white border-transparent shadow-lg shadow-accent/20'
+                : 'bg-transparent text-text-primary border-border hover:bg-bg-tertiary hover:border-accent/50 hover:text-white'
+              }
+            `}
+          >
+            <Icon className={`w-8 h-8 transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`} />
+            <span className="font-bold text-lg">{tab.label}</span>
           </button>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-2 mt-2 md:mt-6">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  onClose(); // Close sidebar on mobile when clicking a link
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                    : 'text-text-secondary hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-gray-800 text-xs text-text-secondary text-center">
-          FonixFlow Web v1.0
-        </div>
-      </div>
-    </>
+        );
+      })}
+    </div>
   );
 };
 

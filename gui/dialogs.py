@@ -49,7 +49,23 @@ class LicenseKeyDialog(QDialog):
             return
         self.status_label.setText(self.tr("Validating license key..."))
         QApplication.processEvents()
-        # Validate license key via LemonSqueezy API
+        # First, check local licenses.txt
+        try:
+            from pathlib import Path
+            license_file = Path(__file__).parent.parent / "licenses.txt"
+            if license_file.exists():
+                with open(license_file, "r") as f:
+                    valid_keys = [line.strip() for line in f if line.strip()]
+                if key in valid_keys:
+                    self.license_key = key
+                    self.valid = True
+                    self.accept()
+                    return
+        except Exception as e:
+            self.status_label.setText(self.tr(f"Error reading local license file: {e}"))
+            self.buy_btn.show()
+            return
+        # If not found locally, check LemonSqueezy API
         try:
             url = "https://api.lemonsqueezy.com/v1/licenses/validate"
             headers = {

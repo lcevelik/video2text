@@ -1,3 +1,9 @@
+## 🔑 License System
+
+FonixFlow supports both offline and online license validation:
+
+- Add your license key to `licenses.txt` for offline use
+- If not found locally, the app checks LemonSqueezy API
 # FonixFlow Translation Guide
 
 ## Overview

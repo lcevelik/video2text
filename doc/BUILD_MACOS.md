@@ -11,11 +11,19 @@ This guide explains how to build FonixFlow as a standalone macOS application bun
 3. **ffmpeg** - Install via Homebrew: `brew install ffmpeg`
 4. **PyInstaller** - Install via pip: `pip3 install pyinstaller`
 
+
 ### Install Python Dependencies
 
 ```bash
 pip3 install -r requirements.txt
 ```
+
+### License System
+
+FonixFlow supports both offline and online license validation:
+
+- Add your license key to `licenses.txt` for offline use
+- If not found locally, the app checks LemonSqueezy API
 
 For full macOS integration with native system audio capture, also install PyObjC frameworks:
 
@@ -70,11 +78,14 @@ iconutil -c icns FonixFlow.iconset -o assets/fonixflow_icon.icns
 rm -rf FonixFlow.iconset
 ```
 
+
 ### 2. Build with PyInstaller
 
 ```bash
 pyinstaller fonixflow_qt.spec
 ```
+
+Make sure `licenses.txt` is present in the app folder to enable offline license validation.
 
 The build process will:
 - Analyze dependencies from `app/fonixflow_qt.py`
