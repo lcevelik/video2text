@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (  # type: ignore
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
-    QComboBox, QCheckBox, QGroupBox
+    QComboBox, QCheckBox, QGroupBox, QSystemTrayIcon
 )
-from PySide6.QtCore import Qt, QTimer, QEvent, QCoreApplication  # type: ignore
-from PySide6.QtGui import QPalette  # type: ignore
+from PySide6.QtCore import Qt, QTimer, QEvent, QCoreApplication, QThread, Signal  # type: ignore
+from PySide6.QtGui import QPalette, QIcon, QAction  # type: ignore
 
 from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone, VUMeter, ModernTabBar, CollapsibleSidebar
@@ -28,7 +28,7 @@ from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
 from gui.managers import SettingsManager, ThemeManager, FileManager
 from gui.icons import get_icon
-from app.transcriber import Transcriber
+# Note: Transcriber is imported locally where needed to speed up app startup
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,31 @@ def set_icon(widget, icon_name, size=29):
     from PySide6.QtCore import QSize
     widget.setIcon(get_icon(icon_name))
     widget.setIconSize(QSize(size, size))
+
+
+class DependencyLoaderThread(QThread):
+    """Background thread to preload heavy dependencies (torch/whisper) after GUI startup."""
+
+    loading_complete = Signal()  # Signal emitted when loading is done
+
+    def run(self):
+        """Load torch and whisper in background to warm up the imports."""
+        try:
+            logger.info("Background dependency loader: Starting to preload torch and whisper...")
+
+            # Import torch
+            import torch
+            logger.info(f"Background loader: torch loaded (CUDA available: {torch.cuda.is_available()})")
+
+            # Import whisper
+            import whisper
+            logger.info("Background loader: whisper loaded")
+
+            logger.info("Background dependency loader: Preloading complete!")
+            self.loading_complete.emit()
+        except Exception as e:
+            logger.warning(f"Background dependency loader failed (non-critical): {e}")
+
 
 class FonixFlowQt(QMainWindow):
     """Modern Qt-based main window."""
@@ -134,6 +159,22 @@ class FonixFlowQt(QMainWindow):
         # when transcription actually starts (single-language loads 1 model;
         # multi-language path path loads detection+transcription models lazily).
 
+        # Start background dependency loader to preload torch/whisper
+        # This improves responsiveness when user clicks transcribe
+        self.dependency_loader = DependencyLoaderThread()
+        self.dependencies_loaded = False
+
+        def on_dependencies_loaded():
+            self.dependencies_loaded = True
+            logger.info("Heavy dependencies preloaded - transcription will start faster!")
+
+        self.dependency_loader.loading_complete.connect(on_dependencies_loaded)
+        # Start loading after a short delay to let the GUI render first
+        QTimer.singleShot(500, self.dependency_loader.start)
+
+        # Setup system tray for background operation
+        self.setup_system_tray()
+
         # Start audio preview worker for VU meters
         self.audio_preview_worker = None
         self.start_audio_preview()
@@ -147,6 +188,101 @@ class FonixFlowQt(QMainWindow):
             self.move(frame_geom.topLeft())
         except Exception as e:
             logger.warning(f"Could not center window: {e}")
+
+    def setup_system_tray(self):
+        """Setup system tray icon for background operation."""
+        # Check if system tray is available
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            logger.warning("System tray not available on this system")
+            self.tray_icon = None
+            return
+
+        # Create tray icon using the app icon
+        from tools.resource_locator import get_resource_path
+        icon_path = get_resource_path('assets/fonixflow_icon.png')
+
+        if os.path.exists(icon_path):
+            tray_icon_image = QIcon(icon_path)
+        else:
+            # Fallback to app icon
+            tray_icon_image = self.windowIcon()
+
+        self.tray_icon = QSystemTrayIcon(tray_icon_image, self)
+
+        # Create tray menu
+        tray_menu = QMenu()
+
+        # Show/Restore action
+        show_action = QAction("Show FonixFlow", self)
+        show_action.triggered.connect(self.show_from_tray)
+        tray_menu.addAction(show_action)
+
+        tray_menu.addSeparator()
+
+        # Exit action (truly closes the app)
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.quit_application)
+        tray_menu.addAction(exit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+
+        # Double-click to restore
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+
+        # Show the tray icon
+        self.tray_icon.show()
+
+        logger.info("System tray icon initialized")
+
+    def tray_icon_activated(self, reason):
+        """Handle tray icon activation (double-click, etc.)."""
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.show_from_tray()
+
+    def show_from_tray(self):
+        """Restore window from system tray."""
+        self.show()
+        self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        self.activateWindow()
+        self.raise_()
+        logger.info("Window restored from system tray")
+
+    def quit_application(self):
+        """Truly quit the application (cleanup and exit)."""
+        logger.info("Application exit requested")
+
+        # Hide tray icon
+        if hasattr(self, 'tray_icon') and self.tray_icon:
+            self.tray_icon.hide()
+
+        # Stop audio preview worker
+        if self.audio_preview_worker:
+            try:
+                self.audio_preview_worker.stop()
+                self.audio_preview_worker.wait(1000)
+            except Exception as e:
+                logger.debug(f"Error stopping audio preview: {e}")
+
+        # Stop transcription worker if running
+        if self.transcription_worker and self.transcription_worker.isRunning():
+            try:
+                self.transcription_worker.cancel()
+                self.transcription_worker.wait(1000)
+            except Exception as e:
+                logger.debug(f"Error stopping transcription: {e}")
+
+        # Stop dependency loader if running
+        if hasattr(self, 'dependency_loader') and self.dependency_loader.isRunning():
+            try:
+                self.dependency_loader.wait(1000)
+            except Exception as e:
+                logger.debug(f"Error stopping dependency loader: {e}")
+
+        # Save settings
+        self.save_settings()
+
+        # Quit application
+        QApplication.quit()
 
     def load_settings(self):
         """Load settings from config file (delegated to SettingsManager)."""
@@ -191,7 +327,28 @@ class FonixFlowQt(QMainWindow):
         self.theme_manager.apply_theme()
 
     def closeEvent(self, event):
-        """Ensure background threads stop cleanly on window close."""
+        """Handle window close - minimize to tray or fully quit."""
+        # Check if we should minimize to tray instead of closing
+        if hasattr(self, 'tray_icon') and self.tray_icon and self.tray_icon.isVisible():
+            # Minimize to tray instead of closing
+            event.ignore()
+            self.hide()
+
+            # Show a notification on first minimize
+            if not hasattr(self, '_tray_notification_shown'):
+                self.tray_icon.showMessage(
+                    "FonixFlow",
+                    "FonixFlow is running in the background. Double-click the tray icon to restore.",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    2000  # 2 seconds
+                )
+                self._tray_notification_shown = True
+
+            logger.info("Window minimized to system tray")
+            return
+
+        # If no tray or user chose to exit, do full cleanup
+        logger.info("Closing application - cleaning up workers...")
         try:
             # Stop audio preview worker if running
             if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
@@ -220,6 +377,10 @@ class FonixFlowQt(QMainWindow):
                 self.transcription_worker = None
         except Exception as e:
             logger.warning(f"Error while shutting down workers: {e}")
+
+        # Save settings
+        self.save_settings()
+
         super().closeEvent(event)
 
     def update_all_cards_theme(self):
