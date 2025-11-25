@@ -34,12 +34,30 @@ Auto-Navigation - Switches to transcript tab automatically after transcription c
 
 ---
 
+## 🔑 License Requirements
+
+FonixFlow uses a license key system for premium features:
+
+- **Free Features (No License Required):** Audio recording, file upload, settings, UI navigation
+- **Premium Features (License Required):** Transcription, saving results, multi-language support
+
+**To Activate:**
+1. Go to Settings tab
+2. Click "Activate" button
+3. Enter your license key
+4. Premium features unlock immediately
+
+For detailed information, see [LICENSE_AND_FEATURES.md](LICENSE_AND_FEATURES.md)
+
+---
+
 ## 🚀 Quick Start
 
 ### **New Features**
 - FonixFlow logo in top bar
 - Auto-jump to transcript tab after transcription
 - Improved modularity and refactoring for maintainability
+- License activation system for premium features
 
 ### **Windows**
 ```bash

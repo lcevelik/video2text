@@ -246,6 +246,24 @@ class FonixFlowQt(QMainWindow):
             logger.info("License key not accepted or invalid.")
             return False
 
+    def show_activation_dialog(self):
+        """Show activation dialog for entering license key."""
+        logger.info("Activate button clicked - showing activation dialog")
+        result = self.prompt_for_license_key()
+        if result:
+            # Re-validate to ensure license is still valid
+            self.check_license_key_on_startup()
+            QMessageBox.information(
+                self,
+                self.tr("Activation Successful"),
+                self.tr("Your license key has been activated successfully! More features are now available.")
+            )
+        return result
+
+    def is_license_active(self):
+        """Check if license is currently active and valid."""
+        return self.license_valid and self.license_key is not None
+
 
 
     def center_window(self):
@@ -719,8 +737,8 @@ class FonixFlowQt(QMainWindow):
         # Recordings directory card
         layout.addWidget(self.create_settings_card())
 
-        # Settings sections (Audio, Transcription)
-        settings_sections_label = QLabel(self.tr("Settings Sections"))
+        # Settings sections (Audio, Transcription, Activation) - all in one row
+        settings_sections_label = QLabel(self.tr("Settings"))
         settings_sections_label.setStyleSheet(f"""
             font-size: 15px;
             font-weight: bold;
@@ -728,29 +746,47 @@ class FonixFlowQt(QMainWindow):
         """)
         layout.addWidget(settings_sections_label)
 
-        # Audio Processing section
-        audio_section_label = QLabel(self.tr("Audio Processing"))
-        audio_section_label.setStyleSheet(f"""
-            font-size: 14px;
-            font-weight: 600;
-            color: {Theme.get('text_secondary', self.is_dark_mode)};
-        """)
-        layout.addWidget(audio_section_label)
-        for child in self.audio_options_widget.findChildren(QPushButton):
-            style_settings_btn(child)
-        layout.addWidget(self.audio_options_widget)
-
-        # Transcription section
-        transcription_section_label = QLabel(self.tr("Transcription"))
-        transcription_section_label.setStyleSheet(f"""
-            font-size: 14px;
-            font-weight: 600;
-            color: {Theme.get('text_secondary', self.is_dark_mode)};
-        """)
-        layout.addWidget(transcription_section_label)
-        for child in self.transcription_options_widget.findChildren(QPushButton):
-            style_settings_btn(child)
-        layout.addWidget(self.transcription_options_widget)
+        # Create horizontal layout for all settings buttons
+        settings_buttons_row = QHBoxLayout()
+        settings_buttons_row.setSpacing(15)
+        
+        # Extract and add Audio button (Enhance Audio)
+        audio_buttons = self.audio_options_widget.findChildren(QPushButton)
+        if audio_buttons:
+            self.audio_filter_btn = audio_buttons[0]  # Store reference for icon updates
+            style_settings_btn(self.audio_filter_btn)
+            # Set fixed width and height for consistent sizing
+            self.audio_filter_btn.setFixedSize(180, 50)
+            # Ensure icon shows correct initial state
+            checkmark_icon = "check-circle" if self.enable_audio_filters else "square"
+            self.audio_filter_btn.setIcon(get_icon(checkmark_icon))
+            settings_buttons_row.addWidget(self.audio_filter_btn)
+        
+        # Extract and add Transcription button (Deep Scan)
+        transcription_buttons = self.transcription_options_widget.findChildren(QPushButton)
+        if transcription_buttons:
+            self.deep_scan_btn = transcription_buttons[0]  # Store reference for icon updates
+            style_settings_btn(self.deep_scan_btn)
+            # Set fixed width and height for consistent sizing
+            self.deep_scan_btn.setFixedSize(180, 50)
+            # Ensure icon shows correct initial state
+            checkmark_icon = "check-circle" if self.enable_deep_scan else "square"
+            self.deep_scan_btn.setIcon(get_icon(checkmark_icon))
+            settings_buttons_row.addWidget(self.deep_scan_btn)
+        
+        # Add Activation button
+        self.activate_btn = ModernButton(self.tr("Activate"))
+        set_icon(self.activate_btn, 'award')
+        self.activate_btn.clicked.connect(self.show_activation_dialog)
+        style_settings_btn(self.activate_btn)
+        # Set fixed width and height for consistent sizing
+        self.activate_btn.setFixedSize(180, 50)
+        settings_buttons_row.addWidget(self.activate_btn)
+        
+        # Add stretch to push buttons to the left
+        settings_buttons_row.addStretch()
+        
+        layout.addLayout(settings_buttons_row)
 
         layout.addStretch()
         return widget
@@ -1011,14 +1047,20 @@ class FonixFlowQt(QMainWindow):
         self.enable_audio_filters = not self.enable_audio_filters
         self.save_settings()
 
-        # Update button visual
+        # Update button visual - use stored reference if available
         checkmark_icon = "check-circle" if self.enable_audio_filters else "square"
-        for child in self.audio_options_widget.findChildren(QPushButton):
-            if "Enhance Audio" in child.text():
-                label = child.property("label") or "Enhance Audio"
-                child.setText(f"  {label}")
-                child.setIcon(get_icon(checkmark_icon))
-                break
+        if hasattr(self, 'audio_filter_btn') and self.audio_filter_btn:
+            label = self.audio_filter_btn.property("label") or "Enhance Audio"
+            self.audio_filter_btn.setText(f"  {self.tr(label)}")
+            self.audio_filter_btn.setIcon(get_icon(checkmark_icon))
+        else:
+            # Fallback to widget search if button not stored
+            for child in self.audio_options_widget.findChildren(QPushButton):
+                if "Enhance Audio" in child.text():
+                    label = child.property("label") or "Enhance Audio"
+                    child.setText(f"  {self.tr(label)}")
+                    child.setIcon(get_icon(checkmark_icon))
+                    break
 
         logger.info(f"Audio filters {'enabled' if self.enable_audio_filters else 'disabled'}")
 
@@ -1027,14 +1069,20 @@ class FonixFlowQt(QMainWindow):
         self.enable_deep_scan = not self.enable_deep_scan
         self.save_settings()
 
-        # Update button visual
+        # Update button visual - use stored reference if available
         checkmark_icon = "check-circle" if self.enable_deep_scan else "square"
-        for child in self.transcription_options_widget.findChildren(QPushButton):
-            if "Deep Scan" in child.text():
-                label = child.property("label") or "Deep Scan"
-                child.setText(f"  {label}")
-                child.setIcon(get_icon(checkmark_icon))
-                break
+        if hasattr(self, 'deep_scan_btn') and self.deep_scan_btn:
+            label = self.deep_scan_btn.property("label") or "Deep Scan"
+            self.deep_scan_btn.setText(f"  {self.tr(label)}")
+            self.deep_scan_btn.setIcon(get_icon(checkmark_icon))
+        else:
+            # Fallback to widget search if button not stored
+            for child in self.transcription_options_widget.findChildren(QPushButton):
+                if "Deep Scan" in child.text():
+                    label = child.property("label") or "Deep Scan"
+                    child.setText(f"  {self.tr(label)}")
+                    child.setIcon(get_icon(checkmark_icon))
+                    break
 
         logger.info(f"Deep scan {'enabled' if self.enable_deep_scan else 'disabled'}")
 

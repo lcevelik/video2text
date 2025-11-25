@@ -27,7 +27,7 @@ class LicenseKeyDialog(QDialog):
         layout.addWidget(self.status_label)
 
         btn_layout = QHBoxLayout()
-        self.save_btn = QPushButton(self.tr("Validate & Save"))
+        self.save_btn = QPushButton(self.tr("Activate"))
         self.save_btn.clicked.connect(self.validate_and_save)
         btn_layout.addWidget(self.save_btn)
 
@@ -46,8 +46,10 @@ class LicenseKeyDialog(QDialog):
         key = self.key_input.toPlainText().strip()
         if not key:
             self.status_label.setText(self.tr("License key cannot be empty."))
+            self.status_label.setStyleSheet("color: #c00; font-size: 13px;")
             return
         self.status_label.setText(self.tr("Validating license key..."))
+        self.status_label.setStyleSheet("color: #666; font-size: 13px;")
         QApplication.processEvents()
         # First, check local licenses.txt
         try:
@@ -59,10 +61,14 @@ class LicenseKeyDialog(QDialog):
                 if key in valid_keys:
                     self.license_key = key
                     self.valid = True
+                    self.status_label.setText(self.tr("✓ License key validated successfully! Saving..."))
+                    self.status_label.setStyleSheet("color: #4CAF50; font-size: 13px; font-weight: bold;")
+                    QApplication.processEvents()
                     self.accept()
                     return
         except Exception as e:
             self.status_label.setText(self.tr(f"Error reading local license file: {e}"))
+            self.status_label.setStyleSheet("color: #c00; font-size: 13px;")
             self.buy_btn.show()
             return
         # If not found locally, check LemonSqueezy API
@@ -78,12 +84,17 @@ class LicenseKeyDialog(QDialog):
             if result.get("status") == "active":
                 self.license_key = key
                 self.valid = True
+                self.status_label.setText(self.tr("✓ License key validated successfully! Saving..."))
+                self.status_label.setStyleSheet("color: #4CAF50; font-size: 13px; font-weight: bold;")
+                QApplication.processEvents()
                 self.accept()
             else:
                 self.status_label.setText(self.tr("Invalid or inactive license key. Please check or purchase a valid license."))
+                self.status_label.setStyleSheet("color: #c00; font-size: 13px;")
                 self.buy_btn.show()
         except Exception as e:
             self.status_label.setText(self.tr(f"Error validating license: {e}"))
+            self.status_label.setStyleSheet("color: #c00; font-size: 13px;")
             self.buy_btn.show()
 """
 Dialog windows for the GUI.

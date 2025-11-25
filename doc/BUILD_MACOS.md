@@ -20,10 +20,26 @@ pip3 install -r requirements.txt
 
 ### License System
 
-FonixFlow supports both offline and online license validation:
+FonixFlow uses a license key system for premium features:
 
+**Free Features (No License Required):**
+- Audio recording
+- File upload
+- Settings and configuration
+- UI navigation
+
+**Premium Features (License Required):**
+- Transcription
+- Saving transcription results
+- Multi-language support
+
+**License Validation:**
+- Supports both offline and online validation
 - Add your license key to `licenses.txt` for offline use
 - If not found locally, the app checks LemonSqueezy API
+- License key is saved to `~/.fonixflow_config.json`
+
+For detailed information, see [LICENSE_AND_FEATURES.md](LICENSE_AND_FEATURES.md)
 
 For full macOS integration with native system audio capture, also install PyObjC frameworks:
 
