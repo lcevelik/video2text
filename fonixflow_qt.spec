@@ -112,6 +112,7 @@ datas = [
     # App icons and logo
     ('assets/fonixflow_icon.png', 'assets'),
     ('assets/fonixflow_logo.png', 'assets'),
+    ('assets/logo.png', 'assets'),  # Logo for GUI top bar
     ('assets/fonixflow.png', 'assets'),
     ('assets/fonixflow_icon.ico', 'assets'),
     # SVG icons for UI
@@ -235,5 +236,8 @@ app = BUNDLE(
 
         # Dark mode support
         'NSRequiresAquaSystemAppearance': False,
+        
+        # Icon file (without extension - macOS adds .icns automatically)
+        'CFBundleIconFile': 'fonixflow_icon',
     },
 )
