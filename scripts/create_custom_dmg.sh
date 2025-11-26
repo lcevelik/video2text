@@ -30,8 +30,10 @@ echo "=========================================="
 echo "Creating Custom DMG: $DMG_NAME"
 echo "=========================================="
 
-# Create temporary directory
-TMP_DIR=$(mktemp -d)
+
+# Create temporary directory in home for more space
+TMP_DIR="$HOME/tmp_dmg_$$"
+mkdir -p "$TMP_DIR"
 DMG_MOUNT_NAME="$APP_NAME Installer"
 
 echo "Preparing DMG contents..."

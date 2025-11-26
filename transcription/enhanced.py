@@ -122,6 +122,9 @@ class EnhancedTranscriber(Transcriber):
         self.cancel_requested = False  # User cancellation flag
         self._audio_fallback_model = None  # Cached model for audio fallback (performance optimization)
 
+        # Get ffmpeg path from environment (set by AudioExtractor)
+        self.ffmpeg_bin = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+
         # Initialize processors
         self.diagnostics_logger = DiagnosticsLogger(enable_diagnostics)
         self.audio_processor = AudioProcessor(sample_rate=16000)
@@ -677,7 +680,7 @@ class EnhancedTranscriber(Transcriber):
             temp_path = temp_audio.name
         try:
             ffmpeg_cmd = [
-                'ffmpeg','-y','-i',audio_path,
+                self.ffmpeg_bin,'-y','-i',audio_path,
                 '-ss',str(start),
                 '-t',str(duration),
                 '-ar','16000','-ac','1', temp_path
@@ -753,7 +756,7 @@ class EnhancedTranscriber(Transcriber):
             try:
                 # Use ffmpeg to extract the specific time range
                 subprocess.run([
-                    'ffmpeg', '-i', audio_path,
+                    self.ffmpeg_bin, '-i', audio_path,
                     '-ss', str(start_time),
                     '-t', str(duration),
                     '-ar', '16000',  # Whisper expects 16kHz
@@ -931,7 +934,7 @@ class EnhancedTranscriber(Transcriber):
             try:
                 # Use ffmpeg to extract the specific time range
                 subprocess.run([
-                    'ffmpeg', '-i', audio_path,
+                    self.ffmpeg_bin, '-i', audio_path,
                     '-ss', str(start_time),
                     '-t', str(duration),
                     '-ar', '16000',  # Whisper expects 16kHz
@@ -1135,7 +1138,7 @@ class EnhancedTranscriber(Transcriber):
             # Single probe at start only
             temp_sample = tempfile.NamedTemporaryFile(delete=False, suffix='.wav'); temp_sample.close()
             try:
-                ffmpeg_cmd = ['ffmpeg','-y','-i',audio_path,'-t',str(sample_window),'-ar','16000','-ac','1',temp_sample.name]
+                ffmpeg_cmd = [self.ffmpeg_bin,'-y','-i',audio_path,'-t',str(sample_window),'-ar','16000','-ac','1',temp_sample.name]
                 subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
                 r = self.transcribe(temp_sample.name, language=None, word_timestamps=False)
                 return ([{'time':0.0,'language':r.get('language','unknown')}], 0.0)
@@ -1160,7 +1163,7 @@ class EnhancedTranscriber(Transcriber):
             temp_sample = tempfile.NamedTemporaryFile(delete=False, suffix='.wav'); temp_sample.close()
             try:
                 ffmpeg_cmd = [
-                    'ffmpeg','-y','-i',audio_path,
+                    self.ffmpeg_bin,'-y','-i',audio_path,
                     '-ss',str(start_time),
                     '-t',str(sample_window),
                     '-ar','16000','-ac','1',temp_sample.name
@@ -1587,7 +1590,7 @@ class EnhancedTranscriber(Transcriber):
         try:
             # Extract chunk using ffmpeg with timeout
             subprocess.run([
-                'ffmpeg', '-y', '-i', audio_path,
+                self.ffmpeg_bin, '-y', '-i', audio_path,
                 '-ss', str(chunk_start),
                 '-t', str(chunk_duration),
                 '-ar', '16000', '-ac', '1',
@@ -1737,7 +1740,7 @@ class EnhancedTranscriber(Transcriber):
                         try:
                             # Extract with ffmpeg
                             subprocess.run([
-                                'ffmpeg', '-y', '-i', audio_path,
+                                self.ffmpeg_bin, '-y', '-i', audio_path,
                                 '-ss', str(start_time),
                                 '-t', str(duration),
                                 '-ar', '16000', '-ac', '1',
@@ -2068,7 +2071,7 @@ class EnhancedTranscriber(Transcriber):
         try:
             # Extract chunk using ffmpeg with timeout
             subprocess.run([
-                'ffmpeg', '-y', '-i', audio_path,
+                self.ffmpeg_bin, '-y', '-i', audio_path,
                 '-ss', str(chunk_start),
                 '-t', str(chunk_duration),
                 '-ar', '16000', '-ac', '1',

@@ -121,6 +121,11 @@ class AudioExtractor:
         try:
             self.ffmpeg_path = get_ffmpeg_path()
             self.ffprobe_path = get_ffprobe_path()
+
+            # Set environment variables for subprocess calls in transcription modules
+            os.environ['FFMPEG_BINARY'] = self.ffmpeg_path
+            os.environ['FFPROBE_BINARY'] = self.ffprobe_path
+
             subprocess.run(
                 [self.ffmpeg_path, '-version'],
                 stdout=subprocess.PIPE,
@@ -128,6 +133,7 @@ class AudioExtractor:
                 check=True
             )
             logger.info(f"ffmpeg is available at: {self.ffmpeg_path}")
+            logger.info(f"ffprobe is available at: {self.ffprobe_path}")
         except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
             raise RuntimeError(
                 f"ffmpeg is not available: {e}\n"

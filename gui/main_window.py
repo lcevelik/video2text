@@ -539,37 +539,59 @@ class FonixFlowQt(QMainWindow):
         logger.info("Closing application - cleaning up workers...")
         try:
             # Stop audio preview worker if running
-            if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
+            if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker:
                 try:
-                    self.audio_preview_worker.stop()
+                    if self.audio_preview_worker.isRunning():
+                        logger.info("Stopping audio preview worker...")
+                        self.audio_preview_worker.stop()
+                        # Give it 3 seconds to stop gracefully
+                        if not self.audio_preview_worker.wait(3000):
+                            logger.warning("Audio preview worker did not stop gracefully, terminating...")
+                            self.audio_preview_worker.terminate()
+                            self.audio_preview_worker.wait(1000)
                 except Exception as e:
                     logger.warning(f"Error stopping audio preview worker: {e}")
-                self.audio_preview_worker.wait(1500)
-                self.audio_preview_worker = None
+                finally:
+                    self.audio_preview_worker = None
+
             # Stop recording worker if running
-            if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
+            if hasattr(self, 'recording_worker') and self.recording_worker:
                 try:
-                    self.recording_worker.stop()
+                    if self.recording_worker.isRunning():
+                        logger.info("Stopping recording worker...")
+                        self.recording_worker.stop()
+                        if not self.recording_worker.wait(3000):
+                            logger.warning("Recording worker did not stop gracefully, terminating...")
+                            self.recording_worker.terminate()
+                            self.recording_worker.wait(1000)
                 except Exception as e:
                     logger.warning(f"Error stopping recording worker: {e}")
-                self.recording_worker.wait(1500)
-                self.recording_worker = None
+                finally:
+                    self.recording_worker = None
+
             # Stop transcription worker if running
-            if hasattr(self, 'transcription_worker') and self.transcription_worker and self.transcription_worker.isRunning():
+            if hasattr(self, 'transcription_worker') and self.transcription_worker:
                 try:
-                    self.transcription_worker.cancel()
-                    self.transcription_worker.quit()
-                    self.transcription_worker.wait(1500)
+                    if self.transcription_worker.isRunning():
+                        logger.info("Stopping transcription worker...")
+                        self.transcription_worker.cancel()
+                        self.transcription_worker.quit()
+                        if not self.transcription_worker.wait(3000):
+                            logger.warning("Transcription worker did not stop gracefully, terminating...")
+                            self.transcription_worker.terminate()
+                            self.transcription_worker.wait(1000)
                 except Exception as e:
                     logger.warning(f"Error stopping transcription worker: {e}")
-                self.transcription_worker = None
+                finally:
+                    self.transcription_worker = None
         except Exception as e:
             logger.warning(f"Error while shutting down workers: {e}")
 
         # Save settings
         self.save_settings()
 
-        super().closeEvent(event)
+        # Accept the event to allow closing
+        event.accept()
 
     def update_all_cards_theme(self):
         """Update theme for all Card widgets (delegated to ThemeManager)."""

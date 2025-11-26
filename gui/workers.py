@@ -1,4 +1,8 @@
 from PySide6.QtCore import QThread, Signal
+import logging
+
+logger = logging.getLogger(__name__)
+
 class AudioPreviewWorker(QThread):
     """Background worker to stream live audio levels for VU meters."""
     audio_levels_update = Signal(float, float)  # (mic_level, speaker_level)
@@ -11,9 +15,15 @@ class AudioPreviewWorker(QThread):
         self.backend = None
 
     def stop(self):
+        """Stop the worker thread gracefully."""
+        logger.info("AudioPreviewWorker.stop() called")
         self.is_running = False
         if self.backend:
             self.backend.is_recording = False
+            try:
+                self.backend.cleanup()
+            except Exception as e:
+                logger.warning(f"Error cleaning up backend in stop(): {e}")
 
     def run(self):
         try:
@@ -58,8 +68,13 @@ class AudioPreviewWorker(QThread):
         except Exception as e:
             logger.error(f"AudioPreviewWorker crashed: {e}", exc_info=True)
         finally:
+            logger.info("AudioPreviewWorker.run() exiting, cleaning up backend...")
             if self.backend:
-                self.backend.cleanup()
+                try:
+                    self.backend.cleanup()
+                except Exception as e:
+                    logger.warning(f"Error in final cleanup: {e}")
+            logger.info("AudioPreviewWorker.run() finished")
 """
 Qt worker threads for background processing - Refactored with modular backends.
 """
