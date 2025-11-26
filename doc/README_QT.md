@@ -38,14 +38,18 @@ Auto-Navigation - Switches to transcript tab automatically after transcription c
 
 FonixFlow uses a license key system for premium features:
 
-- **Free Features (No License Required):** Audio recording, file upload, settings, UI navigation
-- **Premium Features (License Required):** Transcription, saving results, multi-language support
+- **Free Features (No License Required):** Audio recording, file upload, settings, UI navigation, transcription (limited to 500 words)
+- **Premium Features (License Required):** Unlimited transcription, full multi-language support
+
+**Free Version Limits:**
+- Transcription is available but limited to **500 words** per transcription
+- If your transcription exceeds 500 words, it will be truncated with a notification
 
 **To Activate:**
 1. Go to Settings tab
 2. Click "Activate" button
 3. Enter your license key
-4. Premium features unlock immediately
+4. Unlimited transcription unlocks immediately
 
 For detailed information, see [LICENSE_AND_FEATURES.md](LICENSE_AND_FEATURES.md)
 

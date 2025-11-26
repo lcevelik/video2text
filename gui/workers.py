@@ -241,6 +241,16 @@ class RecordingWorker(QThread):
             # Stop and collect results
             result = self.backend.stop_recording()
 
+            # Check if system audio was captured
+            system_audio_available = result.speaker_data is not None and result.speaker_data.size > 0
+            if not system_audio_available:
+                logger.warning("⚠️  System audio was not captured during recording")
+                if hasattr(self.backend, '_system_audio_error') and self.backend._system_audio_error:
+                    logger.error(f"   System audio error: {self.backend._system_audio_error}")
+                logger.warning("   Recording will continue with microphone only")
+                # Emit warning about system audio
+                self.status_update.emit("Warning: System audio not captured - microphone only")
+
             # Process audio using AudioProcessor
             logger.info("Processing recorded audio...")
             final_data = AudioProcessor.mix_audio(

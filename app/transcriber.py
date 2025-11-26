@@ -233,18 +233,34 @@ class Transcriber:
 
             # Not in cache, load it
             logger.info(f"Loading new Whisper model into memory: {self.model_size}")
-            model = whisper.load_model(
-                self.model_size,
-                device=self.device,
-                download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-            )
+            original_device = self.device
+            try:
+                model = whisper.load_model(
+                    self.model_size,
+                    device=self.device,
+                    download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+                )
+            except (RuntimeError, Exception) as mps_error:
+                # If MPS fails, fall back to CPU
+                if self.device == 'mps' and ('SparseMPS' in str(mps_error) or 'aten::empty.memory_format' in str(mps_error) or 'MPS' in str(mps_error)):
+                    logger.warning(f"MPS device failed with error: {mps_error}")
+                    logger.info("Falling back to CPU due to MPS compatibility issue")
+                    self.device = 'cpu'
+                    # Update the transcriber's device
+                    model = whisper.load_model(
+                        self.model_size,
+                        device='cpu',
+                        download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+                    )
+                else:
+                    raise
             
             # Store in cache
             with _GLOBAL_CACHE_LOCK:
                 _GLOBAL_MODEL_CACHE[self.model_size] = model
                 self.model = model
                 
-            logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully")
+            logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully on {self.device}")
 
             if progress_callback:
                 progress_callback("Model loaded successfully")

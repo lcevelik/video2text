@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (  # type: ignore
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QTextEdit, QFileDialog,
     QMessageBox, QStackedWidget, QListWidget, QListWidgetItem, QMenu, QDialog,
-    QComboBox, QCheckBox, QGroupBox, QSystemTrayIcon
+    QComboBox, QCheckBox, QGroupBox, QSystemTrayIcon, QSizePolicy
 )
 from PySide6.QtCore import Qt, QTimer, QEvent, QCoreApplication, QThread, Signal  # type: ignore
 from PySide6.QtGui import QPalette, QIcon, QAction  # type: ignore
@@ -228,10 +228,32 @@ class FonixFlowQt(QMainWindow):
             logger.error(f"License validation error: {e}")
             return False
 
-    def prompt_for_license_key(self):
-        """Prompt user for license key and validate."""
+    def prompt_for_license_key(self, force=False):
+        """Prompt user for license key and validate.
+        
+        Args:
+            force: If True, allow prompting even during transcription (default: False)
+        """
         from gui.dialogs import LicenseKeyDialog
+        import traceback
+        import inspect
+        
+        # Safety check: Don't prompt during active transcription unless forced
+        if not force and hasattr(self, 'transcription_worker') and self.transcription_worker and self.transcription_worker.isRunning():
+            logger.warning("License dialog blocked: Transcription is in progress")
+            return False
+        
         logger.info("Prompting for license key dialog...")
+        # Get full call stack for debugging
+        try:
+            stack = traceback.extract_stack()
+            logger.info("=== CALL STACK ===")
+            for frame in stack[-8:-1]:  # Show last 7 frames
+                logger.info(f"  File: {frame.filename}, Line: {frame.lineno}, Function: {frame.name}, Code: {frame.line}")
+            logger.info("==================")
+        except Exception as e:
+            logger.error(f"Error getting call stack: {e}")
+        
         dlg = LicenseKeyDialog(self)
         result = dlg.exec()
         logger.info(f"License dialog result: {result}, valid={dlg.valid}, key={dlg.license_key}")
@@ -249,7 +271,7 @@ class FonixFlowQt(QMainWindow):
     def show_activation_dialog(self):
         """Show activation dialog for entering license key."""
         logger.info("Activate button clicked - showing activation dialog")
-        result = self.prompt_for_license_key()
+        result = self.prompt_for_license_key(force=True)  # Force=True allows from Settings button
         if result:
             # Re-validate to ensure license is still valid
             self.check_license_key_on_startup()
@@ -706,7 +728,7 @@ class FonixFlowQt(QMainWindow):
                     color: {Theme.get('text_primary', self.is_dark_mode)};
                     border: 2px solid {Theme.get('border', self.is_dark_mode)};
                     border-radius: 12px;
-                    padding: 15px 10px;
+                    padding: 10px;
                     font-size: 13px;
                     font-weight: bold;
                 }}
@@ -755,8 +777,13 @@ class FonixFlowQt(QMainWindow):
         if audio_buttons:
             self.audio_filter_btn = audio_buttons[0]  # Store reference for icon updates
             style_settings_btn(self.audio_filter_btn)
-            # Set fixed width and height for consistent sizing
+            # Set consistent sizing - must be after stylesheet to override any CSS
+            self.audio_filter_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            self.audio_filter_btn.setMinimumSize(180, 50)
+            self.audio_filter_btn.setMaximumSize(180, 50)
             self.audio_filter_btn.setFixedSize(180, 50)
+            self.audio_filter_btn.setMinimumHeight(50)
+            self.audio_filter_btn.setMaximumHeight(50)
             # Ensure icon shows correct initial state
             checkmark_icon = "check-circle" if self.enable_audio_filters else "square"
             self.audio_filter_btn.setIcon(get_icon(checkmark_icon))
@@ -767,8 +794,13 @@ class FonixFlowQt(QMainWindow):
         if transcription_buttons:
             self.deep_scan_btn = transcription_buttons[0]  # Store reference for icon updates
             style_settings_btn(self.deep_scan_btn)
-            # Set fixed width and height for consistent sizing
+            # Set consistent sizing - must be after stylesheet to override any CSS
+            self.deep_scan_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            self.deep_scan_btn.setMinimumSize(180, 50)
+            self.deep_scan_btn.setMaximumSize(180, 50)
             self.deep_scan_btn.setFixedSize(180, 50)
+            self.deep_scan_btn.setMinimumHeight(50)
+            self.deep_scan_btn.setMaximumHeight(50)
             # Ensure icon shows correct initial state
             checkmark_icon = "check-circle" if self.enable_deep_scan else "square"
             self.deep_scan_btn.setIcon(get_icon(checkmark_icon))
@@ -779,8 +811,13 @@ class FonixFlowQt(QMainWindow):
         set_icon(self.activate_btn, 'award')
         self.activate_btn.clicked.connect(self.show_activation_dialog)
         style_settings_btn(self.activate_btn)
-        # Set fixed width and height for consistent sizing
+        # Override ModernButton's default minimum height and set consistent sizing - must be after stylesheet
+        self.activate_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.activate_btn.setMinimumSize(180, 50)
+        self.activate_btn.setMaximumSize(180, 50)
         self.activate_btn.setFixedSize(180, 50)
+        self.activate_btn.setMinimumHeight(50)
+        self.activate_btn.setMaximumHeight(50)
         settings_buttons_row.addWidget(self.activate_btn)
         
         # Add stretch to push buttons to the left
@@ -1505,6 +1542,7 @@ class FonixFlowQt(QMainWindow):
         self.recording_worker.recording_complete.connect(self.on_recording_complete)
         self.recording_worker.recording_error.connect(self.on_recording_error)
         self.recording_worker.audio_levels_update.connect(self.update_audio_levels)
+        self.recording_worker.status_update.connect(self.on_recording_status_update)
         self.recording_worker.start()
 
     def stop_basic_recording(self):
@@ -1698,6 +1736,28 @@ class FonixFlowQt(QMainWindow):
 
         # Restart audio preview worker for VU meters
         self.start_audio_preview()
+    
+    def on_recording_status_update(self, message: str):
+        """Handle status updates from recording worker."""
+        if "System audio not captured" in message or "Warning" in message:
+            # Show warning dialog about system audio
+            QMessageBox.warning(
+                self,
+                self.tr("System Audio Not Available"),
+                self.tr(
+                    "System audio was not captured during recording.\n\n"
+                    "Possible causes:\n"
+                    "1. Screen Recording permission not granted\n"
+                    "2. No audio was playing during recording\n"
+                    "3. ScreenCaptureKit stream failed to start\n\n"
+                    "To fix:\n"
+                    "1. Go to: System Settings → Privacy & Security → Screen Recording\n"
+                    "2. Enable permission for Terminal (or your Python launcher)\n"
+                    "3. Restart the application\n\n"
+                    "Recording will continue with microphone only."
+                )
+            )
+        self.statusBar().showMessage(message)
 
     def on_recording_error(self, error_message):
         """Slot called when recording encounters an error (thread-safe)."""
@@ -1736,17 +1796,9 @@ class FonixFlowQt(QMainWindow):
 
     def start_transcription(self):
         """Start transcription process."""
-
-        # License check before transcription
-        if not self.license_valid:
-            QMessageBox.warning(self, self.tr("License Required"), self.tr("A valid license key is required to use transcription. Please enter your license key."))
-            if not self.prompt_for_license_key():
-                # If still invalid, offer to redirect to pricing page
-                reply = QMessageBox.question(self, self.tr("License Required"), self.tr("No valid license key found. Would you like to visit the pricing page to purchase a license?"), QMessageBox.Yes | QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    import webbrowser
-                    webbrowser.open("https://fonixflow.com/")
-                return
+        # Note: Transcription works without license, but is limited to 500 words.
+        # The word limit is enforced in on_transcription_complete() after transcription finishes.
+        # No need to show a message here - only show message if limit is actually exceeded.
 
         if not self.video_path:
             QMessageBox.warning(self, self.tr("No File"), self.tr("Please select a file first."))
@@ -2067,7 +2119,22 @@ class FonixFlowQt(QMainWindow):
         self.transcription_result = result
         text = result.get('text', '')
 
-        # Free version word limit (1000 words)
+        # Word limit for unlicensed users (500 words)
+        if not self.license_valid:
+            words = text.split()
+            if len(words) > 500:
+                logger.info(f"Unlicensed user word limit exceeded ({len(words)} words). Truncating to 500.")
+                truncated_text = " ".join(words[:500])
+                text = truncated_text + f"\n\n[TRUNCATED: Free version limit is 500 words. Your transcription has {len(words)} words. Activate a license for unlimited transcription.]"
+                result['text'] = text
+                # Show message about limit
+                QMessageBox.information(
+                    self,
+                    self.tr("Transcription Limit Reached"),
+                    self.tr(f"Your transcription has {len(words)} words, but the free version is limited to 500 words.\n\nActivate a license to transcribe unlimited words.")
+                )
+
+        # Free version word limit (1000 words) - for FONIXFLOW_EDITION=FREE
         if getattr(self, 'is_free_version', False):
             words = text.split()
             if len(words) > 1000:

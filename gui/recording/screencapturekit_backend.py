@@ -305,6 +305,7 @@ try:
             self.mic_sample_rate = None
             self.delegate = None
             self.record_start_time = None
+            self._system_audio_error = None  # Track system audio errors
 
         def start_recording(self) -> None:
             """Start recording microphone and system audio."""
@@ -486,10 +487,19 @@ try:
                     # Start the stream
                     def start_completion(error):
                         if error:
-                            logger.error(f"Failed to start stream: {error}")
-                            logger.info("Check System Settings → Privacy & Security → Screen Recording")
+                            error_code = error.code() if hasattr(error, 'code') else None
+                            error_msg = str(error.localizedDescription() if hasattr(error, 'localizedDescription') else error)
+                            logger.error(f"Failed to start ScreenCaptureKit stream: {error_msg} (code: {error_code})")
+                            if error_code == -3802:
+                                logger.error("Screen Recording permission denied!")
+                                logger.error("Please grant permission in: System Settings → Privacy & Security → Screen Recording")
+                            else:
+                                logger.error("Check System Settings → Privacy & Security → Screen Recording")
+                            # Store error for later checking
+                            self._system_audio_error = error_msg
                         else:
-                            logger.info("ScreenCaptureKit system audio stream started")
+                            logger.info("✓ ScreenCaptureKit system audio stream started successfully")
+                            self._system_audio_error = None
 
                     self.screen_stream.startCaptureWithCompletionHandler_(start_completion)
 
@@ -501,7 +511,8 @@ try:
 
             except Exception as e:
                 logger.error(f"Failed to start ScreenCaptureKit: {e}", exc_info=True)
-                logger.warning("Will record microphone only")
+                logger.warning("Will record microphone only - system audio not available")
+                self._system_audio_error = str(e)
 
         def stop_recording(self) -> RecordingResult:
             """Stop recording and return collected audio."""
@@ -531,11 +542,22 @@ try:
             if self.delegate:
                 logger.info(f"🔢 System audio callbacks received: {self.delegate.callback_count}")
                 logger.info(f"📦 System audio chunks collected: {len(self.delegate.audio_chunks)}")
-                if self.delegate.callback_count > 0 and len(self.delegate.audio_chunks) == 0:
+                if self.delegate.callback_count == 0 and len(self.delegate.audio_chunks) == 0:
+                    logger.warning("⚠️  No system audio captured!")
+                    if self._system_audio_error:
+                        logger.error(f"   Error: {self._system_audio_error}")
+                    logger.warning("   Possible causes:")
+                    logger.warning("   1. Screen Recording permission not granted")
+                    logger.warning("   2. No audio playing during recording")
+                    logger.warning("   3. Stream failed to start")
+                    logger.warning("   Check: System Settings → Privacy & Security → Screen Recording")
+                elif self.delegate.callback_count > 0 and len(self.delegate.audio_chunks) == 0:
                     logger.error("PROBLEM: Callbacks were received but NO chunks were stored!")
                     logger.error("   This indicates audio data extraction is failing")
             else:
-                logger.info("System audio chunks collected: 0 (no delegate)")
+                logger.warning("⚠️  System audio delegate not created - system audio not available")
+                if self._system_audio_error:
+                    logger.error(f"   Error: {self._system_audio_error}")
 
             # Process microphone data
             if not self.mic_chunks:

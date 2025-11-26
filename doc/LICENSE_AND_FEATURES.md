@@ -42,29 +42,34 @@ These features work completely without any license key:
 
 ---
 
-## 🔒 Features That REQUIRE License Key
+## 🔒 Features With License Limitations
 
-These features require a valid license key to function:
+These features work without a license but have limitations:
 
-### 1. **Transcription** 🔑
+### 1. **Transcription** ⚠️ (Limited Without License)
 - **Transcribing audio/video files** - Convert speech to text from uploaded files
 - **Transcribing recordings** - Convert recorded audio to text
 - **Multi-language transcription** - Transcribe content in multiple languages
 - **Language detection** - Automatic detection of spoken languages
 - **Timestamps and segments** - Generate time-stamped transcription segments
 
-**What happens without license:**
-- When you try to transcribe, you'll see: "A valid license key is required to use transcription"
-- You'll be prompted to enter your license key
-- Option to visit the pricing page to purchase a license
+**Free Version (No License):**
+- ✅ Transcription is **allowed** but limited to **500 words**
+- If your transcription exceeds 500 words, it will be truncated
+- You'll see a message: "Free version limit is 500 words. Activate a license for unlimited transcription."
+- A notification appears when the limit is reached
 
-### 2. **Saving Transcription Results** 🔑
+**With License:**
+- ✅ **Unlimited transcription** - No word limit
+- ✅ Full access to all transcription features
+
+### 2. **Saving Transcription Results** ✅
 - **Save as TXT** - Plain text format
 - **Save as SRT** - Subtitle format
 - **Save as VTT** - WebVTT subtitle format
 - **Export transcription data** - All export formats
 
-**Note:** Saving requires transcription to complete first, which needs a license.
+**Note:** Saving works for both free and licensed versions. Free version saves truncated results (500 words max).
 
 ---
 
@@ -132,12 +137,10 @@ A test license key is available in `licenses.txt`:
 | **Audio Recording** | ✅ Full Access | ✅ Full Access |
 | **File Upload** | ✅ Full Access | ✅ Full Access |
 | **Settings** | ✅ Full Access | ✅ Full Access |
-| **Transcription** | ❌ Blocked | ✅ Full Access |
-| **Save Results** | ❌ Blocked* | ✅ Full Access |
-| **Multi-Language** | ❌ Blocked | ✅ Full Access |
-| **Language Detection** | ❌ Blocked | ✅ Full Access |
-
-*Saving requires transcription, which needs a license
+| **Transcription** | ⚠️ Limited (500 words) | ✅ Unlimited |
+| **Save Results** | ✅ Full Access | ✅ Full Access |
+| **Multi-Language** | ⚠️ Limited (500 words) | ✅ Unlimited |
+| **Language Detection** | ✅ Full Access | ✅ Full Access |
 
 ---
 
@@ -185,7 +188,7 @@ If you don't have a license key:
 ## ❓ Frequently Asked Questions
 
 ### Q: Can I use the app without a license?
-**A:** Yes! You can record audio, upload files, and use all settings. Only transcription requires a license.
+**A:** Yes! You can record audio, upload files, use all settings, and even transcribe! However, transcription is limited to 500 words without a license. Activate a license for unlimited transcription.
 
 ### Q: Do I need internet to activate?
 **A:** For production licenses, yes (LemonSqueezy API). For testing, you can use local `licenses.txt` file.
@@ -206,8 +209,9 @@ If you don't have a license key:
 
 ## 📝 Summary
 
-- **Free Features:** Recording, file upload, settings, UI navigation
-- **Premium Features:** Transcription, saving results, multi-language support
+- **Free Features:** Recording, file upload, settings, UI navigation, transcription (500 words limit)
+- **Premium Features:** Unlimited transcription, full multi-language support
+- **Word Limit:** 500 words without license, unlimited with license
 - **Activation:** Settings tab → Activate button → Enter license key
 - **Storage:** License saved to `~/.fonixflow_config.json`
 - **Validation:** Local file or LemonSqueezy API
