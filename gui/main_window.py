@@ -2148,14 +2148,19 @@ class FonixFlowQt(QMainWindow):
         # Store current progress percentage for timer updates
         self.current_progress_pct = percentage
 
+        # If we receive the CPU fallback message, update the hardware status indicator immediately
+        if "Falling back to CPU due to MPS compatibility issue" in message:
+            self.update_hardware_status_indicator()
+
         # Start elapsed time timer if not already running
         if not hasattr(self, 'elapsed_time_timer'):
             self.elapsed_time_timer = QTimer(self)
             self.elapsed_time_timer.timeout.connect(self.update_elapsed_time_display)
-            self.elapsed_time_timer.start(500)  # Update every 500ms for smooth display        # Update progress bar (basic mode - both upload and record tabs)
+            self.elapsed_time_timer.start(500)  # Update every 500ms for smooth display
+        # Update progress bar (basic mode - both upload and record tabs)
         if hasattr(self, 'basic_upload_progress_bar'):
             try:
-                self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))))
+                self.basic_upload_progress_bar.setValue(int(max(0, min(100, percentage))) )
             except Exception as e:
                 logger.debug(f"Could not update upload progress bar: {e}")
 

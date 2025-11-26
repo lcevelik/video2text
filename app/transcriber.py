@@ -246,6 +246,12 @@ class Transcriber:
                     logger.warning(f"MPS device failed with error: {mps_error}")
                     logger.info("Falling back to CPU due to MPS compatibility issue")
                     self.device = 'cpu'
+                    # Notify GUI to update hardware status indicator
+                    if progress_callback:
+                        try:
+                            progress_callback("Falling back to CPU due to MPS compatibility issue")
+                        except TypeError:
+                            progress_callback("Falling back to CPU due to MPS compatibility issue", 0)
                     # Update the transcriber's device
                     model = whisper.load_model(
                         self.model_size,
