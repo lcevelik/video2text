@@ -3,12 +3,13 @@ import requests
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout, QApplication
 class LicenseKeyDialog(QDialog):
     """Dialog for entering and validating LemonSqueezy license key."""
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, current_key=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Enter License Key"))
         self.setMinimumSize(400, 180)
-        self.license_key = None
+        self.license_key = current_key
         self.valid = False
+        self.current_key = current_key
         self.setup_ui()
 
     def setup_ui(self):
@@ -20,6 +21,11 @@ class LicenseKeyDialog(QDialog):
         self.key_input = QTextEdit()
         self.key_input.setPlaceholderText(self.tr("Paste your license key here"))
         self.key_input.setFixedHeight(40)
+
+        # Pre-fill with current key if available
+        if self.current_key:
+            self.key_input.setPlainText(self.current_key)
+
         layout.addWidget(self.key_input)
 
         self.status_label = QLabel("")

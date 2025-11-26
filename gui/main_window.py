@@ -254,7 +254,7 @@ class FonixFlowQt(QMainWindow):
         except Exception as e:
             logger.error(f"Error getting call stack: {e}")
         
-        dlg = LicenseKeyDialog(self)
+        dlg = LicenseKeyDialog(self, current_key=self.license_key)
         result = dlg.exec()
         logger.info(f"License dialog result: {result}, valid={dlg.valid}, key={dlg.license_key}")
         if result == QDialog.Accepted and dlg.valid:
