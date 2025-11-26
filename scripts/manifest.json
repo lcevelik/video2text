@@ -1,0 +1,10 @@
+{
+  "latest_version": "1.0.0",
+  "download_url": "https://cdn.fonixflow.com/releases/FonixFlow-1.0.0.zip",
+  "release_notes": "Initial release with core transcription features:\n- Video and audio file transcription\n- Multi-language support\n- Recording with system audio capture\n- License key management\n- Auto-update system",
+  "force_update": false,
+  "file_hash": "REPLACE_WITH_ACTUAL_SHA256_HASH",
+  "file_size": "125M",
+  "minimum_version": "1.0.0",
+  "published_at": "2024-12-01T12:00:00Z"
+}

@@ -28,6 +28,9 @@ from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
 from gui.managers import SettingsManager, ThemeManager, FileManager
 from gui.icons import get_icon
+from gui.update_manager import UpdateScheduler
+from gui.update_dialog import UpdateDialog
+from app.version import __version__
 # Note: Transcriber is imported locally where needed to speed up app startup
 
 logger = logging.getLogger(__name__)
@@ -187,6 +190,11 @@ class FonixFlowQt(QMainWindow):
         self.audio_preview_worker = None
         self.start_audio_preview()
 
+        # Initialize update scheduler
+        self.update_scheduler = UpdateScheduler(__version__)
+        # Check for updates after app is fully loaded (after 3 seconds)
+        QTimer.singleShot(3000, self.check_for_updates)
+
     def _load_encoded_licenses(self, filepath):
         """
         Decode an encoded license file.
@@ -337,7 +345,27 @@ class FonixFlowQt(QMainWindow):
         """Check if license is currently active and valid."""
         return self.license_valid and self.license_key is not None
 
+    def check_for_updates(self):
+        """Check for app updates asynchronously."""
+        if not self.update_scheduler.should_check_for_updates():
+            logger.debug("Skipping update check (checked recently)")
+            return
 
+        try:
+            logger.info("Checking for updates...")
+            result = self.update_scheduler.manager.check_for_updates()
+            self.update_scheduler.mark_check_complete()
+
+            if result.get('available'):
+                logger.info(f"Update available: {result.get('version')}")
+
+                # Show update dialog
+                dialog = UpdateDialog(result, __version__, self)
+                dialog.exec()
+            else:
+                logger.info("No updates available")
+        except Exception as e:
+            logger.warning(f"Update check failed: {e}")
 
     def center_window(self):
         """Center the main window on the primary screen."""
