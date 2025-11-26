@@ -1,0 +1,149 @@
+# -*- mode: python ; coding: utf-8 -*-
+"""
+PyInstaller spec file for FonixFlow - STANDALONE EDITION
+Packages the app with ALL dependencies:
+- ScreenCaptureKit
+- ffmpeg/ffprobe binaries
+- Whisper AI models
+"""
+
+import os
+import shutil
+from pathlib import Path
+
+block_cipher = None
+
+# Hidden imports needed for the app
+hidden_imports = [
+    'PySide6.QtCore',
+    'PySide6.QtGui',
+    'PySide6.QtWidgets',
+    'sounddevice',
+    'numpy',
+    'whisper',
+    'pydub',
+    'objc',
+    'Foundation',
+    'Cocoa',
+    'AVFoundation',
+    'ScreenCaptureKit',
+    'gui.main_window',
+    'gui.workers',
+    'gui.utils',
+    'gui.recording',
+    'gui.recording.screencapturekit_backend',
+    'gui.recording.sounddevice_backend',
+    'gui.recording.audio_processor',
+    'transcriber',
+    'audio_extractor',
+    'resource_locator',
+]
+
+# Prepare binaries and data files
+binaries_list = []
+datas_list = [
+    ('assets', 'assets'),  # Include assets folder
+    ('gui', 'gui'),  # Include gui module
+]
+
+# Add Whisper's internal assets (mel_filters, tokenizers, etc.)
+import whisper
+whisper_package_dir = Path(whisper.__file__).parent
+whisper_assets_dir = whisper_package_dir / 'assets'
+if whisper_assets_dir.exists():
+    datas_list.append((str(whisper_assets_dir), 'whisper/assets'))
+    print(f"✓ Found Whisper assets: {whisper_assets_dir}")
+    for asset_file in whisper_assets_dir.iterdir():
+        if asset_file.is_file():
+            print(f"  - {asset_file.name}")
+else:
+    print("⚠ Whisper assets directory not found")
+
+# Add ffmpeg and ffprobe binaries (macOS)
+ffmpeg_path = shutil.which('ffmpeg')
+ffprobe_path = shutil.which('ffprobe')
+if ffmpeg_path:
+    binaries_list.append((ffmpeg_path, 'bin'))
+    print(f"✓ Found ffmpeg: {ffmpeg_path}")
+if ffprobe_path:
+    binaries_list.append((ffprobe_path, 'bin'))
+    print(f"✓ Found ffprobe: {ffprobe_path}")
+
+# Add Whisper models (if available)
+# Important: Whisper expects models in a 'whisper' subdirectory
+whisper_cache = Path.home() / '.cache' / 'whisper'
+if whisper_cache.exists():
+    model_files = list(whisper_cache.glob('*.pt'))
+    if model_files:
+        print(f"✓ Found {len(model_files)} Whisper models:")
+        for model_file in model_files:
+            # Put models in 'cache/whisper/' to match Whisper's expected structure
+            datas_list.append((str(model_file), 'cache/whisper'))
+            size_mb = model_file.stat().st_size / (1024 * 1024)
+            print(f"  - {model_file.name} ({size_mb:.1f} MB)")
+    else:
+        print("⚠ No Whisper models found in cache. Models will be downloaded on first use.")
+else:
+    print("⚠ Whisper cache directory not found. Models will be downloaded on first use.")
+
+a = Analysis(
+    ['fonixflow_qt.py'],
+    pathex=[],
+    binaries=binaries_list,
+    datas=datas_list,
+    hiddenimports=hidden_imports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='FonixFlow',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,  # No console window
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file='entitlements.plist',  # For macOS permissions
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='FonixFlow',
+)
+
+app = BUNDLE(
+    coll,
+    name='FonixFlow.app',
+    icon=None,  # Skip icon for now
+    bundle_identifier='com.fonixflow.app',
+    version='1.0.0',
+    info_plist={
+        'NSPrincipalClass': 'NSApplication',
+        'NSHighResolutionCapable': 'True',
+        'NSMicrophoneUsageDescription': 'FonixFlow needs microphone access to record your voice.',
+        'NSScreenCaptureUsageDescription': 'FonixFlow needs screen recording permission to capture system audio.',
+        'LSMinimumSystemVersion': '12.3',  # Minimum macOS for ScreenCaptureKit
+    },
+)

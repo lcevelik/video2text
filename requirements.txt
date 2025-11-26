@@ -1,0 +1,41 @@
+openai-whisper>=20231117
+torch>=2.0.0
+torchaudio>=2.0.0
+ffmpeg-python>=0.2.0
+numpy>=1.24.0
+tqdm>=4.65.0
+sounddevice>=0.4.6
+scipy>=1.10.0
+pydub>=0.25.1
+Pillow>=10.0.0
+TkinterDnD2>=0.3.0
+PySide6>=6.6.0
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Python 3.13 removed stdlib 'audioop'. pyaudioop provides compatibility used by pydub.
+# pyaudioop>=0.5.0
+
+# Optional: AI-powered noise suppression (RNNoise filter)
+# If not installed, falls back to spectral subtraction
+# Install with: pip install rnnoise
+# rnnoise>=0.1.0
+
+# macOS ScreenCaptureKit support (macOS 12.3+ RECOMMENDED)
+# For native system audio capture WITHOUT BlackHole!
+# Uncomment these lines on macOS to enable native system audio:
+pyobjc-framework-ScreenCaptureKit>=9.0
+pyobjc-framework-AVFoundation>=9.0
+pyobjc-framework-Cocoa>=9.0
+#
+# If not installed on macOS, app will fall back to SoundDevice backend
+# which REQUIRES BlackHole 2ch: https://github.com/ExistentialAudio/BlackHole
+
+# Windows WASAPI Loopback support (Windows Vista+ RECOMMENDED)
+# For native system audio capture WITHOUT Stereo Mix or virtual cables!
+# Uncomment this line on Windows to enable WASAPI loopback:
+# comtypes>=1.4.0
+#
+# If not installed on Windows, app will fall back to looking for Stereo Mix
+# which may need to be manually enabled in Windows Sound settings
+
