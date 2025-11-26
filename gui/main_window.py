@@ -264,8 +264,8 @@ class FonixFlowQt(QMainWindow):
             logger.info("License key accepted and saved.")
             return True
         else:
-            self.license_valid = False
-            logger.info("License key not accepted or invalid.")
+            # Don't deactivate existing license if user just cancelled
+            logger.info("License dialog cancelled or key not validated.")
             return False
 
     def show_activation_dialog(self):
