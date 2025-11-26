@@ -51,6 +51,9 @@ Thumbs.db
 !WINDOWS_SETUP.md
 Trscription*.txt
 
+# License files (keep plaintext for dev, encoded generated during build)
+licenses.dat
+
 # Whisper models
 assets/models/*.pt
 

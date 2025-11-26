@@ -38,7 +38,9 @@
       "Bash(tccutil reset:*)",
       "Bash(/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister:*)",
       "Bash(killall:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(chmod:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": []

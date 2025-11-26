@@ -57,21 +57,46 @@ class LicenseKeyDialog(QDialog):
         self.status_label.setText(self.tr("Validating license key..."))
         self.status_label.setStyleSheet("color: #666; font-size: 13px;")
         QApplication.processEvents()
-        # First, check local licenses.txt
+        # First, check local license files (encoded or plaintext)
         try:
             from pathlib import Path
-            license_file = Path(__file__).parent.parent / "licenses.txt"
-            if license_file.exists():
-                with open(license_file, "r") as f:
-                    valid_keys = [line.strip() for line in f if line.strip()]
-                if key in valid_keys:
-                    self.license_key = key
-                    self.valid = True
-                    self.status_label.setText(self.tr("✓ License key validated successfully! Saving..."))
-                    self.status_label.setStyleSheet("color: #4CAF50; font-size: 13px; font-weight: bold;")
-                    QApplication.processEvents()
-                    self.accept()
-                    return
+            import base64
+
+            valid_keys = []
+
+            # Check encoded file first (used in distributed builds)
+            license_file_encoded = Path(__file__).parent.parent / "licenses.dat"
+            if license_file_encoded.exists():
+                try:
+                    with open(license_file_encoded, 'rb') as f:
+                        encoded = f.read()
+                    xor_bytes = base64.b64decode(encoded)
+                    decode_key = b'FonixFlow2024VideoTranscription'
+                    content_bytes = bytearray()
+                    for i, byte in enumerate(xor_bytes):
+                        content_bytes.append(byte ^ decode_key[i % len(decode_key)])
+                    content = bytes(content_bytes).decode('utf-8')
+                    valid_keys = [line.strip() for line in content.split('\n') if line.strip()]
+                except Exception as e:
+                    # If encoded file fails, try plaintext below
+                    pass
+
+            # Fall back to plaintext file (for development)
+            if not valid_keys:
+                license_file_plain = Path(__file__).parent.parent / "licenses.txt"
+                if license_file_plain.exists():
+                    with open(license_file_plain, "r") as f:
+                        valid_keys = [line.strip() for line in f if line.strip()]
+
+            # Check if key is valid
+            if valid_keys and key in valid_keys:
+                self.license_key = key
+                self.valid = True
+                self.status_label.setText(self.tr("✓ License key validated successfully! Saving..."))
+                self.status_label.setStyleSheet("color: #4CAF50; font-size: 13px; font-weight: bold;")
+                QApplication.processEvents()
+                self.accept()
+                return
         except Exception as e:
             self.status_label.setText(self.tr(f"Error reading local license file: {e}"))
             self.status_label.setStyleSheet("color: #c00; font-size: 13px;")

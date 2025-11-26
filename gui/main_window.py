@@ -187,6 +187,37 @@ class FonixFlowQt(QMainWindow):
         self.audio_preview_worker = None
         self.start_audio_preview()
 
+    def _load_encoded_licenses(self, filepath):
+        """
+        Decode an encoded license file.
+
+        Args:
+            filepath: Path to encoded licenses.dat file
+
+        Returns:
+            List of valid license keys
+        """
+        import base64
+
+        # Read encoded file
+        with open(filepath, 'rb') as f:
+            encoded = f.read()
+
+        # Base64 decode
+        xor_bytes = base64.b64decode(encoded)
+
+        # XOR with key to decode
+        key = b'FonixFlow2024VideoTranscription'
+        content_bytes = bytearray()
+        for i, byte in enumerate(xor_bytes):
+            content_bytes.append(byte ^ key[i % len(key)])
+
+        # Decode to string and split into lines
+        content = bytes(content_bytes).decode('utf-8')
+        valid_keys = [line.strip() for line in content.split('\n') if line.strip()]
+
+        return valid_keys
+
     def check_license_key_on_startup(self):
         """Check license key validity on startup."""
         logger.info(f"check_license_key_on_startup: key={self.license_key}")
@@ -200,17 +231,34 @@ class FonixFlowQt(QMainWindow):
     def validate_license_key(self, key):
         """Validate license key using local file first, then LemonSqueezy API."""
         from pathlib import Path
-        license_file = Path(__file__).parent.parent / "licenses.txt"
-        logger.info(f"validate_license_key: checking key={key} in {license_file}")
-        if license_file.exists():
+        import base64
+
+        # Check for encoded file first (used in distributed builds)
+        license_file_encoded = Path(__file__).parent.parent / "licenses.dat"
+        license_file_plain = Path(__file__).parent.parent / "licenses.txt"
+
+        # Try encoded file first
+        if license_file_encoded.exists():
+            logger.info(f"validate_license_key: checking key={key} in {license_file_encoded} (encoded)")
             try:
-                with open(license_file, "r") as f:
-                    valid_keys = [line.strip() for line in f if line.strip()]
+                valid_keys = self._load_encoded_licenses(license_file_encoded)
                 if key.strip() in valid_keys:
-                    logger.info("License key valid (local file)")
+                    logger.info("License key valid (encoded file)")
                     return True
             except Exception as e:
-                logger.error(f"Error reading local license file: {e}")
+                logger.error(f"Error reading encoded license file: {e}")
+
+        # Fall back to plaintext file (for development)
+        if license_file_plain.exists():
+            logger.info(f"validate_license_key: checking key={key} in {license_file_plain}")
+            try:
+                with open(license_file_plain, "r") as f:
+                    valid_keys = [line.strip() for line in f if line.strip()]
+                if key.strip() in valid_keys:
+                    logger.info("License key valid (plaintext file)")
+                    return True
+            except Exception as e:
+                logger.error(f"Error reading plaintext license file: {e}")
         # If not found locally, check LemonSqueezy API
         try:
             import requests
