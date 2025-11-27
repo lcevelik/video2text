@@ -2094,6 +2094,11 @@ class FonixFlowQt(QMainWindow):
             else:
                 self.model_name_label.setText(f"Model: {model_size}")
 
+        # Prevent duplicate transcription starts
+        if hasattr(self, 'transcription_worker') and self.transcription_worker and self.transcription_worker.isRunning():
+            logger.warning("Transcription already running, ignoring duplicate start request")
+            return
+
         # Start transcription worker
         self.statusBar().showMessage("Starting transcription...")
 

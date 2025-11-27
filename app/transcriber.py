@@ -23,6 +23,35 @@ if sys.stderr is None:
 import whisper
 import threading
 
+# Monkey-patch Whisper's ffmpeg path before it's used
+# Whisper internally uses subprocess to call ffmpeg, and we need to ensure
+# it finds our bundled ffmpeg instead of looking for 'ffmpeg' in PATH
+def _patch_whisper_ffmpeg():
+    """Patch Whisper's audio loading to use bundled ffmpeg."""
+    try:
+        from tools.resource_locator import get_ffmpeg_path
+        ffmpeg_path = get_ffmpeg_path()
+
+        # Set environment variable that Whisper's audio.py will use
+        os.environ['PATH'] = os.path.dirname(ffmpeg_path) + os.pathsep + os.environ.get('PATH', '')
+
+        # Also try to patch whisper.audio module if it's already loaded
+        if 'whisper.audio' in sys.modules:
+            import whisper.audio
+            # Whisper uses shutil.which('ffmpeg') internally, so we patch it
+            original_which = shutil.which
+            def patched_which(cmd, *args, **kwargs):
+                if cmd == 'ffmpeg':
+                    return ffmpeg_path
+                return original_which(cmd, *args, **kwargs)
+            shutil.which = patched_which
+    except Exception as e:
+        # If patching fails, log but don't crash - it will fall back to system ffmpeg
+        logging.getLogger(__name__).warning(f"Could not patch Whisper ffmpeg path: {e}")
+
+# Apply the patch immediately
+_patch_whisper_ffmpeg()
+
 
 # Note: Logging is now handled by LogManager in gui.managers.log_manager
 # This module just uses the logger - no need to configure here
