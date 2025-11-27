@@ -163,9 +163,26 @@ class Transcriber:
                 name = 'NVIDIA GPU'
             logger.info(f"✓ Using NVIDIA GPU: {name} (CUDA {torch.version.cuda or 'unknown'})")
         elif torch.backends.mps.is_available():
-            device = 'mps'
-            logger.info("✓ Using Apple Silicon GPU (Metal Performance Shaders) - Optimized for M1/M2/M3/M4!")
-            logger.info("Note: Using full precision (FP32) on MPS for numerical stability with large models")
+            # MPS is only available on Apple Silicon (ARM), not Intel Macs
+            # Check processor architecture to ensure we're actually on Apple Silicon
+            machine = platform.machine().lower()
+            processor = platform.processor().lower()
+            is_apple_silicon = (
+                machine == 'arm64' or 
+                'arm' in machine or 
+                'apple' in processor or
+                (platform.system() == 'Darwin' and machine == 'arm64')
+            )
+            
+            if is_apple_silicon:
+                device = 'mps'
+                logger.info("✓ Using Apple Silicon GPU (Metal Performance Shaders) - Optimized for M1/M2/M3/M4!")
+                logger.info("Note: Using full precision (FP32) on MPS for numerical stability with large models")
+            else:
+                # MPS backend reports available but we're on Intel Mac - use CPU
+                device = 'cpu'
+                logger.info(f"⚠ MPS backend available but system is Intel-based ({machine}/{processor}) - using CPU")
+                logger.info("MPS (Metal Performance Shaders) is only available on Apple Silicon (M1/M2/M3/M4) chips")
         else:
             device = 'cpu'
             # Provide helpful diagnostics for Windows/NVIDIA
@@ -320,26 +337,145 @@ class Transcriber:
                 transcribe_kwargs['initial_prompt'] = initial_prompt
 
             # For MPS device, pre-load audio as float32 to avoid float64 conversion errors
+            import numpy as np
             audio_input = audio_path
             if self.device == 'mps':
                 try:
                     import librosa
-                    import numpy as np
                     logger.info("Pre-loading audio as float32 for MPS compatibility...")
                     # Load audio at 16kHz (Whisper's expected sample rate) as float32
                     audio_data, sr = librosa.load(audio_path, sr=16000, mono=True, dtype=np.float32)
+                    
+                    # Validate audio data is not empty
+                    if len(audio_data) == 0:
+                        raise RuntimeError(f"Audio file contains no samples: {audio_path}")
+                    if np.all(audio_data == 0):
+                        logger.warning("Audio file contains only silence (all zeros)")
+                    
                     audio_input = audio_data
                     logger.info(f"Audio loaded: {len(audio_data)} samples at {sr}Hz (float32)")
                 except ImportError:
                     logger.warning("librosa not available, passing file path to Whisper (may cause MPS dtype issues)")
                 except Exception as e:
-                    logger.warning(f"Failed to pre-load audio: {e}, passing file path to Whisper")
+                    logger.error(f"Failed to pre-load audio: {e}")
+                    raise RuntimeError(f"Failed to load audio file: {e}")
 
             # Intercept stderr to capture tqdm progress if callback provided
             if progress_callback:
                 sys.stderr = ProgressInterceptor(original_stderr, progress_callback, base_percent=50, range_percent=45)
 
-            result = self.model.transcribe(audio_input, **transcribe_kwargs)
+            # Additional validation before transcription
+            if isinstance(audio_input, str):
+                # If passing file path, verify file exists and is not empty
+                if not os.path.exists(audio_input):
+                    raise RuntimeError(f"Audio file not found: {audio_input}")
+                file_size = os.path.getsize(audio_input)
+                if file_size == 0:
+                    raise RuntimeError(f"Audio file is empty (0 bytes): {audio_input}")
+            elif isinstance(audio_input, np.ndarray):
+                # If passing numpy array, verify it's not empty
+                if len(audio_input) == 0:
+                    raise RuntimeError("Audio data array is empty")
+                if audio_input.size == 0:
+                    raise RuntimeError("Audio data array has no elements")
+
+            try:
+                result = self.model.transcribe(audio_input, **transcribe_kwargs)
+            except (RuntimeError, KeyError) as e:
+                error_msg = str(e)
+                error_type = type(e).__name__
+                
+                # Check for kv_cache KeyError (known Whisper bug - can occur with or without word_timestamps)
+                if error_type == 'KeyError' and ('Linear' in error_msg or 'kv_cache' in error_msg or 'in_features' in error_msg):
+                    logger.warning(f"Whisper kv_cache KeyError detected: {error_msg}")
+                    logger.info("Attempting to work around kv_cache issue...")
+                    
+                    # Strategy 1: Retry without word_timestamps and with minimal options
+                    retry_kwargs = {
+                        'language': transcribe_kwargs.get('language'),
+                        'verbose': False,
+                        'fp16': transcribe_kwargs.get('fp16', False)
+                    }
+                    # Explicitly disable word_timestamps
+                    retry_kwargs['word_timestamps'] = False
+                    
+                    try:
+                        logger.info("Attempting transcription retry with minimal options (no word_timestamps)...")
+                        result = self.model.transcribe(audio_input, **retry_kwargs)
+                        logger.info("Transcription succeeded with minimal options")
+                    except Exception as retry_error:
+                        logger.error(f"Retry with minimal options failed: {retry_error}")
+                        
+                        # Strategy 2: Try reloading the model (kv_cache might be corrupted)
+                        try:
+                            logger.info("Attempting to reload model to clear kv_cache...")
+                            # Clear the model cache and reload
+                            with _GLOBAL_CACHE_LOCK:
+                                if self.model_size in _GLOBAL_MODEL_CACHE:
+                                    del _GLOBAL_MODEL_CACHE[self.model_size]
+                            self.model = None
+                            self.load_model(progress_callback=None)
+                            
+                            # Try again with minimal options
+                            logger.info("Retrying transcription with reloaded model...")
+                            result = self.model.transcribe(audio_input, **retry_kwargs)
+                            logger.info("Transcription succeeded after model reload")
+                        except Exception as reload_error:
+                            logger.error(f"Model reload retry also failed: {reload_error}")
+                            
+                            # Strategy 3: Try with CPU instead of MPS (if on MPS)
+                            if self.device == 'mps':
+                                try:
+                                    logger.info("Attempting transcription on CPU as final fallback...")
+                                    # Temporarily switch to CPU
+                                    original_device = self.device
+                                    self.device = 'cpu'
+                                    # Reload model on CPU
+                                    self.model = None
+                                    self.load_model(progress_callback=None)
+                                    
+                                    # Try transcription on CPU
+                                    result = self.model.transcribe(audio_input, **retry_kwargs)
+                                    logger.info("Transcription succeeded on CPU")
+                                    # Restore original device
+                                    self.device = original_device
+                                except Exception as cpu_error:
+                                    logger.error(f"CPU fallback also failed: {cpu_error}")
+                                    raise RuntimeError(
+                                        f"Transcription failed: Whisper kv_cache error. "
+                                        f"This is a known Whisper bug. Tried multiple workarounds but all failed. "
+                                        f"Try: 1) Using a different model size, 2) Updating Whisper/pytorch, "
+                                        f"3) Restarting the application. Original error: {error_msg}"
+                                    )
+                            else:
+                                raise RuntimeError(
+                                    f"Transcription failed: Whisper kv_cache error. "
+                                    f"This is a known Whisper bug. Tried multiple workarounds but all failed. "
+                                    f"Try: 1) Using a different model size, 2) Updating Whisper/pytorch, "
+                                    f"3) Restarting the application. Original error: {error_msg}"
+                                )
+                
+                # Check for the specific "cannot reshape tensor of 0 elements" error
+                elif "cannot reshape tensor" in error_msg and "0 elements" in error_msg:
+                    logger.error(f"Whisper processing error - empty tensor: {error_msg}")
+                    # Try reloading audio and retrying once
+                    if isinstance(audio_input, str):
+                        logger.info("Attempting to reload audio file and retry...")
+                        try:
+                            import librosa
+                            audio_data, sr = librosa.load(audio_input, sr=16000, mono=True, dtype=np.float32)
+                            if len(audio_data) > 0:
+                                logger.info(f"Reloaded audio: {len(audio_data)} samples, retrying transcription...")
+                                result = self.model.transcribe(audio_data, **transcribe_kwargs)
+                            else:
+                                raise RuntimeError("Audio file contains no valid samples after reload")
+                        except Exception as retry_error:
+                            logger.error(f"Retry failed: {retry_error}")
+                            raise RuntimeError(f"Transcription failed: Audio processing error. The audio file may be corrupted or in an unsupported format. Original error: {error_msg}")
+                    else:
+                        raise RuntimeError(f"Transcription failed: Audio processing error. {error_msg}")
+                else:
+                    raise
 
             # Restore stderr
             if progress_callback:

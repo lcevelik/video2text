@@ -324,7 +324,7 @@ class RecordingWorker(QThread):
 
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"recording_{timestamp}.mp3"
+        filename = f"recording_{timestamp}.ogg"
         recorded_path = str(self.output_dir / filename)
 
         logger.info(f"Saving recording to: {recorded_path}")
@@ -365,23 +365,60 @@ class RecordingWorker(QThread):
                 logger.warning(f"Could not apply audio filters: {e}. Saving unfiltered audio.")
                 self.status_update.emit(f"Filter warning: {e}")
 
-        # Convert to int16 for audio file
-        audio_data_int16 = (audio_data * 32767).astype(np.int16)
-
-        # Convert numpy array to AudioSegment and export as MP3
-        audio_segment = AudioSegment(
-            audio_data_int16.tobytes(),
-            frame_rate=sample_rate,
-            sample_width=2,  # 16-bit audio = 2 bytes
-            channels=1  # mono
-        )
-
+        # Save as Opus/OGG using ffmpeg for optimal compression
+        # Opus is the most efficient codec for speech transcription with Whisper
         try:
-            audio_segment.export(recorded_path, format="mp3", bitrate="320k")
+            import subprocess
+            import tempfile
+            import os
+            from tools.resource_locator import get_ffmpeg_path
+            
+            # First, save audio to a temporary WAV file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+                temp_wav_path = temp_wav.name
+                import wave
+                # Convert to int16 for WAV
+                audio_data_int16 = (audio_data * 32767).astype(np.int16)
+                with wave.open(temp_wav_path, 'wb') as wf:
+                    wf.setnchannels(1)  # Mono
+                    wf.setsampwidth(2)  # 16-bit
+                    wf.setframerate(sample_rate)
+                    wf.writeframes(audio_data_int16.tobytes())
+            
+            # Convert WAV to Opus/OGG using ffmpeg with optimized settings
+            ffmpeg_path = get_ffmpeg_path()
+            cmd = [
+                ffmpeg_path,
+                '-i', temp_wav_path,
+                '-c:a', 'libopus',  # Opus codec
+                '-b:a', '18k',  # 18 kbps bitrate (optimal for voice, between 12-24k)
+                '-ar', '16000',  # 16 kHz sample rate (Whisper's optimal)
+                '-ac', '1',  # Mono channel
+                '-application', 'voip',  # Optimize for voice/speech
+                '-y',  # Overwrite output
+                recorded_path
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True
+            )
+            
+            # Clean up temp file
+            try:
+                os.unlink(temp_wav_path)
+            except Exception:
+                pass
+            
+            logger.info(f"Recording saved as Opus/OGG: {recorded_path}")
+            
         except Exception as export_err:
-            logger.warning(f"MP3 export failed ({export_err}); falling back to WAV")
+            logger.warning(f"Opus export failed ({export_err}); falling back to WAV")
             import wave
             wav_path = str(self.output_dir / f"recording_{timestamp}.wav")
+            audio_data_int16 = (audio_data * 32767).astype(np.int16)
             with wave.open(wav_path, 'wb') as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
@@ -445,6 +482,18 @@ class TranscriptionWorker(QThread):
             if not audio_path or not Path(audio_path).exists():
                 self.transcription_error.emit("Failed to extract audio from video")
                 return
+            
+            # Validate extracted audio file is not empty
+            try:
+                file_size = Path(audio_path).stat().st_size
+                if file_size == 0:
+                    self.transcription_error.emit("Extracted audio file is empty. The source file may be corrupted.")
+                    logger.error(f"Extracted audio file is empty: {audio_path}")
+                    return
+                if file_size < 1024:  # Less than 1KB is suspicious
+                    logger.warning(f"Extracted audio file is very small ({file_size} bytes): {audio_path}")
+            except Exception as e:
+                logger.warning(f"Could not validate audio file size: {e}")
 
             self.progress_update.emit(f"Audio extracted successfully", 2)
             if self.cancel_requested:
@@ -452,7 +501,13 @@ class TranscriptionWorker(QThread):
                 return
 
             # Step 1.5: Apply audio filters if enabled
-            if self.enable_filters:
+            # Skip filters for recorded files (they already have filters applied when saved)
+            # Check for both .ogg (Opus) and .wav (fallback) recorded files
+            audio_filename = Path(audio_path).name
+            is_recorded_file = audio_filename.startswith("recording_") and (
+                audio_filename.endswith(".ogg") or audio_filename.endswith(".wav")
+            )
+            if self.enable_filters and not is_recorded_file:
                 try:
                     self.progress_update.emit("Applying audio filters...", 3)
                     audio_path = self._apply_audio_filters(audio_path)
@@ -460,6 +515,8 @@ class TranscriptionWorker(QThread):
                 except Exception as e:
                     logger.warning(f"Could not apply audio filters to upload: {e}")
                     # Continue with unfiltered audio
+            elif is_recorded_file:
+                logger.info("Skipping audio filters - file is a recorded file (filters already applied)")
 
             if self.cancel_requested:
                 self.transcription_error.emit("Transcription cancelled.")

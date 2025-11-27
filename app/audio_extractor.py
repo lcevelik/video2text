@@ -250,18 +250,19 @@ class AudioExtractor:
         """
         return self.get_media_duration(video_path)
     
-    def extract_audio(self, media_path, output_path=None, audio_format='wav', progress_callback=None):
+    def extract_audio(self, media_path, output_path=None, audio_format='ogg', progress_callback=None):
         """
         Extract or prepare audio from a media file (video or audio).
         - If input is a video file: extracts audio from video
-        - If input is an audio file: converts to optimal format for Whisper (16kHz mono WAV)
+        - If input is an audio file: converts to optimal format for Whisper (Opus/OGG at 16kHz mono)
 
-        OPTIMIZED: Now supports progress callbacks for better UX.
+        OPTIMIZED: Now uses Opus codec for smallest file size while maintaining transcription quality.
+        Opus is the most efficient codec for speech transcription with Whisper.
 
         Args:
             media_path: Path to the input media file (video or audio)
             output_path: Path for the output audio file (optional)
-            audio_format: Output audio format (default: 'wav')
+            audio_format: Output audio format (default: 'ogg' for Opus)
             progress_callback: Optional callback function(message, percentage) for progress updates
 
         Returns:
@@ -283,9 +284,30 @@ class AudioExtractor:
                 f"Supported audio formats: {', '.join(sorted(self.SUPPORTED_AUDIO_FORMATS))}"
             )
 
-        # If it's already a WAV file, check if we can use it directly
-        # For now, we'll always convert to ensure optimal format (16kHz mono)
-        # This ensures consistency and optimal Whisper performance
+        # Check if source is already optimal Opus/OGG format (16kHz mono)
+        # Opus files are already optimal for Whisper, so we can use them directly
+        if media_path.suffix.lower() == '.ogg':
+            try:
+                import soundfile as sf
+                test_data, test_sr = sf.read(str(media_path))
+                # Check if it's already 16kHz mono
+                if test_sr == 16000 and (len(test_data.shape) == 1 or test_data.shape[1] == 1):
+                    logger.info(f"Source OGG is already optimal format (16kHz mono), using directly")
+                    return str(media_path)
+            except Exception as e:
+                logger.debug(f"Could not verify OGG format, will convert: {e}")
+        
+        # Also check WAV files that are already optimal
+        if media_path.suffix.lower() == '.wav':
+            try:
+                import soundfile as sf
+                test_data, test_sr = sf.read(str(media_path))
+                # Check if it's already 16kHz mono
+                if test_sr == 16000 and (len(test_data.shape) == 1 or test_data.shape[1] == 1):
+                    logger.info(f"Source WAV is already optimal format (16kHz mono), using directly")
+                    return str(media_path)
+            except Exception as e:
+                logger.debug(f"Could not verify WAV format, will convert: {e}")
 
         # Generate output path if not provided
         if output_path is None:
@@ -311,14 +333,16 @@ class AudioExtractor:
         if progress_callback:
             progress_callback(f"{action_present} audio...", 5)
 
-        # Use ffmpeg to extract/convert audio
+        # Use ffmpeg to extract/convert audio to Opus/OGG format
+        # Opus is the most efficient codec for speech transcription with Whisper
         # -i: input file
         # -vn: disable video (for video files)
-        # -acodec: audio codec (pcm_s16le for WAV)
+        # -c:a: audio codec (libopus for OGG, pcm_s16le for WAV fallback)
+        # -b:a: bitrate (18k for Opus - optimal for voice between 12-24k)
         # -ar: sample rate (16000 Hz is optimal for Whisper)
         # -ac: audio channels (1 for mono)
+        # -application voip: optimize for voice/speech
         # -y: overwrite output file if exists
-        # -progress: output progress information
         try:
             cmd = [self.ffmpeg_path, '-i', str(media_path)]
 
@@ -327,13 +351,35 @@ class AudioExtractor:
                 cmd.append('-vn')  # No video
 
             # Add audio processing options
-            cmd.extend([
-                '-acodec', 'pcm_s16le' if audio_format == 'wav' else 'libmp3lame',
-                '-ar', '16000',  # Sample rate (Whisper works best with 16kHz)
-                '-ac', '1',  # Mono audio
-                '-y',  # Overwrite output
-                output_path
-            ])
+            if audio_format == 'ogg':
+                # Use Opus codec with optimized settings for speech
+                cmd.extend([
+                    '-c:a', 'libopus',  # Opus codec
+                    '-b:a', '18k',  # 18 kbps bitrate (optimal for voice)
+                    '-ar', '16000',  # Sample rate (Whisper works best with 16kHz)
+                    '-ac', '1',  # Mono audio
+                    '-application', 'voip',  # Optimize for voice/speech
+                    '-y',  # Overwrite output
+                    output_path
+                ])
+            elif audio_format == 'wav':
+                # Fallback to WAV if needed
+                cmd.extend([
+                    '-acodec', 'pcm_s16le',
+                    '-ar', '16000',  # Sample rate (Whisper works best with 16kHz)
+                    '-ac', '1',  # Mono audio
+                    '-y',  # Overwrite output
+                    output_path
+                ])
+            else:
+                # Other formats (MP3, etc.)
+                cmd.extend([
+                    '-acodec', 'libmp3lame',
+                    '-ar', '16000',
+                    '-ac', '1',
+                    '-y',
+                    output_path
+                ])
 
             # OPTIMIZED: Show progress during extraction (though ffmpeg progress parsing
             # would require async processing, so we'll just show intermediate updates)
@@ -352,8 +398,29 @@ class AudioExtractor:
 
             if not os.path.exists(output_path):
                 raise RuntimeError("Audio processing completed but output file not found")
+            
+            # Validate extracted audio file is not empty
+            file_size = os.path.getsize(output_path)
+            if file_size == 0:
+                raise RuntimeError(f"Audio extraction produced an empty file (0 bytes). The source file may be corrupted or invalid.")
+            
+            # Check minimum file size (should be at least a few KB for valid audio)
+            if file_size < 1024:  # Less than 1KB is suspicious
+                logger.warning(f"Extracted audio file is very small ({file_size} bytes). This may indicate a problem.")
+            
+            # Try to validate audio file can be read
+            try:
+                import soundfile as sf
+                test_data, test_sr = sf.read(output_path)
+                if len(test_data) == 0:
+                    raise RuntimeError("Extracted audio file contains no audio samples")
+                logger.info(f"Audio validation: {len(test_data)} samples at {test_sr}Hz")
+            except ImportError:
+                logger.debug("soundfile not available, skipping audio validation")
+            except Exception as e:
+                logger.warning(f"Audio validation failed: {e}, but continuing anyway")
 
-            logger.info(f"Audio {action_past} successfully to {output_path}")
+            logger.info(f"Audio {action_past} successfully to {output_path} (size: {file_size} bytes)")
 
             if progress_callback:
                 progress_callback(f"Audio {action_past} successfully", 30)

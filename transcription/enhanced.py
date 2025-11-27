@@ -400,13 +400,30 @@ class EnhancedTranscriber(Transcriber):
             # OPTIMIZED: Single transcription pass with efficient language analysis
             if progress_callback:
                 progress_callback("Multi-language mode: full word-level transcription...")
-            result = self.transcribe(
-                audio_path,
-                language=None,  # Auto-detect all languages
-                initial_prompt=initial_prompt,
-                word_timestamps=True,  # Enable word-level timestamps
-                progress_callback=progress_callback
-            )
+            # Note: word_timestamps may cause kv_cache KeyError in some Whisper versions
+            # The base transcribe() method will automatically retry without word_timestamps if this error occurs
+            try:
+                result = self.transcribe(
+                    audio_path,
+                    language=None,  # Auto-detect all languages
+                    initial_prompt=initial_prompt,
+                    word_timestamps=True,  # Enable word-level timestamps (will auto-disable on error)
+                    progress_callback=progress_callback
+                )
+            except RuntimeError as e:
+                # If kv_cache error occurred and was handled, the transcription should have succeeded
+                # But if it still failed, try without word_timestamps explicitly
+                if "kv_cache" in str(e) or "Linear" in str(e):
+                    logger.warning("kv_cache error detected, retrying without word_timestamps...")
+                    result = self.transcribe(
+                        audio_path,
+                        language=None,
+                        initial_prompt=initial_prompt,
+                        word_timestamps=False,  # Disable word timestamps
+                        progress_callback=progress_callback
+                    )
+                else:
+                    raise
 
             logger.info(f"Transcription complete: {len(result.get('segments', []))} segments")
 

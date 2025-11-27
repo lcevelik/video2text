@@ -27,9 +27,24 @@ def has_gpu_available() -> bool:
             return True
 
         # Check for Apple Silicon MPS (Metal Performance Shaders)
+        # MPS is only available on Apple Silicon (ARM), not Intel Macs
         if torch.backends.mps.is_available():
-            logger.info("Apple Silicon GPU (MPS) detected")
-            return True
+            # Verify we're actually on Apple Silicon (ARM architecture)
+            machine = platform.machine().lower()
+            processor = platform.processor().lower()
+            is_apple_silicon = (
+                machine == 'arm64' or 
+                'arm' in machine or 
+                'apple' in processor or
+                (platform.system() == 'Darwin' and machine == 'arm64')
+            )
+            
+            if is_apple_silicon:
+                logger.info("Apple Silicon GPU (MPS) detected")
+                return True
+            else:
+                logger.info(f"MPS backend available but system is Intel-based ({machine}/{processor}) - not using MPS")
+                return False
 
         logger.info("No GPU acceleration available (no CUDA or MPS)")
         return False

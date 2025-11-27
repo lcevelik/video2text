@@ -41,7 +41,7 @@ class FileManager:
             self.main_window,
             self.main_window.tr("Select Video or Audio File"),
             "",
-            self.main_window.tr("Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a);;All Files (*.*)")
+            self.main_window.tr("Media Files (*.mp4 *.avi *.mov *.mp3 *.wav *.m4a *.ogg);;All Files (*.*)")
         )
 
         if file_path:
