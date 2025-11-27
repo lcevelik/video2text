@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any
+from .path_manager import PathManager
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +15,19 @@ logger = logging.getLogger(__name__)
 class SettingsManager:
     """Manages application settings and configuration."""
 
-    def __init__(self, config_file: Path):
+    def __init__(self, config_file: Path = None):
         """
         Initialize the settings manager.
 
         Args:
-            config_file: Path to the configuration file
+            config_file: Path to the configuration file (defaults to ~/.fonixflow/config.json)
         """
+        # Use centralized path manager
+        if config_file is None:
+            config_file = PathManager.get_config_file()
         self.config_file = config_file
         self.default_settings = {
-            "recordings_dir": str(Path.home() / "FonixFlow" / "Recordings"),
+            "recordings_dir": str(PathManager.get_recordings_dir()),
             "theme_mode": "dark",  # auto, light, dark (default: dark)
             "enable_audio_filters": True,  # Audio processing filters (default ON)
             "enable_deep_scan": False,  # Deep scan for transcription (default OFF)

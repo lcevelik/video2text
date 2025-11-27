@@ -126,15 +126,29 @@ class AudioExtractor:
             os.environ['FFMPEG_BINARY'] = self.ffmpeg_path
             os.environ['FFPROBE_BINARY'] = self.ffprobe_path
 
-            subprocess.run(
+            # Test ffmpeg availability
+            result = subprocess.run(
                 [self.ffmpeg_path, '-version'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                check=True
+                check=True,
+                timeout=5
             )
             logger.info(f"ffmpeg is available at: {self.ffmpeg_path}")
             logger.info(f"ffprobe is available at: {self.ffprobe_path}")
-        except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
+            
+            # Check if using system ffmpeg (not bundled)
+            import shutil
+            system_ffmpeg = shutil.which('ffmpeg')
+            if system_ffmpeg and os.path.samefile(self.ffmpeg_path, system_ffmpeg):
+                logger.warning("⚠ Using system ffmpeg instead of bundled version. This is fine, but bundled version is preferred for DMG installations.")
+        except subprocess.TimeoutExpired:
+            logger.warning(f"ffmpeg version check timed out, but continuing anyway")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            # If we got a path but it doesn't work, log warning but don't fail
+            logger.warning(f"ffmpeg test failed: {e}, but path exists. Continuing anyway.")
+        except RuntimeError as e:
+            # Only raise if ffmpeg truly not found (no path at all)
             raise RuntimeError(
                 f"ffmpeg is not available: {e}\n"
                 "Please install ffmpeg: https://ffmpeg.org/download.html"

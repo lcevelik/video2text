@@ -33,12 +33,9 @@ from PySide6.QtWidgets import QApplication, QSplashScreen, QProgressBar, QVBoxLa
 from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter, QFont  # type: ignore
 from PySide6.QtCore import QTranslator, QLocale, Qt, QTimer  # type: ignore
 
-# Configure logging to ensure output is visible
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True
-)
+# Set up centralized logging system (before any other imports that use logging)
+from gui.managers.log_manager import LogManager
+LogManager.setup_logging(level=logging.INFO, console_output=True)
 logger = logging.getLogger(__name__)
 
 
@@ -287,10 +284,20 @@ def main():
     # Show main window and finish splash
     window.show()
     splash.finish(window)
+    
+    # Ensure workers are cleaned up on app exit
+    def cleanup_on_exit():
+        if hasattr(window, 'cleanup_all_workers'):
+            window.cleanup_all_workers()
+    
+    app.aboutToQuit.connect(cleanup_on_exit)
 
     try:
         exit_code = app.exec()
     finally:
+        # Final cleanup
+        if hasattr(window, 'cleanup_all_workers'):
+            window.cleanup_all_workers()
         if lock_file:
             try:
                 lock_file.close()

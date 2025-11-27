@@ -39,9 +39,9 @@ class UpdateManager:
         self.update_server = "https://cdn.fonixflow.com/updates"
         self.manifest_url = f"{self.update_server}/manifest.json"
 
-        # Cache directory for updates
-        self.cache_dir = Path.home() / ".fonixflow" / "updates"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Cache directory for updates (use PathManager)
+        from gui.managers.path_manager import PathManager
+        self.cache_dir = PathManager.get_updates_dir()
 
     def check_for_updates(self, timeout: int = 5) -> Dict:
         """
@@ -245,7 +245,8 @@ class UpdateScheduler:
         """Initialize the scheduler."""
         self.app_version = app_version
         self.manager = UpdateManager(app_version)
-        self.config_path = Path.home() / ".fonixflow" / "update_config.json"
+        from gui.managers.path_manager import PathManager
+        self.config_path = PathManager.get_base_dir() / "update_config.json"
 
     def should_check_for_updates(self) -> bool:
         """

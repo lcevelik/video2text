@@ -24,7 +24,7 @@ from PySide6.QtGui import QPalette, QIcon, QAction  # type: ignore
 from gui.theme import Theme
 from gui.widgets import ModernButton, Card, DropZone, VUMeter, ModernTabBar, CollapsibleSidebar
 from gui.workers import RecordingWorker, TranscriptionWorker, AudioPreviewWorker
-from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog
+from gui.dialogs import MultiLanguageChoiceDialog, RecordingDialog, LogsDialog, LicenseLimitationsDialog
 from gui.utils import check_audio_input_devices, get_platform, get_platform_audio_setup_help, has_gpu_available
 from gui.managers import SettingsManager, ThemeManager, FileManager
 from gui.icons import get_icon
@@ -72,7 +72,9 @@ class FonixFlowQt(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("FonixFlow - Whisper Transcription"))
+        # Initialize license_valid to False first (will be updated after license check)
+        self.license_valid = False
+        self.setWindowTitle(self.tr("FonixFlow Free - Whisper Transcription"))
         self.setMinimumSize(1000, 700)
 
         # Set application icon
@@ -85,21 +87,25 @@ class FonixFlowQt(QMainWindow):
             QApplication.instance().setWindowIcon(app_icon)
 
         # Initialize managers
-        self.settings_manager = SettingsManager(Path.home() / ".fonixflow_config.json")
+        # Initialize path manager and migrate old files
+        from gui.managers.path_manager import PathManager
+        PathManager.migrate_old_files()
+        
+        # Initialize settings manager (uses PathManager for config location)
+        self.settings_manager = SettingsManager()
         self.settings = self.settings_manager.settings  # Keep for backward compatibility
         self.theme_manager = ThemeManager(self, self.settings_manager.get("theme_mode", "dark"))
         self.file_manager = FileManager(self)
-
-        # Check for Free Version
-        self.is_free_version = os.environ.get("FONIXFLOW_EDITION") == "FREE"
-        if self.is_free_version:
-            logger.info("Running in FREE version mode")
 
         # License key state
         logger.info(f"License: loading key from settings: {self.settings_manager.get('license_key', None)}")
         self.license_key = self.settings_manager.get("license_key", None)
         self.license_valid = False
         self.check_license_key_on_startup()
+        
+        # Show license limitations dialog if no valid license
+        if not self.license_valid:
+            self.show_license_limitations_dialog()
 
         # Audio processing settings
         self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", True)
@@ -235,6 +241,21 @@ class FonixFlowQt(QMainWindow):
         else:
             self.license_valid = False
             logger.info("No license key found on startup.")
+        # Update window title based on license status
+        self.update_window_title()
+    
+    def update_window_title(self):
+        """Update window title to reflect license status."""
+        if hasattr(self, 'license_valid') and self.license_valid:
+            self.setWindowTitle(self.tr("FonixFlow - Whisper Transcription"))
+        else:
+            self.setWindowTitle(self.tr("FonixFlow Free - Whisper Transcription"))
+    
+    def show_license_limitations_dialog(self):
+        """Show dialog explaining limitations for unlicensed users."""
+        logger.info("Showing license limitations dialog")
+        dialog = LicenseLimitationsDialog(self)
+        dialog.exec()
 
     def validate_license_key(self, key):
         """Validate license key using local file first, then LemonSqueezy API."""
@@ -318,6 +339,8 @@ class FonixFlowQt(QMainWindow):
             self.license_valid = True
             self.settings_manager.save_settings(license_key=self.license_key)
             logger.info("License key accepted and saved.")
+            # Update window title when license becomes valid
+            self.update_window_title()
             return True
         else:
             # Don't deactivate existing license if user just cancelled
@@ -334,6 +357,7 @@ class FonixFlowQt(QMainWindow):
         if result:
             # Re-validate to ensure license is still valid
             self.check_license_key_on_startup()
+            # Update window title (check_license_key_on_startup already calls update_window_title)
             QMessageBox.information(
                 self,
                 self.tr("Activation Successful"),
@@ -344,6 +368,12 @@ class FonixFlowQt(QMainWindow):
     def is_license_active(self):
         """Check if license is currently active and valid."""
         return self.license_valid and self.license_key is not None
+
+    def show_logs_dialog(self):
+        """Show the logs dialog."""
+        logger.info("Opening logs dialog")
+        dialog = LogsDialog(self)
+        dialog.exec()
 
     def check_for_updates(self):
         """Check for app updates asynchronously."""
@@ -514,6 +544,66 @@ class FonixFlowQt(QMainWindow):
         """Apply the current theme to all UI elements (delegated to ThemeManager)."""
         self.theme_manager.apply_theme()
 
+    def cleanup_all_workers(self):
+        """Clean up all worker threads before app exit."""
+        logger.info("Cleaning up all workers...")
+        try:
+            # Stop audio preview worker if running
+            if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker:
+                try:
+                    if self.audio_preview_worker.isRunning():
+                        logger.info("Stopping audio preview worker...")
+                        self.audio_preview_worker.stop()
+                        if not self.audio_preview_worker.wait(3000):
+                            logger.warning("Audio preview worker did not stop gracefully, terminating...")
+                            self.audio_preview_worker.terminate()
+                            self.audio_preview_worker.wait(1000)
+                except Exception as e:
+                    logger.warning(f"Error stopping audio preview worker: {e}")
+                finally:
+                    try:
+                        self.audio_preview_worker.deleteLater()
+                    except:
+                        pass
+                    self.audio_preview_worker = None
+
+            # Stop recording worker if running
+            if hasattr(self, 'recording_worker') and self.recording_worker:
+                try:
+                    if self.recording_worker.isRunning():
+                        logger.info("Stopping recording worker...")
+                        self.recording_worker.stop()
+                        if not self.recording_worker.wait(3000):
+                            logger.warning("Recording worker did not stop gracefully, terminating...")
+                            self.recording_worker.terminate()
+                            self.recording_worker.wait(1000)
+                except Exception as e:
+                    logger.warning(f"Error stopping recording worker: {e}")
+                finally:
+                    try:
+                        self.recording_worker.deleteLater()
+                    except:
+                        pass
+                    self.recording_worker = None
+
+            # Stop transcription worker if running
+            if hasattr(self, 'transcription_worker') and self.transcription_worker:
+                try:
+                    if self.transcription_worker.isRunning():
+                        logger.info("Stopping transcription worker...")
+                        self.transcription_worker.terminate()
+                        self.transcription_worker.wait(3000)
+                except Exception as e:
+                    logger.warning(f"Error stopping transcription worker: {e}")
+                finally:
+                    try:
+                        self.transcription_worker.deleteLater()
+                    except:
+                        pass
+                    self.transcription_worker = None
+        except Exception as e:
+            logger.error(f"Error during worker cleanup: {e}")
+
     def closeEvent(self, event):
         """Handle window close - minimize to tray or fully quit."""
         # Check if we should minimize to tray instead of closing
@@ -536,54 +626,8 @@ class FonixFlowQt(QMainWindow):
             return
 
         # If no tray or user chose to exit, do full cleanup
-        logger.info("Closing application - cleaning up workers...")
         try:
-            # Stop audio preview worker if running
-            if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker:
-                try:
-                    if self.audio_preview_worker.isRunning():
-                        logger.info("Stopping audio preview worker...")
-                        self.audio_preview_worker.stop()
-                        # Give it 3 seconds to stop gracefully
-                        if not self.audio_preview_worker.wait(3000):
-                            logger.warning("Audio preview worker did not stop gracefully, terminating...")
-                            self.audio_preview_worker.terminate()
-                            self.audio_preview_worker.wait(1000)
-                except Exception as e:
-                    logger.warning(f"Error stopping audio preview worker: {e}")
-                finally:
-                    self.audio_preview_worker = None
-
-            # Stop recording worker if running
-            if hasattr(self, 'recording_worker') and self.recording_worker:
-                try:
-                    if self.recording_worker.isRunning():
-                        logger.info("Stopping recording worker...")
-                        self.recording_worker.stop()
-                        if not self.recording_worker.wait(3000):
-                            logger.warning("Recording worker did not stop gracefully, terminating...")
-                            self.recording_worker.terminate()
-                            self.recording_worker.wait(1000)
-                except Exception as e:
-                    logger.warning(f"Error stopping recording worker: {e}")
-                finally:
-                    self.recording_worker = None
-
-            # Stop transcription worker if running
-            if hasattr(self, 'transcription_worker') and self.transcription_worker:
-                try:
-                    if self.transcription_worker.isRunning():
-                        logger.info("Stopping transcription worker...")
-                        self.transcription_worker.cancel()
-                        self.transcription_worker.quit()
-                        if not self.transcription_worker.wait(3000):
-                            logger.warning("Transcription worker did not stop gracefully, terminating...")
-                            self.transcription_worker.terminate()
-                            self.transcription_worker.wait(1000)
-                except Exception as e:
-                    logger.warning(f"Error stopping transcription worker: {e}")
-                finally:
-                    self.transcription_worker = None
+            self.cleanup_all_workers()
         except Exception as e:
             logger.warning(f"Error while shutting down workers: {e}")
 
@@ -785,7 +829,6 @@ class FonixFlowQt(QMainWindow):
         self.selected_mic_device = None  # User-selected microphone device
         self.selected_speaker_device = None  # User-selected speaker device
         
-        # Free version limit (Removed 10 min limit)
         self.recording_time_limit = None
 
         # Main container
@@ -923,8 +966,35 @@ class FonixFlowQt(QMainWindow):
         
         # Add stretch to push buttons to the left
         settings_buttons_row.addStretch()
-        
+
         layout.addLayout(settings_buttons_row)
+
+        # Logs section
+        logs_section_label = QLabel(self.tr("Logs"))
+        logs_section_label.setStyleSheet(f"""
+            font-size: 15px;
+            font-weight: bold;
+            color: {Theme.get('text_primary', self.is_dark_mode)};
+            margin-top: 20px;
+        """)
+        layout.addWidget(logs_section_label)
+
+        # View Logs button
+        view_logs_btn = ModernButton(self.tr("View Logs"))
+        set_icon(view_logs_btn, 'file-text')
+        view_logs_btn.clicked.connect(self.show_logs_dialog)
+        style_settings_btn(view_logs_btn)
+        view_logs_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        view_logs_btn.setMinimumSize(180, 50)
+        view_logs_btn.setMaximumSize(180, 50)
+        view_logs_btn.setFixedSize(180, 50)
+        view_logs_btn.setMinimumHeight(50)
+        view_logs_btn.setMaximumHeight(50)
+        
+        logs_btn_layout = QHBoxLayout()
+        logs_btn_layout.addWidget(view_logs_btn)
+        logs_btn_layout.addStretch()
+        layout.addLayout(logs_btn_layout)
 
         layout.addStretch()
         return widget
@@ -1886,7 +1956,9 @@ class FonixFlowQt(QMainWindow):
 
     def open_recordings_folder(self):
         """Open the recordings folder in the system file explorer (delegated to FileManager)."""
-        recordings_dir = self.settings_manager.get("recordings_dir", str(Path.home() / "FonixFlow" / "Recordings"))
+        from gui.managers.path_manager import PathManager
+        default_recordings = str(PathManager.get_recordings_dir())
+        recordings_dir = self.settings_manager.get("recordings_dir", default_recordings)
         self.file_manager.open_recordings_folder(recordings_dir)
 
     def show_recording_dialog(self):
@@ -2014,15 +2086,6 @@ class FonixFlowQt(QMainWindow):
             detect_language_changes = False
             use_deep_scan = False
 
-        # Free Version Restriction: Force Base Model
-        if getattr(self, 'is_free_version', False):
-            logger.info("Free Version: Forcing 'base' model")
-            model_size = "base"
-            detect_language_changes = False
-            use_deep_scan = False
-            # We keep 'language' as is (None for auto-detect, or specific if we had a way to select it)
-            # Since we forced single_language_type='other' above, language is None (Auto-detect)
-
         # Update model name display in status bar
         if self.model_name_label:
             if detect_language_changes:
@@ -2069,16 +2132,8 @@ class FonixFlowQt(QMainWindow):
             # Already chosen for current file
             self.start_transcription()
             return True
-            
-        # Free Version Restriction: Single Language Only
-        if getattr(self, 'is_free_version', False):
-            logger.info("Free Version: Forcing single-language mode")
-            self.multi_language_mode = False
-            self.allowed_languages = []
-            self.single_language_type = 'other' # Default to auto-detect/other
-            self.start_transcription()
-            return True
 
+        # Show dialog to choose multi-language or single-language
         dlg = MultiLanguageChoiceDialog(self)
         if dlg.exec() == QDialog.Accepted:
             self.multi_language_mode = dlg.is_multi_language
@@ -2239,14 +2294,6 @@ class FonixFlowQt(QMainWindow):
                     self.tr("Transcription Limit Reached"),
                     self.tr(f"Your transcription has {len(words)} words, but the free version is limited to 500 words.\n\nActivate a license to transcribe unlimited words.")
                 )
-
-        # Free version word limit (1000 words) - for FONIXFLOW_EDITION=FREE
-        if getattr(self, 'is_free_version', False):
-            words = text.split()
-            if len(words) > 1000:
-                logger.info(f"Free version word limit exceeded ({len(words)} words). Truncating to 1000.")
-                text = " ".join(words[:1000]) + "\n\n[TRUNCATED: Free version limit 1000 words]"
-                result['text'] = text
 
         segments = result.get('segments', [])
         segment_count = len(segments)

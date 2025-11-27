@@ -1,6 +1,18 @@
 import webbrowser
 import requests
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout, QApplication
+import platform
+import os
+import logging
+from datetime import datetime
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout, 
+    QApplication, QScrollArea, QWidget, QFileDialog, QMessageBox
+)
+from PySide6.QtGui import QTextCursor, QPixmap
+from PySide6.QtCore import Qt
 class LicenseKeyDialog(QDialog):
     """Dialog for entering and validating LemonSqueezy license key."""
     def __init__(self, parent=None, current_key=None):
@@ -269,7 +281,9 @@ class RecordingDialog(QDialog):
 
         # Start actual recording in QThread worker
         # Get recordings directory from parent window
-        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else str(Path.home() / "FonixFlow" / "Recordings")
+        from gui.managers.path_manager import PathManager
+        default_recordings = str(PathManager.get_recordings_dir())
+        recordings_dir = self.parent().settings["recordings_dir"] if hasattr(self.parent(), 'settings') else default_recordings
         self.worker = RecordingWorker(recordings_dir, self)
         self.worker.recording_complete.connect(self.on_recording_complete)
         self.worker.recording_error.connect(self.on_recording_error)
@@ -518,5 +532,284 @@ class MultiLanguageChoiceDialog(QDialog):
             self.single_language_type = 'other'
 
         self.selected_languages = []
+        self.accept()
+
+
+class LogsDialog(QDialog):
+    """Dialog for viewing and managing application logs."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Application Logs"))
+        self.setMinimumSize(800, 600)
+        self.setup_ui()
+        self.load_logs()
+    
+    def setup_ui(self):
+        from gui.managers.log_manager import LogManager
+        
+        layout = QVBoxLayout(self)
+        
+        # Header with log file info
+        info_layout = QHBoxLayout()
+        log_info = LogManager.get_log_info()
+        session_timestamp = LogManager.get_session_timestamp()
+        info_label = QLabel(
+            self.tr(f"Session: {session_timestamp}\n"
+                   f"Log file: {log_info['path']}\n"
+                   f"Size: {log_info['size_mb']} MB")
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("font-size: 11px; color: #666; padding: 5px;")
+        info_layout.addWidget(info_label)
+        layout.addLayout(info_layout)
+        
+        # Log content area
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setFont(QApplication.font())
+        self.log_text.setStyleSheet("""
+            QTextEdit {
+                font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                font-size: 11px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+                padding: 10px;
+            }
+        """)
+        layout.addWidget(self.log_text)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        
+        refresh_btn = QPushButton(self.tr("Refresh"))
+        refresh_btn.clicked.connect(self.load_logs)
+        btn_layout.addWidget(refresh_btn)
+        
+        open_folder_btn = QPushButton(self.tr("Open Log Folder"))
+        open_folder_btn.clicked.connect(self.open_log_folder)
+        btn_layout.addWidget(open_folder_btn)
+        
+        copy_btn = QPushButton(self.tr("Copy to Clipboard"))
+        copy_btn.clicked.connect(self.copy_logs)
+        btn_layout.addWidget(copy_btn)
+        
+        save_btn = QPushButton(self.tr("Save As..."))
+        save_btn.clicked.connect(self.save_logs)
+        btn_layout.addWidget(save_btn)
+        
+        clear_btn = QPushButton(self.tr("Clear Logs"))
+        clear_btn.clicked.connect(self.clear_logs)
+        btn_layout.addWidget(clear_btn)
+        
+        close_btn = QPushButton(self.tr("Close"))
+        close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(close_btn)
+        
+        layout.addLayout(btn_layout)
+    
+    def load_logs(self):
+        """Load recent logs into the text area."""
+        from gui.managers.log_manager import LogManager
+        logs = LogManager.get_recent_logs(lines=500)
+        self.log_text.setPlainText(logs)
+        # Scroll to bottom
+        cursor = self.log_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.log_text.setTextCursor(cursor)
+    
+    def open_log_folder(self):
+        """Open the log file folder in the system file explorer."""
+        from gui.managers.log_manager import LogManager
+        import subprocess
+        log_file = LogManager.get_log_file_path()
+        log_dir = log_file.parent
+        
+        try:
+            if platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', str(log_dir)])
+            elif platform.system() == 'Windows':
+                subprocess.run(['explorer', str(log_dir)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(log_dir)])
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                self.tr("Error"),
+                self.tr(f"Could not open folder: {e}\n\nLog directory: {log_dir}")
+            )
+    
+    def copy_logs(self):
+        """Copy logs to clipboard."""
+        logs = self.log_text.toPlainText()
+        clipboard = QApplication.clipboard()
+        clipboard.setText(logs)
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self,
+            self.tr("Copied"),
+            self.tr("Logs copied to clipboard!")
+        )
+    
+    def save_logs(self):
+        """Save logs to a file."""
+        logs = self.log_text.toPlainText()
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Save Logs"),
+            f"fonixflow_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            self.tr("Text Files (*.txt);;All Files (*)")
+        )
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(logs)
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self,
+                    self.tr("Saved"),
+                    self.tr(f"Logs saved to:\n{file_path}")
+                )
+            except Exception as e:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self,
+                    self.tr("Error"),
+                    self.tr(f"Could not save logs: {e}")
+                )
+    
+    def clear_logs(self):
+        """Clear the log file."""
+        from PySide6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            self,
+            self.tr("Clear Logs"),
+            self.tr("Are you sure you want to clear all logs? This cannot be undone."),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            from gui.managers.log_manager import LogManager
+            if LogManager.clear_logs():
+                QMessageBox.information(
+                    self,
+                    self.tr("Logs Cleared"),
+                    self.tr("Log file has been cleared.")
+                )
+                self.load_logs()
+            else:
+                QMessageBox.warning(
+                    self,
+                    self.tr("Error"),
+                    self.tr("Could not clear logs.")
+                )
+
+
+class LicenseLimitationsDialog(QDialog):
+    """Dialog explaining limitations for unlicensed users."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("FonixFlow - Free Version"))
+        self.setMaximumWidth(400)
+        self.setMinimumSize(350, 300)
+        self.setup_ui()
+        self.center_on_screen()
+    
+    def center_on_screen(self):
+        """Center the dialog on the primary screen."""
+        try:
+            frame_geom = self.frameGeometry()
+            screen_center = QApplication.primaryScreen().availableGeometry().center()
+            frame_geom.moveCenter(screen_center)
+            self.move(frame_geom.topLeft())
+        except Exception as e:
+            logger.warning(f"Error centering dialog: {e}")
+    
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        # Logo
+        from tools.resource_locator import get_resource_path
+        logo_path = get_resource_path('assets/logo.png')
+        logo_label = QLabel()
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            # Scale logo to reasonable size (max width 300px, maintain aspect ratio)
+            if pixmap.width() > 300:
+                pixmap = pixmap.scaledToWidth(300)
+            logo_label.setPixmap(pixmap)
+            logo_label.setAlignment(Qt.AlignCenter)
+        else:
+            # Fallback text if logo not found
+            logo_label.setText(self.tr("FonixFlow"))
+            logo_label.setStyleSheet("font-size: 20px; font-weight: bold; padding: 10px;")
+        layout.addWidget(logo_label)
+        
+        # Description text (plain text, no scrolling, no styled background)
+        desc_text = QLabel(
+            self.tr(
+                "Free: Unlimited audio recording. Transcription is limited to 500 words per file.\n\n"
+                "Pro:  Unlock unlimited transcription with no word limits and full multi-language support."
+            )
+        )
+        desc_text.setWordWrap(True)
+        desc_text.setStyleSheet("""
+            font-size: 13px;
+            padding: 10px 0px;
+        """)
+        layout.addWidget(desc_text)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        use_free_btn = QPushButton(self.tr("Use Free Version"))
+        use_free_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5a6268;
+            }
+        """)
+        use_free_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(use_free_btn)
+        
+        purchase_btn = QPushButton(self.tr("Purchase License"))
+        purchase_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
+        purchase_btn.clicked.connect(self.purchase_license)
+        btn_layout.addWidget(purchase_btn)
+        
+        layout.addLayout(btn_layout)
+    
+    def purchase_license(self):
+        """Open purchase page in browser."""
+        import webbrowser
+        webbrowser.open("https://fonixflow.com/")
         self.accept()
 

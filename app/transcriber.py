@@ -24,16 +24,8 @@ import whisper
 import threading
 
 
-# Set up logging to file for persistent diagnostics
-LOG_FILE = os.path.join(os.path.dirname(__file__), '..', 'fonixflow.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(name)s: %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, mode='a', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# Note: Logging is now handled by LogManager in gui.managers.log_manager
+# This module just uses the logger - no need to configure here
 logger = logging.getLogger(__name__)
 
 # Global cache for loaded Whisper models to prevent reloading

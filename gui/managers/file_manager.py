@@ -91,7 +91,9 @@ class FileManager:
         Args:
             settings_manager: Settings manager instance
         """
-        current_dir = settings_manager.get("recordings_dir", str(Path.home() / "FonixFlow" / "Recordings"))
+        from .path_manager import PathManager
+        default_recordings = str(PathManager.get_recordings_dir())
+        current_dir = settings_manager.get("recordings_dir", default_recordings)
         new_dir = QFileDialog.getExistingDirectory(
             self.main_window,
             self.main_window.tr("Select Recordings Folder"),

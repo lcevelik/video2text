@@ -57,28 +57,34 @@ def get_ffmpeg_path():
         RuntimeError: If ffmpeg not found
     """
     import logging
+    import shutil
     logger = logging.getLogger(__name__)
 
-    # Check multiple possible bundled locations
-    # PyInstaller places binaries in the same directory as the executable
-    # In macOS .app bundles, this is Contents/MacOS/
-    possible_paths = [
-        get_resource_path('ffmpeg'),  # Root of bundle (PyInstaller default - same dir as executable)
-        get_resource_path('bin/ffmpeg'),  # Standard location
-    ]
-
-    # For macOS .app bundles, also check relative to executable location
+    # For macOS .app bundles, check relative to executable location first
     # sys.executable points to Contents/MacOS/FonixFlow in a .app bundle
+    possible_paths = []
+    
     try:
         if hasattr(sys, 'executable') and sys.executable:
             exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-            # Check in same directory as executable
+            # In .app bundle: Contents/MacOS/ffmpeg
             possible_paths.append(os.path.join(exe_dir, 'ffmpeg'))
-            # Check in Frameworks (if PyInstaller placed it there)
+            # In .app bundle: Contents/Frameworks/ffmpeg
             frameworks_ffmpeg = os.path.join(exe_dir, '..', 'Frameworks', 'ffmpeg')
             possible_paths.append(os.path.abspath(frameworks_ffmpeg))
+            # In .app bundle: Contents/Resources/ffmpeg
+            resources_ffmpeg = os.path.join(exe_dir, '..', 'Resources', 'ffmpeg')
+            possible_paths.append(os.path.abspath(resources_ffmpeg))
+            # In .app bundle: Contents/MacOS/bin/ffmpeg
+            possible_paths.append(os.path.join(exe_dir, 'bin', 'ffmpeg'))
     except Exception as e:
         logger.debug(f"Could not check executable-relative paths: {e}")
+
+    # Check PyInstaller bundled locations
+    possible_paths.extend([
+        get_resource_path('ffmpeg'),  # Root of bundle (PyInstaller default - same dir as executable)
+        get_resource_path('bin/ffmpeg'),  # Standard location
+    ])
 
     logger.info(f"Searching for ffmpeg in bundled locations...")
     for bundled_ffmpeg in possible_paths:
@@ -90,10 +96,10 @@ def get_ffmpeg_path():
             return bundled_ffmpeg
 
     # Fall back to system ffmpeg
-    import shutil
     system_ffmpeg = shutil.which('ffmpeg')
     if system_ffmpeg:
-        logger.info(f"✓ Using system ffmpeg at: {system_ffmpeg}")
+        logger.warning(f"⚠ Bundled ffmpeg not found, using system ffmpeg at: {system_ffmpeg}")
+        logger.warning("  This is normal if ffmpeg is installed system-wide, but bundled version is preferred.")
         return system_ffmpeg
 
     logger.error("ERROR: ffmpeg not found in any location!")
@@ -114,28 +120,34 @@ def get_ffprobe_path():
         RuntimeError: If ffprobe not found
     """
     import logging
+    import shutil
     logger = logging.getLogger(__name__)
 
-    # Check multiple possible bundled locations
-    # PyInstaller places binaries in the same directory as the executable
-    # In macOS .app bundles, this is Contents/MacOS/
-    possible_paths = [
-        get_resource_path('ffprobe'),  # Root of bundle (PyInstaller default - same dir as executable)
-        get_resource_path('bin/ffprobe'),  # Standard location
-    ]
-
-    # For macOS .app bundles, also check relative to executable location
+    # For macOS .app bundles, check relative to executable location first
     # sys.executable points to Contents/MacOS/FonixFlow in a .app bundle
+    possible_paths = []
+    
     try:
         if hasattr(sys, 'executable') and sys.executable:
             exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-            # Check in same directory as executable
+            # In .app bundle: Contents/MacOS/ffprobe
             possible_paths.append(os.path.join(exe_dir, 'ffprobe'))
-            # Check in Frameworks (if PyInstaller placed it there)
+            # In .app bundle: Contents/Frameworks/ffprobe
             frameworks_ffprobe = os.path.join(exe_dir, '..', 'Frameworks', 'ffprobe')
             possible_paths.append(os.path.abspath(frameworks_ffprobe))
+            # In .app bundle: Contents/Resources/ffprobe
+            resources_ffprobe = os.path.join(exe_dir, '..', 'Resources', 'ffprobe')
+            possible_paths.append(os.path.abspath(resources_ffprobe))
+            # In .app bundle: Contents/MacOS/bin/ffprobe
+            possible_paths.append(os.path.join(exe_dir, 'bin', 'ffprobe'))
     except Exception as e:
         logger.debug(f"Could not check executable-relative paths: {e}")
+
+    # Check PyInstaller bundled locations
+    possible_paths.extend([
+        get_resource_path('ffprobe'),  # Root of bundle (PyInstaller default - same dir as executable)
+        get_resource_path('bin/ffprobe'),  # Standard location
+    ])
 
     logger.info(f"Searching for ffprobe in bundled locations...")
     for bundled_ffprobe in possible_paths:
@@ -147,10 +159,10 @@ def get_ffprobe_path():
             return bundled_ffprobe
 
     # Fall back to system ffprobe
-    import shutil
     system_ffprobe = shutil.which('ffprobe')
     if system_ffprobe:
-        logger.info(f"✓ Using system ffprobe at: {system_ffprobe}")
+        logger.warning(f"⚠ Bundled ffprobe not found, using system ffprobe at: {system_ffprobe}")
+        logger.warning("  This is normal if ffmpeg is installed system-wide, but bundled version is preferred.")
         return system_ffprobe
 
     logger.error("ERROR: ffprobe not found in any location!")
