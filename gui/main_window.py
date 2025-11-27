@@ -2015,7 +2015,10 @@ class FonixFlowQt(QMainWindow):
                 self.hardware_status_label.setStyleSheet("font-size:12px; font-family:Consolas; color:#888;")
                 layout.addWidget(self.hardware_status_label)
                 self.statusBar().addPermanentWidget(self.hardware_status_widget)
-            self.update_hardware_status_indicator()
+        
+        # Always update hardware status and continue with transcription
+        self.update_hardware_status_indicator()
+
     def update_hardware_status_indicator(self):
         from gui.utils import has_gpu_available
         gpu_ok = has_gpu_available()
@@ -2131,7 +2134,9 @@ class FonixFlowQt(QMainWindow):
 
         Returns True if a selection was made (and transcription started), False if canceled.
         """
+        logger.info(f"[PROMPT_MULTI_LANG] video_path={self.video_path}, from_start={from_start}")
         if self.video_path is None:
+            logger.warning("[PROMPT_MULTI_LANG] video_path is None, aborting transcription")
             return False
         if self.multi_language_mode is not None and not from_start:
             # Already chosen for current file
@@ -2341,7 +2346,9 @@ class FonixFlowQt(QMainWindow):
             logger.info(f"Text set in UI successfully")
             # Persist debug transcript for inspection (handles dot-only cases)
             try:
-                debug_path = Path.cwd() / 'transcription_debug.txt'
+                # Write to FonixFlow config directory instead of root (which is read-only)
+                from tools.config import CONFIG_DIR
+                debug_path = CONFIG_DIR / 'transcription_debug.txt'
                 # Collect sample of first 20 segment texts (if available)
                 sample_segments = []
                 for s in segments[:20]:
@@ -2406,12 +2413,17 @@ class FonixFlowQt(QMainWindow):
             logger.info(f"Multi-language transcription complete: {len(language_segments)} language segments detected")
         logger.info(f"Transcription complete: {len(text)} characters, {segment_count} segments")
 
-        # Clear file field after transcription completes (ready for next file)
-        # Keep the transcript visible but allow user to easily upload a new file
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.clear_file()
-        # Reset video path so user must select new file
-        self.video_path = None
+        # Note: We do NOT clear video_path or drop_zone here anymore.
+        # User can re-transcribe the same file or click "New Transcription" to start fresh.
+        
+        # Clean up the transcription worker to allow new transcriptions
+        if hasattr(self, 'transcription_worker') and self.transcription_worker:
+            try:
+                self.transcription_worker.deleteLater()
+            except Exception:
+                pass
+            self.transcription_worker = None
+            logger.info("Transcription worker cleaned up after completion")
 
     def on_transcription_error(self, error_message: str):
         """Handle transcription error (worker signal)."""
@@ -2432,14 +2444,35 @@ class FonixFlowQt(QMainWindow):
             logger.warning(f"Could not show error dialog: {e}")
         logger.error(f"Transcription failed: {error_message}")
 
-        # Clear file field after error (ready for retry or new file)
-        if hasattr(self, 'drop_zone'):
-            self.drop_zone.clear_file()
-        # Reset video path so user must select file again
-        self.video_path = None
+        # Note: We do NOT clear video_path or drop_zone here.
+        # User can retry the same file or click "New Transcription" to start fresh.
+        
+        # Clean up the transcription worker to allow new transcriptions
+        if hasattr(self, 'transcription_worker') and self.transcription_worker:
+            try:
+                self.transcription_worker.deleteLater()
+            except Exception:
+                pass
+            self.transcription_worker = None
+            logger.info("Transcription worker cleaned up after error")
 
     def clear_for_new_transcription(self):
         """Cancel any active transcription and reset UI for new transcription."""
+        # Stop elapsed time timer if running
+        if hasattr(self, 'elapsed_time_timer'):
+            try:
+                self.elapsed_time_timer.stop()
+                self.elapsed_time_timer.deleteLater()
+                delattr(self, 'elapsed_time_timer')
+            except Exception as e:
+                logger.debug(f"Error stopping elapsed_time_timer: {e}")
+
+        # Reset transcription timing variables
+        if hasattr(self, 'transcription_start_time'):
+            delattr(self, 'transcription_start_time')
+        if hasattr(self, 'current_progress_pct'):
+            self.current_progress_pct = 0
+
         # Hide and reset recording timer and progress indicators in footer
         if hasattr(self, 'recording_timer'):
             self.recording_timer.stop()
@@ -2459,24 +2492,41 @@ class FonixFlowQt(QMainWindow):
 
         # Cancel active transcription if running
         self.cancel_transcription()
-        # Stop recording worker if running
-        if hasattr(self, 'recording_worker') and self.recording_worker and self.recording_worker.isRunning():
+        # Clean up the transcription worker
+        if hasattr(self, 'transcription_worker') and self.transcription_worker:
+            if self.transcription_worker.isRunning():
+                try:
+                    self.transcription_worker.wait(1000)
+                except Exception:
+                    pass
             try:
-                self.recording_worker.stop()
+                self.transcription_worker.deleteLater()
             except Exception:
                 pass
-            self.recording_worker.wait(1500)
+            self.transcription_worker = None
+            logger.info("Transcription worker cleaned up for new transcription")
+        # Stop recording worker if running
+        if hasattr(self, 'recording_worker') and self.recording_worker:
+            if self.recording_worker.isRunning():
+                try:
+                    self.recording_worker.stop()
+                except Exception:
+                    pass
+                self.recording_worker.wait(1500)
             self.recording_worker = None
         # Stop audio preview worker if running
-        if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker and self.audio_preview_worker.isRunning():
-            try:
-                self.audio_preview_worker.stop()
-            except Exception:
-                pass
-            self.audio_preview_worker.wait(1500)
+        if hasattr(self, 'audio_preview_worker') and self.audio_preview_worker:
+            if self.audio_preview_worker.isRunning():
+                try:
+                    self.audio_preview_worker.stop()
+                except Exception:
+                    pass
+                self.audio_preview_worker.wait(1500)
             self.audio_preview_worker = None
-        # Reset stored result
+        # Reset stored result and file path
         self.transcription_result = None
+        self.video_path = None  # Reset file path so new recording/upload can be transcribed
+
         # Clear text areas
         if hasattr(self, 'basic_result_text'):
             self.basic_result_text.clear()
@@ -2495,11 +2545,22 @@ class FonixFlowQt(QMainWindow):
         # Reset overlay
         if hasattr(self, 'performance_overlay') and self.performance_overlay:
             self.performance_overlay.setText("")
+            self.performance_overlay.hide()
+
+        # Hide cancel button
+        if hasattr(self, 'cancel_transcription_btn') and self.cancel_transcription_btn:
+            self.cancel_transcription_btn.setEnabled(False)
+            self.cancel_transcription_btn.hide()
+
         # Clear file field in upload drop zone
         if hasattr(self, 'drop_zone'):
             self.drop_zone.clear_file()
-        # Reset mode selection for new file
+
+        # Reset language mode selection for new file (keeps models in memory)
         self.multi_language_mode = None
+        self.single_language_type = None
+
+        logger.info("App state reset for new transcription (models kept in memory for faster processing)")
         try:
             self.statusBar().showMessage(self.tr("Ready for new transcription"))
         except Exception as e:

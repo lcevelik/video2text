@@ -27,12 +27,12 @@ class FileManager:
         """
         self.main_window = main_window
 
-    def browse_file(self, on_file_selected: Optional[Callable[[str], None]] = None) -> Optional[str]:
+    def browse_file(self, on_file_selected: Optional[Callable[[], None]] = None) -> Optional[str]:
         """
         Browse for video/audio file.
 
         Args:
-            on_file_selected: Optional callback when file is selected
+            on_file_selected: Optional callback when file is selected (called with no arguments)
 
         Returns:
             Selected file path or None
@@ -47,7 +47,7 @@ class FileManager:
         if file_path:
             self.load_file(file_path)
             if on_file_selected:
-                QTimer.singleShot(150, lambda: on_file_selected(file_path))
+                QTimer.singleShot(150, on_file_selected)
             return file_path
 
         return None
@@ -59,7 +59,9 @@ class FileManager:
         Args:
             file_path: Path to the media file
         """
+        logger.info(f"[FILE_UPLOAD] Setting video_path to: {file_path}")
         self.main_window.video_path = file_path
+        logger.info(f"[FILE_UPLOAD] video_path is now: {self.main_window.video_path}")
         # Reset language mode so dialog appears for each new file
         if hasattr(self.main_window, 'multi_language_mode'):
             self.main_window.multi_language_mode = None
