@@ -713,57 +713,6 @@ class FonixFlowQt(QMainWindow):
 
         return top_bar
 
-    def show_menu(self):
-        """Show hamburger menu with settings."""
-        menu = QMenu(self)
-
-        # Settings submenu
-        settings_menu = menu.addMenu(self.tr("Settings"))
-        set_icon(settings_menu, 'settings', size=24)  # Smaller for menu
-
-        # Theme submenu under Settings
-        theme_menu = settings_menu.addMenu(self.tr("Theme"))
-
-        # Theme options
-        auto_action = theme_menu.addAction(self.tr("Auto (System)"))
-        auto_action.setCheckable(True)
-        auto_action.setChecked(self.theme_mode == "auto")
-        auto_action.triggered.connect(lambda: self.set_theme_mode("auto"))
-
-        light_action = theme_menu.addAction(self.tr("Light"))
-        light_action.setCheckable(True)
-        light_action.setChecked(self.theme_mode == "light")
-        light_action.triggered.connect(lambda: self.set_theme_mode("light"))
-
-        dark_action = theme_menu.addAction(self.tr("Dark"))
-        dark_action.setCheckable(True)
-        dark_action.setChecked(self.theme_mode == "dark")
-        dark_action.triggered.connect(lambda: self.set_theme_mode("dark"))
-
-        # Recording Settings under Settings
-        settings_menu.addSeparator()
-        rec_dir_action = settings_menu.addAction(get_icon('folder'), self.tr("Change Recording Directory"))
-        rec_dir_action.triggered.connect(self.change_recordings_directory)
-
-        open_dir_action = settings_menu.addAction(get_icon('folder-open'), self.tr("Open Recording Directory"))
-        open_dir_action.triggered.connect(self.open_recordings_folder)
-
-        # New Transcription
-        menu.addSeparator()
-        new_trans_action = menu.addAction(self.tr("New Transcription"))
-        new_trans_action.triggered.connect(self.clear_for_new_transcription)
-
-        # Show menu at button position
-        menu.exec(self.menu_btn.mapToGlobal(self.menu_btn.rect().bottomLeft()))
-
-    def set_theme_mode(self, mode):
-        """Set theme mode (auto/light/dark)."""
-        self.theme_mode = mode
-        self.theme_manager.set_theme_mode(mode)
-        self.is_dark_mode = self.theme_manager.is_dark_mode
-        self.settings_manager.set("theme_mode", mode)
-        self.save_settings()
-
     def create_settings_card(self):
         """Create settings card for recordings directory."""
         card = Card(self.tr("Recordings Settings"), self.is_dark_mode)

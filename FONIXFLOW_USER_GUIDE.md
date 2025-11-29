@@ -196,16 +196,17 @@ FonixFlow is a professional audio and video transcription application that conve
 ### Layout Overview
 
 ```
-┌─────────────────────────────────────────────┐
-│  [FonixFlow Logo]               [☰ Menu]   │
-├──────────┬──────────────────────────────────┤
-│ 🎙️ Record│                                 │
-│ 📁 Upload │        Content Area             │
-│ 📄 Transcript                               │
-└──────────┴──────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  [FonixFlow Logo]                                  │
+├────────────────────────────────┬───────────────────┤
+│                                │  🎙️ Record       │
+│         Content Area           │  📁 Upload        │
+│                                │  📄 Transcript    │
+│                                │  ⚙️  Settings     │
+└────────────────────────────────┴───────────────────┘
 ```
 
-**Clean, minimal design with three main tabs:**
+**Clean, minimal design with four main tabs (vertical on right side):**
 
 ### Record Tab
 
@@ -219,10 +220,6 @@ FonixFlow is a professional audio and video transcription application that conve
 2. Recording duration shown in real-time
 3. Click "Stop Recording" → Automatic transcription begins
 4. Auto-switches to Transcript tab when complete
-
-**Settings:**
-- Change recording directory: Menu → Settings → Change Recording Directory
-- Open recording folder: Menu → Settings → Open Recording Directory
 
 ### Upload Tab
 
@@ -276,55 +273,37 @@ Duration: 5 minutes 23 seconds
 4. Choose location and filename
 5. File saved successfully
 
-### Hamburger Menu (☰)
+### Settings Tab
 
-**Access all settings and actions:**
+**Click the Settings tab** (⚙️ icon on right side) to access all configuration options.
 
-**Settings →**
-- **Theme**
-  - 🔄 Auto (System) - Follows macOS/Windows theme
-  - ☀️ Light - Always light mode
-  - 🌙 Dark - Always dark mode
+**Quick Actions (row of buttons):**
+- **Change Folder** - Change recording directory location
+- **Open Folder** - Open recording directory in Finder/Explorer
 
-- **Recording Directory**
-  - Change Recording Directory - Choose folder
-  - Open Recording Directory - Open in Finder/Explorer
+**Recordings Directory Card:**
+- Shows current recording location
+- Updates automatically when changed
 
-- **Audio Filters** (Toggle)
-  - Enable/disable noise gate and compressor
+**Settings (row of toggle buttons):**
+- **Enhance Audio** - Toggle audio filters (Noise Gate + Compressor)
+  - Default: Disabled
   - See [Audio Filters](#audio-filters) section
 
-- **Deep Scan** (Toggle)
-  - Enable/disable comprehensive language detection
+- **Deep Scan** - Toggle comprehensive language detection
+  - Default: Disabled (Fast Mode)
   - See [Multi-Language Transcription](#multi-language-transcription)
 
-**Actions:**
-- **New Transcription** - Clear results and start fresh
-- **About** - Version and license information
-- **Quit** - Exit the application
+- **Activate** - License activation for unlimited transcription
+  - Opens license key entry dialog
+  - See [License System](#license-system)
+
+**Logs:**
+- **View Logs** - View application logs for troubleshooting
 
 ---
 
 ## Settings & Configuration
-
-### Theme Settings
-
-**Auto (System)** - Recommended
-- Automatically matches your operating system theme
-- Dark macOS/Windows → Dark FonixFlow
-- Light macOS/Windows → Light FonixFlow
-- Changes apply immediately
-- Preference saved for next launch
-
-**Light**
-- Always use light theme
-- Good for bright environments
-- Easier to read in daylight
-
-**Dark**
-- Always use dark theme
-- Reduces eye strain
-- Better for low-light environments
 
 ### Recording Directory
 
@@ -334,15 +313,16 @@ Duration: 5 minutes 23 seconds
 - Linux: `~/Music/FonixFlow`
 
 **Change Directory:**
-1. Menu → Settings → Change Recording Directory
-2. Select folder in dialog
-3. All future recordings saved there
-4. Previous recordings remain in old location
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click "Change Folder" button
+3. Select folder in dialog
+4. All future recordings saved there
+5. Previous recordings remain in old location
 
 **Open Directory:**
-- Menu → Settings → Open Recording Directory
-- Opens folder in Finder/Explorer
-- Quick access to your recordings
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click "Open Folder" button
+3. Opens folder in Finder/Explorer for quick access to your recordings
 
 ### Audio Filters (Advanced)
 
@@ -376,8 +356,8 @@ Duration: 5 minutes 23 seconds
 - Adds: ~10-30% processing time
 
 **To enable:**
-1. Menu → Settings
-2. Check "Enable Audio Filters"
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click "Enhance Audio" button to toggle on
 3. Applies to all future transcriptions
 4. Disabled by default
 
@@ -417,8 +397,8 @@ Two modes for detecting language changes in multi-language videos.
 - Languages with distinctive features (Czech ↔ English)
 
 **To enable:**
-1. Menu → Settings
-2. Check "Enable Deep Scan"
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click "Deep Scan" button to toggle on
 3. Applies to next transcription
 4. Disabled by default for speed
 
@@ -614,10 +594,11 @@ These settings work well for most speech content.
 ### How to Use
 
 **Enable/Disable:**
-1. Menu → Settings → Enable Audio Filters (checkbox)
-2. Applies to all future transcriptions
-3. Existing transcriptions not affected
-4. Can toggle anytime
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click "Enhance Audio" button to toggle
+3. Applies to all future transcriptions
+4. Existing transcriptions not affected
+5. Can toggle anytime
 
 **Disabled by default** - Enable only if you need it.
 
@@ -651,12 +632,13 @@ These settings work well for most speech content.
 ### How to Activate License
 
 **Step-by-step:**
-1. Click **Menu (☰)** → About → Activate
-2. Enter your license key
-3. Click "Activate"
-4. Validation occurs (local file or online API)
-5. Success message: "✓ License key validated successfully!"
-6. Unlimited transcription now enabled
+1. Click **Settings** tab (⚙️ icon on right side)
+2. Click **Activate** button
+3. Enter your license key in the dialog
+4. Click "Activate"
+5. Validation occurs (local file or online API)
+6. Success message: "✓ License key validated successfully!"
+7. Unlimited transcription now enabled
 
 **Validation methods:**
 - **Local:** Checks `licenses.txt` file (for testing/offline)
