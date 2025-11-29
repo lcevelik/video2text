@@ -99,10 +99,14 @@ FonixFlow is a professional audio and video transcription application that conve
 1. Open FonixFlow
 2. Click **Record** tab
 3. Click **Start Recording**
-4. Speak or play audio
+4. Speak or play audio (recording duration shows in real-time)
 5. Click **Stop Recording**
-6. Transcription starts automatically
-7. View results in **Transcript** tab
+6. Recording is saved to your recordings folder
+7. **"Transcribe Recording" button appears**
+8. Click **"Transcribe Recording"**
+9. Language selection dialog appears
+10. Choose language(s) and transcription starts
+11. Auto-switches to Transcript tab when complete
 
 ---
 
@@ -217,9 +221,13 @@ FonixFlow is a professional audio and video transcription application that conve
 
 **Workflow:**
 1. Click "Start Recording" → Button turns red, shows "Stop Recording"
-2. Recording duration shown in real-time
-3. Click "Stop Recording" → Automatic transcription begins
-4. Auto-switches to Transcript tab when complete
+2. Recording duration shown in real-time (e.g., 00:00:25)
+3. Click "Stop Recording" → Recording is saved
+4. Message shows: "Recording complete (X.Xs). Ready for manual transcription."
+5. "Transcribe Recording" button appears below
+6. Click "Transcribe Recording" → Language selection dialog appears
+7. Choose language(s) → Transcription starts
+8. Auto-switches to Transcript tab when complete
 
 ### Upload Tab
 
@@ -654,14 +662,14 @@ These settings work well for most speech content.
 ### Where to Get License
 
 **Purchase:**
-1. Visit: https://fonixflow.com/
+1. Visit: https://fonixflow.com/#/pricing
 2. Choose your plan
 3. Complete purchase
 4. Receive license key via email
 5. Activate in FonixFlow
 
 **Pricing:**
-- Check https://fonixflow.com/ for current pricing
+- Check https://fonixflow.com/#/pricing for current pricing
 - One-time purchase or subscription (varies)
 - Multiple device support (check license terms)
 

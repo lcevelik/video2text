@@ -54,7 +54,7 @@ class LicenseKeyDialog(QDialog):
         btn_layout.addWidget(self.cancel_btn)
 
         self.buy_btn = QPushButton(self.tr("Buy License"))
-        self.buy_btn.clicked.connect(lambda: webbrowser.open("https://fonixflow.com/"))
+        self.buy_btn.clicked.connect(lambda: webbrowser.open("https://fonixflow.com/#/pricing"))
         self.buy_btn.hide()
         btn_layout.addWidget(self.buy_btn)
 
@@ -810,6 +810,6 @@ class LicenseLimitationsDialog(QDialog):
     def purchase_license(self):
         """Open purchase page in browser."""
         import webbrowser
-        webbrowser.open("https://fonixflow.com/")
+        webbrowser.open("https://fonixflow.com/#/pricing")
         self.accept()
 

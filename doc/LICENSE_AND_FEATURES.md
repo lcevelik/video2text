@@ -184,7 +184,7 @@ If you don't have a license key:
 
 1. Click "Activate" button in Settings
 2. When prompted, click "Buy License"
-3. You'll be redirected to: https://fonixflow.com/
+3. You'll be redirected to: https://fonixflow.com/#/pricing
 4. Purchase a license and receive your key
 5. Return to the app and activate with your key
 
