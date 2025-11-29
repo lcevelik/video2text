@@ -25,6 +25,20 @@ Auto-Navigation - Switches to transcript tab automatically after transcription c
 - ⚡ **5-10x Faster** - v3.2.0 optimizations for blazing-fast multi-language transcription
 - 🎯 **Auto-Transcribe** - Drop files and start immediately
 - 🔄 **Auto-Navigation** - Switches to results when done
+- 🔄 **Auto-Update** - Seamless updates with SHA256 verification
+
+### **Advanced Features (v1.0.0)**
+- 🎙️ **Audio Filters** - Professional noise gate & compressor (OBS Studio-inspired)
+  - Memory-efficient streaming processing for long videos
+  - Works with files of any length (even hours-long)
+  - Disabled by default, enable in Settings
+- 🔍 **Deep Scan** - Two multi-language detection modes:
+  - **Fast Mode** (default): Text-based heuristic, 10-20x faster
+  - **Deep Mode**: Comprehensive audio segmentation, more accurate
+- 🌍 **Multi-Platform Updates** - Platform-specific updates:
+  - Separate channels for macOS (Intel/ARM), Windows, Linux
+  - Automatic platform detection
+  - 24-hour update check throttle
 
 ### **Better Cross-Platform**
 - ✅ **Native look** on Windows, macOS, and Linux

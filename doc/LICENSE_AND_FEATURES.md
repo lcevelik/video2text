@@ -29,8 +29,13 @@ These features work completely without any license key:
 ### 3. **Settings & Configuration** ✅
 - Change theme (Dark/Light/Auto)
 - Change recording directory
-- Toggle "Enhance Audio" setting
+- Toggle "Audio Filters" setting
+  - Professional noise gate & compressor (OBS Studio-inspired)
+  - Memory-efficient streaming processing for long videos
+  - Disabled by default, enable in Settings menu
 - Toggle "Deep Scan" setting
+  - **Fast Mode (default)**: Text-based heuristic for language detection, 10-20x faster
+  - **Deep Mode (enabled)**: Comprehensive audio segmentation for multi-language detection, more accurate
 - Access all application settings
 - Configure audio processing options
 

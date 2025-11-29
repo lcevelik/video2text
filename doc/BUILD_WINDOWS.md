@@ -268,6 +268,39 @@ dist\FonixFlow\
 2. **Precompiled bytecode**: PyInstaller does this automatically
 3. **SSD installation**: Recommend users install on SSD for faster loading
 
+## Release & Distribution
+
+FonixFlow 1.0.0 supports multi-platform automatic updates with platform-specific release channels.
+
+### Automated Release to Google Cloud Storage
+
+Use the provided script to create and upload releases:
+
+```bash
+# Build the Windows executable first
+pyinstaller fonixflow_qt_windows.spec
+
+# Release to GCS
+./scripts/release_to_gcs_multiplatform.sh 1.0.0 windows
+```
+
+The script automatically:
+- Creates a ZIP package of the executable and dependencies
+- Generates SHA256 hash for verification
+- Uploads to Google Cloud Storage
+- Creates and uploads platform-specific manifest.json
+- Verifies deployment
+
+### Distribution Strategy
+
+- **Installer for initial downloads**: Provide installer (Inno Setup/NSIS) on your website
+- **ZIP for auto-updates**: The app uses ZIP packages from GCS for automatic updates
+- **Platform detection**: The app automatically detects Windows and checks the correct update channel
+
+For complete details, see:
+- [MULTIPLATFORM_RELEASE.md](../MULTIPLATFORM_RELEASE.md) - Multi-platform release workflow
+- [RELEASE_PROCESS.md](../RELEASE_PROCESS.md) - Single-platform release workflow
+
 ## Distribution Checklist
 
 Before distributing your application:
@@ -280,6 +313,7 @@ Before distributing your application:
 - [ ] Create user documentation
 - [ ] Test on Windows 10 and Windows 11
 - [ ] Verify antivirus compatibility
+- [ ] Test automatic update system from GCS
 
 ## Further Reading
 

@@ -231,6 +231,48 @@ create-dmg \
   "dist/FonixFlow.app"
 ```
 
+## Release & Distribution
+
+FonixFlow 1.0.0 supports multi-platform automatic updates with platform-specific release channels.
+
+### Platform-Specific Builds
+
+FonixFlow supports two macOS architectures:
+- **macOS Intel (x86_64)**: For Intel-based Macs
+- **macOS Apple Silicon (arm64)**: For M1/M2/M3/M4 Macs
+
+Each platform has its own update channel with separate manifests and packages.
+
+### Automated Release to Google Cloud Storage
+
+Use the provided script to create and upload releases:
+
+```bash
+# For Apple Silicon (M1/M2/M3/M4)
+./scripts/release_to_gcs_multiplatform.sh 1.0.0 macos-arm
+
+# For Intel Macs (cross-compile on Apple Silicon)
+arch -x86_64 pyinstaller fonixflow_qt.spec
+./scripts/release_to_gcs_multiplatform.sh 1.0.0 macos-intel
+```
+
+The script automatically:
+- Creates a ZIP package of the .app bundle
+- Generates SHA256 hash for verification
+- Uploads to Google Cloud Storage
+- Creates and uploads platform-specific manifest.json
+- Verifies deployment
+
+### Distribution Strategy
+
+- **DMG for initial downloads**: Provide DMG files on your website for first-time installations
+- **ZIP for auto-updates**: The app uses ZIP packages from GCS for automatic updates
+- **Platform detection**: The app automatically detects the platform and checks the correct update channel
+
+For complete details, see:
+- [MULTIPLATFORM_RELEASE.md](../MULTIPLATFORM_RELEASE.md) - Multi-platform release workflow
+- [RELEASE_PROCESS.md](../RELEASE_PROCESS.md) - Single-platform release workflow
+
 ## Troubleshooting
 
 ### Build Fails with Missing Module

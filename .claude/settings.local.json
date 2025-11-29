@@ -70,7 +70,12 @@
       "Bash(hdiutil info:*)",
       "Bash(sudo hdiutil detach:*)",
       "Bash(\"dist/FonixFlow.dmg\" )",
-      "Bash(du -sh:*)"
+      "Bash(du -sh:*)",
+      "Bash(gsutil ls:*)",
+      "Bash(gsutil cp:*)",
+      "Bash(gsutil acl ch:*)",
+      "Bash(gsutil:*)",
+      "Bash(./scripts/release_to_gcs_multiplatform.sh:*)"
     ],
     "deny": [],
     "ask": []

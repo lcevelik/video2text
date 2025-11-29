@@ -34,14 +34,44 @@ class UpdateManager:
         self.app_version = version.parse(app_version)
         self.app_name = app_name
 
-        # Configure your update server URL here
-        # TODO: Replace with your actual CDN/server URL
-        self.update_server = "https://cdn.fonixflow.com/updates"
-        self.manifest_url = f"{self.update_server}/manifest.json"
+        # Detect platform
+        self.platform = self._detect_platform()
+
+        # Google Cloud Storage bucket for updates (platform-specific)
+        self.update_server = "https://storage.googleapis.com/fonixflow-files/updates"
+        self.manifest_url = f"{self.update_server}/{self.platform}/manifest.json"
+
+        logger.info(f"Update manager initialized for platform: {self.platform}")
 
         # Cache directory for updates (use PathManager)
         from gui.managers.path_manager import PathManager
         self.cache_dir = PathManager.get_updates_dir()
+
+    def _detect_platform(self) -> str:
+        """
+        Detect the current platform for platform-specific updates.
+
+        Returns:
+            Platform identifier: 'macos-intel', 'macos-arm', 'windows', or 'linux'
+        """
+        import platform
+        import sys
+
+        system = platform.system().lower()
+
+        if system == 'darwin':  # macOS
+            machine = platform.machine().lower()
+            if machine == 'arm64' or machine == 'aarch64':
+                return 'macos-arm'
+            else:
+                return 'macos-intel'
+        elif system == 'windows':
+            return 'windows'
+        elif system == 'linux':
+            return 'linux'
+        else:
+            logger.warning(f"Unknown platform: {system}, defaulting to linux")
+            return 'linux'
 
     def check_for_updates(self, timeout: int = 5) -> Dict:
         """
