@@ -108,7 +108,7 @@ class FonixFlowQt(QMainWindow):
             self.show_license_limitations_dialog()
 
         # Audio processing settings
-        self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", True)
+        self.enable_audio_filters = self.settings_manager.get("enable_audio_filters", False)
 
         # Transcription settings
         self.enable_deep_scan = self.settings_manager.get("enable_deep_scan", False)
@@ -152,7 +152,7 @@ class FonixFlowQt(QMainWindow):
             self.toggle_deep_scan,
             indent=32
         )
-        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
+        deep_scan_btn.setToolTip("Segments audio into chunks for accurate multi-language detection (slower but more accurate)")
         transcription_options_layout.addWidget(deep_scan_btn)
 
         logger.info("Calling setup_ui() in FonixFlowQt __init__")
@@ -1115,7 +1115,7 @@ class FonixFlowQt(QMainWindow):
             self.toggle_deep_scan,
             indent=32
         )
-        deep_scan_btn.setToolTip("Re-analyzes audio chunks accurately")
+        deep_scan_btn.setToolTip("Segments audio into chunks for accurate multi-language detection (slower but more accurate)")
         transcription_options_layout.addWidget(deep_scan_btn)
 
         settings_content_layout.addWidget(self.transcription_options_widget)

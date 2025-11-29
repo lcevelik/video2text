@@ -1,25 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-macOS-specific PyInstaller spec file for FonixFlow.
+macOS-specific PyInstaller spec file for FonixFlow Free Version.
 
 This spec file creates a native macOS .app bundle with:
 - Native system audio capture via ScreenCaptureKit (macOS 12.3+)
 - Proper code signing and entitlements
-- All required assets and dependencies
+- All required assets and dependencies (EXCLUDING MODELS)
 - Microphone and screen recording permissions
 
-Build with: pyinstaller fonixflow_qt.spec
+Build with: pyinstaller fonixflow_free.spec
 """
 
 import os
 import sys
 from pathlib import Path
 
-app_name = 'FonixFlow'
+
+app_name = 'FonixFlow Free'
 
 # License file (local validation)
 license_file = 'licenses.txt'
-
 
 # Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
 ffmpeg_paths = [
@@ -105,15 +105,15 @@ hiddenimports = [
 
 # Data files to include
 datas = [
-    # Whisper model assets
+    # Whisper model assets (REQUIRED for initialization, even if models are downloaded)
     ('assets/mel_filters.npz', 'whisper/assets'),
     ('assets/gpt2.tiktoken', 'whisper/assets'),
     ('assets/multilingual.tiktoken', 'whisper/assets'),
+    
     # App icons and logo
     ('assets/fonixflow_icon.png', 'assets'),
-    ('assets/fonixflow_logo.png', 'assets'),
+    ('assets/logo.png', 'assets'), # Updated to use logo.png
     ('assets/fonixflow.png', 'assets'),
-    ('assets/logo.png', 'assets'),
     ('assets/fonixflow_icon.ico', 'assets'),
     # SVG icons for UI
     ('assets/icons/*.svg', 'assets/icons'),
@@ -123,7 +123,7 @@ datas = [
 ]
 
 a = Analysis(
-    ['app/fonixflow_qt.py'],
+    ['app/fonixflow_free.py'], # Use Free Version entry point
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -169,31 +169,18 @@ coll = COLLECT(
 icon_file = 'assets/fonixflow_icon.icns'
 if not os.path.exists(icon_file):
     icon_file = 'assets/fonixflow_icon.png'
-    print("⚠ Warning: Using PNG icon. For better quality, convert to .icns:")
-    print("  mkdir FonixFlow.iconset")
-    print("  sips -z 16 16     assets/fonixflow_icon.png --out FonixFlow.iconset/icon_16x16.png")
-    print("  sips -z 32 32     assets/fonixflow_icon.png --out FonixFlow.iconset/icon_16x16@2x.png")
-    print("  sips -z 32 32     assets/fonixflow_icon.png --out FonixFlow.iconset/icon_32x32.png")
-    print("  sips -z 64 64     assets/fonixflow_icon.png --out FonixFlow.iconset/icon_32x32@2x.png")
-    print("  sips -z 128 128   assets/fonixflow_icon.png --out FonixFlow.iconset/icon_128x128.png")
-    print("  sips -z 256 256   assets/fonixflow_icon.png --out FonixFlow.iconset/icon_128x128@2x.png")
-    print("  sips -z 256 256   assets/fonixflow_icon.png --out FonixFlow.iconset/icon_256x256.png")
-    print("  sips -z 512 512   assets/fonixflow_icon.png --out FonixFlow.iconset/icon_256x256@2x.png")
-    print("  sips -z 512 512   assets/fonixflow_icon.png --out FonixFlow.iconset/icon_512x512.png")
-    print("  sips -z 1024 1024 assets/fonixflow_icon.png --out FonixFlow.iconset/icon_512x512@2x.png")
-    print("  iconutil -c icns FonixFlow.iconset -o assets/fonixflow_icon.icns")
 
 app = BUNDLE(
     coll,
     name=f'{app_name}.app',
     icon=icon_file,
-    bundle_identifier='com.fonixflow.qt',
+    bundle_identifier='com.fonixflow.qt.free', # Separate bundle ID
     version='1.0.0',  # Update this with your app version
     info_plist={
         # Basic app information
         'CFBundleName': app_name,
         'CFBundleDisplayName': app_name,
-        'CFBundleIdentifier': 'com.fonixflow.qt',
+        'CFBundleIdentifier': 'com.fonixflow.qt.free',
         'CFBundleVersion': '1.0.0',
         'CFBundleShortVersionString': '1.0.0',
         'NSHumanReadableCopyright': 'Copyright © 2024 FonixFlow',

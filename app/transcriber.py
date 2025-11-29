@@ -356,7 +356,9 @@ class Transcriber:
                 'language': language,
                 'verbose': True if progress_callback else False,
                 # Only enable FP16 for CUDA (MPS has numerical stability issues with FP16)
-                'fp16': (self.device == 'cuda')
+                'fp16': (self.device == 'cuda'),
+                # Disable conditioning on previous text to reduce hallucinations (periods/silence)
+                'condition_on_previous_text': False
             }
 
             if word_timestamps:

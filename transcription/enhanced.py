@@ -172,12 +172,18 @@ class EnhancedTranscriber(Transcriber):
             # Fast path: user forced multi-language, skip sampling classification entirely
             if skip_sampling:
                 logger.info("Skipping sampling classification (forced multi-language mode).")
-                
-                # CRITICAL: If user explicitly selected multiple languages, we should trust that
-                # and use comprehensive audio segmentation from the start. The initial Whisper
-                # transcription may be language-biased and miss portions of other languages.
-                if allowed_languages and len(allowed_languages) > 1:
-                    logger.info(f"User explicitly selected {len(allowed_languages)} languages: {allowed_languages}")
+
+                # Determine whether to use comprehensive audio segmentation or fast heuristic
+                # - Deep Scan ON (fast_text_language=False): Use comprehensive audio segmentation (slow but accurate)
+                # - Deep Scan OFF (fast_text_language=True): Use fast text heuristic (fast but may miss language switches)
+                # - If user selected 2+ languages, always use comprehensive (overrides Deep Scan setting)
+                use_comprehensive = not fast_text_language or (allowed_languages and len(allowed_languages) > 1)
+
+                if use_comprehensive:
+                    if not fast_text_language:
+                        logger.info("Deep Scan enabled - using comprehensive audio segmentation (slow but accurate)")
+                    if allowed_languages and len(allowed_languages) > 1:
+                        logger.info(f"User explicitly selected {len(allowed_languages)} languages: {allowed_languages}")
                     logger.info("Using comprehensive audio segmentation to ensure all languages are detected...")
                     
                     if progress_callback:
@@ -269,8 +275,9 @@ class EnhancedTranscriber(Transcriber):
                     detected_languages = set(seg.get('language', 'unknown') for seg in self.language_segments)
                     logger.info(f"Comprehensive segmentation complete: detected {detected_languages} ({len(self.language_segments)} segments from {chunk_count} chunks)")
                     return result
-                
-                # If only one language selected or no explicit selection, use fast heuristic path
+
+                # Fast heuristic path - use text-based language detection (10-20x faster than comprehensive)
+                logger.info("Deep Scan disabled - using fast text-based heuristic (may miss some language switches)")
                 if progress_callback:
                     progress_callback("Full word-level transcription (sampling skipped)...")
                 result = self.transcribe(

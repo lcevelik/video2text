@@ -62,7 +62,15 @@
       "Bash(create-dmg:*)",
       "Bash(dist/FonixFlow.dmg )",
       "Bash(dist/FonixFlow.app)",
-      "Bash(/Applications/FonixFlow.app/Contents/MacOS/FonixFlow)"
+      "Bash(/Applications/FonixFlow.app/Contents/MacOS/FonixFlow)",
+      "Bash(./tools/prepare_build.sh:*)",
+      "Bash(\"FonixFlow.dmg\" )",
+      "Bash(\"FonixFlow.app\")",
+      "Bash(./create_clean_dmg.sh:*)",
+      "Bash(hdiutil info:*)",
+      "Bash(sudo hdiutil detach:*)",
+      "Bash(\"dist/FonixFlow.dmg\" )",
+      "Bash(du -sh:*)"
     ],
     "deny": [],
     "ask": []

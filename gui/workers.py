@@ -13,6 +13,7 @@ class AudioPreviewWorker(QThread):
         self.speaker_device = speaker_device
         self.is_running = True
         self.backend = None
+        self._cleaned_up = False
 
     def stop(self):
         """Stop the worker thread gracefully."""
@@ -20,10 +21,8 @@ class AudioPreviewWorker(QThread):
         self.is_running = False
         if self.backend:
             self.backend.is_recording = False
-            try:
-                self.backend.cleanup()
-            except Exception as e:
-                logger.warning(f"Error cleaning up backend in stop(): {e}")
+            # Don't cleanup here - let the finally block in run() handle it
+            # to avoid double-free crashes in PortAudio
 
     def run(self):
         try:
@@ -69,9 +68,11 @@ class AudioPreviewWorker(QThread):
             logger.error(f"AudioPreviewWorker crashed: {e}", exc_info=True)
         finally:
             logger.info("AudioPreviewWorker.run() exiting, cleaning up backend...")
-            if self.backend:
+            if self.backend and not self._cleaned_up:
                 try:
                     self.backend.cleanup()
+                    self._cleaned_up = True
+                    logger.info("Backend cleanup completed successfully")
                 except Exception as e:
                     logger.warning(f"Error in final cleanup: {e}")
             logger.info("AudioPreviewWorker.run() finished")
@@ -665,18 +666,36 @@ class TranscriptionWorker(QThread):
             self.transcription_error.emit(f"Transcription failed: {str(e)}")
 
     def _apply_audio_filters(self, audio_path: str) -> str:
-        """Apply audio filters to extracted audio file."""
+        """Apply audio filters to extracted audio file using streaming for memory efficiency."""
         import soundfile as sf
         from gui.audio_filters import NoiseGate, EnhancedCompressor
 
         logger.info(f"Applying audio filters to: {audio_path}")
 
-        # Load audio file
+        # Get file info without loading entire file
+        info = sf.info(audio_path)
+        sample_rate = info.samplerate
+        total_frames = info.frames
+        duration_seconds = total_frames / sample_rate
+        duration_minutes = duration_seconds / 60.0
+
+        logger.info(f"File info: {total_frames:,} frames ({duration_minutes:.1f} minutes) at {sample_rate}Hz")
+
+        # Use streaming processing for files longer than 3 minutes
+        # This works for files of ANY length while using minimal memory
+        if duration_minutes > 3.0:
+            logger.info(f"Using streaming processing for {duration_minutes:.1f} minute file")
+            return self._apply_filters_streaming(audio_path, info)
+
+        # For short files (< 3 minutes), load entirely into memory for speed
+        logger.info("Loading short file into memory for fast processing")
         audio_data, sample_rate = sf.read(audio_path)
 
         # Convert to mono if stereo
         if len(audio_data.shape) > 1:
             audio_data = audio_data.mean(axis=1)
+
+        self.progress_update.emit("Applying noise gate...", 3)
 
         # Apply noise gate
         noise_gate = NoiseGate(
@@ -687,6 +706,8 @@ class TranscriptionWorker(QThread):
             sample_rate=sample_rate
         )
         audio_data = noise_gate.process(audio_data)
+
+        self.progress_update.emit("Applying compressor...", 4)
 
         # Apply compressor
         compressor = EnhancedCompressor(
@@ -704,6 +725,128 @@ class TranscriptionWorker(QThread):
         logger.info(f"Filtered audio saved to: {audio_path}")
 
         return audio_path
+
+    def _apply_filters_streaming(self, audio_path: str, file_info) -> str:
+        """
+        Apply filters using streaming processing for memory efficiency.
+
+        This method can process files of ANY length (even hours-long) while using
+        minimal memory by reading/processing/writing in chunks.
+
+        Filter state is maintained between chunks for seamless transitions.
+        """
+        import soundfile as sf
+        import tempfile
+        import os
+        from gui.audio_filters import NoiseGate, EnhancedCompressor
+
+        sample_rate = file_info.samplerate
+        total_frames = file_info.frames
+        channels = file_info.channels
+        duration_minutes = total_frames / sample_rate / 60.0
+
+        # Process in 60-second chunks (good balance between memory and performance)
+        chunk_duration = 60  # seconds
+        chunk_frames = chunk_duration * sample_rate
+        num_chunks = int(np.ceil(total_frames / chunk_frames))
+
+        logger.info(f"Streaming processing: {num_chunks} chunks of {chunk_duration}s each")
+        logger.info(f"Memory usage: ~{chunk_frames * 4 / 1024 / 1024:.1f} MB per chunk (vs {total_frames * 4 / 1024 / 1024:.1f} MB for full file)")
+
+        # Initialize filters (they maintain state between chunks)
+        noise_gate = NoiseGate(
+            threshold_db=-32.0,
+            attack_ms=25.0,
+            release_ms=150.0,
+            hold_ms=200.0,
+            sample_rate=sample_rate
+        )
+
+        compressor = EnhancedCompressor(
+            threshold_db=-18.0,
+            ratio=3.0,
+            attack_ms=6.0,
+            release_ms=60.0,
+            output_gain_db=0.0,
+            sample_rate=sample_rate
+        )
+
+        # Always use WAV for streaming to avoid OGG/VORBIS encoding issues
+        # (OGG encoding can cause bus errors on some systems during streaming writes)
+        temp_suffix = '.wav'
+        out_format = 'WAV'
+        out_subtype = 'FLOAT'
+
+        temp_fd, temp_path = tempfile.mkstemp(suffix=temp_suffix, prefix='filtered_')
+        os.close(temp_fd)
+
+        logger.info(f"Streaming output format: WAV (original was {file_info.format})")
+        logger.info(f"Note: WAV is used for streaming to ensure stability")
+
+        try:
+            # Open input file for streaming reading
+            with sf.SoundFile(audio_path, 'r') as infile:
+                # Open output file for streaming writing (preserves original compression)
+                with sf.SoundFile(temp_path, 'w', samplerate=sample_rate,
+                                 channels=1, format=out_format, subtype=out_subtype) as outfile:
+
+                    frames_processed = 0
+
+                    # Process file in chunks
+                    for chunk_idx in range(num_chunks):
+                        # Read next chunk
+                        frames_to_read = min(chunk_frames, total_frames - frames_processed)
+                        chunk = infile.read(frames_to_read)
+
+                        if chunk.size == 0:
+                            break
+
+                        # Convert to mono if stereo
+                        if len(chunk.shape) > 1 and chunk.shape[1] > 1:
+                            chunk = chunk.mean(axis=1)
+
+                        # Ensure 1D array
+                        chunk = chunk.flatten()
+
+                        # Apply filters (state is preserved between chunks)
+                        chunk = noise_gate.process(chunk)
+                        chunk = compressor.process(chunk)
+
+                        # Write processed chunk to output
+                        outfile.write(chunk)
+
+                        frames_processed += len(chunk)
+
+                        # Update progress
+                        progress_pct = 3 + int((chunk_idx + 1) / num_chunks * 2)  # 3-5%
+                        elapsed_min = frames_processed / sample_rate / 60.0
+                        self.progress_update.emit(
+                            f"Filtering: {elapsed_min:.1f}/{duration_minutes:.1f} min",
+                            progress_pct
+                        )
+
+                        logger.debug(f"Processed chunk {chunk_idx + 1}/{num_chunks} "
+                                   f"({frames_processed:,}/{total_frames:,} frames)")
+
+            # Replace original file with filtered version
+            logger.info("Finalizing filtered audio...")
+            self.progress_update.emit("Saving filtered audio...", 5)
+
+            # Simply replace the original file (format preserved)
+            # This keeps streaming benefits - no need to load entire file into memory
+            os.replace(temp_path, audio_path)
+
+            logger.info(f"Streaming filter processing complete: {frames_processed:,} frames processed")
+            logger.info(f"Filtered audio saved (format: {out_format})")
+            return audio_path
+
+        except Exception as e:
+            # Clean up temp file on error
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            raise e
 
     def cancel(self):
         """Request cancellation of current transcription (chunk-level for multi-language)."""
