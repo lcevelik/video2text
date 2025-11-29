@@ -2,24 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Audio input permission (microphone) -->
-    <key>com.apple.security.device.audio-input</key>
-    <true/>
-
-    <!-- Camera disabled (not needed) -->
-    <key>com.apple.security.device.camera</key>
-    <false/>
-
-    <!-- JIT compilation (required for Python/PyTorch) -->
-    <key>com.apple.security.cs.allow-jit</key>
-    <true/>
-
-    <!-- Unsigned executable memory (required for Python) -->
+    <!-- Allow unsigned executable memory for Python and PyInstaller -->
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
 
-    <!-- Disable library validation (required for PyInstaller bundles) -->
+    <!-- Allow loading of unsigned libraries (for Python packages) -->
     <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Audio input permission (for recording) -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Apple Events permission (for automation) -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Network client (for license validation and updates) -->
+    <key>com.apple.security.network.client</key>
     <true/>
 </dict>
 </plist>

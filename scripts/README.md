@@ -1,181 +1,252 @@
 # FonixFlow Release Scripts
 
-This directory contains scripts and templates for building and distributing FonixFlow releases.
+Automated scripts for building, signing, notarizing, and releasing FonixFlow.
 
-## Files
+## Quick Start
 
-- **build_release.sh** - Main release build script
-- **manifest.json** - Template for the update server manifest
+### Production Release (One Command)
 
-## Building a Release
+```bash
+./scripts/release.sh 1.0.1
+```
 
-### Prerequisites
+This single command will:
+1. ✅ Update version number in code
+2. ✅ Build app with PyInstaller
+3. ✅ Code sign all binaries
+4. ✅ Notarize app with Apple (5-15 min)
+5. ✅ Create DMG
+6. ✅ Notarize DMG with Apple (5-15 min)
+7. ✅ Create update ZIP
+8. ✅ Calculate SHA256 hash
+9. ✅ Upload to Google Cloud Storage
+10. ✅ Update manifest.json
 
-1. Ensure you have all dependencies installed:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Total time:** ~15-30 minutes (mostly waiting for Apple notarization)
 
-2. Set up your CDN/hosting for updates:
-   - AWS S3 + CloudFront, or
-   - GitHub Releases, or
-   - Your own server
+### Development Workflow
 
-3. Configure the update server URL in `gui/update_manager.py`:
-   ```python
-   self.update_server = "https://cdn.fonixflow.com/updates"
-   ```
+For testing during development (no signing/notarization needed):
 
-### Build Steps
+```bash
+pyinstaller fonixflow_qt.spec
+./dist/FonixFlow.app/Contents/MacOS/FonixFlow
+```
 
-1. **Build the release:**
-   ```bash
-   ./scripts/build_release.sh 1.0.0
-   ```
+Or just run from source:
+```bash
+python fonixflow_qt.py
+```
 
-   This will:
-   - Update `app/version.py` with the new version
-   - Encode the license file (licenses.txt → licenses.dat)
-   - Build the .app bundle with PyInstaller
-   - Create a ZIP file: `dist/FonixFlow-1.0.0.zip`
-   - Calculate SHA256 hash
-   - Generate manifest file: `dist/FonixFlow-1.0.0-manifest.json`
+## Individual Scripts
 
-2. **Test the build locally:**
-   ```bash
-   open dist/FonixFlow.app
-   ```
+### `release.sh` - Complete Release Automation
 
-   Verify:
-   - App launches correctly
-   - Version shows correctly in logs
-   - License validation works
-   - All features work as expected
+**Usage:**
+```bash
+./scripts/release.sh VERSION
+```
 
-3. **Upload to CDN:**
-   ```bash
-   # Example for AWS S3
-   aws s3 cp dist/FonixFlow-1.0.0.zip s3://your-bucket/releases/
+**Example:**
+```bash
+./scripts/release.sh 1.0.2
+```
 
-   # Make it publicly accessible
-   aws s3api put-object-acl \
-     --bucket your-bucket \
-     --key releases/FonixFlow-1.0.0.zip \
-     --acl public-read
-   ```
+**Requirements:**
+- macOS with Xcode Command Line Tools
+- Developer ID Application certificate in Keychain
+- Google Cloud SDK configured (`gcloud auth login`)
+- Apple Developer account credentials configured
 
-4. **Update the manifest on your server:**
+**Environment:**
+- Apple ID: libor.cevelik@me.com
+- Team ID: 8BLXD56D6K
+- App-specific password: Embedded in script
+- Code signing identity: Developer ID Application: Libor Cevelik (8BLXD56D6K)
 
-   Copy the contents from `dist/FonixFlow-1.0.0-manifest.json` and update your `manifest.json` file at:
-   ```
-   https://cdn.fonixflow.com/updates/manifest.json
-   ```
+---
 
-   The manifest should contain:
-   ```json
-   {
-     "latest_version": "1.0.0",
-     "download_url": "https://cdn.fonixflow.com/releases/FonixFlow-1.0.0.zip",
-     "release_notes": "Update description here",
-     "force_update": false,
-     "file_hash": "abc123...",
-     "file_size": "125M",
-     "minimum_version": "1.0.0",
-     "published_at": "2024-12-01T12:00:00Z"
-   }
-   ```
+### `sign_app.sh` - Code Signing Only
 
-5. **Test the update:**
-   - Install an older version of FonixFlow
-   - Launch it
-   - Wait 3 seconds (auto-check delay)
-   - Verify update dialog appears
-   - Test the download and installation
+Signs the app for distribution (required before notarization).
 
-## Release Checklist
+**Usage:**
+```bash
+./scripts/sign_app.sh
+```
 
-Before releasing:
+**What it signs:**
+- All .dylib files (dynamic libraries)
+- All .so files (Python extensions)
+- All .framework bundles
+- All executable binaries (ffmpeg, ffprobe, torch binaries)
+- Main executable
+- App bundle
 
-- [ ] All tests pass
-- [ ] Version number updated
-- [ ] Release notes written
-- [ ] License file encoded
-- [ ] Build succeeds
-- [ ] Local testing completed
-- [ ] ZIP file uploaded to CDN
-- [ ] Manifest updated on server
-- [ ] Update flow tested from previous version
-- [ ] GitHub release created (optional)
+**Requirements:**
+- `dist/FonixFlow.app` must exist (run PyInstaller first)
+- `entitlements.plist` must exist in project root
+- Developer ID certificate in Keychain
 
-## Version Numbering
+---
 
-FonixFlow uses semantic versioning: `MAJOR.MINOR.PATCH`
+### `notarize_app.sh` - App Notarization Only
 
-- **MAJOR** - Breaking changes, major new features
-- **MINOR** - New features, backwards compatible
-- **PATCH** - Bug fixes, small improvements
+Notarizes the signed app with Apple.
 
-Examples:
-- `1.0.0` - Initial release
-- `1.0.1` - Bug fix
-- `1.1.0` - New feature (e.g., new transcription model)
-- `2.0.0` - Major update (e.g., redesigned UI)
+**Usage:**
+```bash
+./scripts/notarize_app.sh
+```
 
-## Hosting Options
+**Process:**
+1. Creates ZIP for notarization
+2. Uploads to Apple (5-15 minutes)
+3. Waits for approval
+4. Staples notarization ticket to app
+5. Creates DMG (attempts stapling, may fail - normal)
 
-### Option 1: GitHub Releases (Recommended for small projects)
+**Requirements:**
+- App must be signed first (`./scripts/sign_app.sh`)
+- Apple Developer account
+- App-specific password
 
-1. Create a GitHub release with tag `v1.0.0`
-2. Upload the ZIP file as a release asset
-3. Use the GitHub CDN URL in manifest:
-   ```
-   https://github.com/username/repo/releases/download/v1.0.0/FonixFlow-1.0.0.zip
-   ```
-4. Host `manifest.json` on GitHub Pages or a simple server
+**Note:** DMG stapling may fail in this script. Use `release.sh` for complete DMG notarization.
 
-### Option 2: AWS S3 + CloudFront (Recommended for production)
+---
 
-1. Create S3 bucket for releases
-2. Set up CloudFront distribution
-3. Upload ZIP files to S3
-4. Update manifest.json in S3
-5. Use CloudFront URL in update_manager.py
+## Release Workflow Comparison
 
-### Option 3: Your Own Server
+### Option 1: Automated (Recommended)
+```bash
+./scripts/release.sh 1.0.2
+# ☕ Get coffee, wait 15-30 minutes
+# Done! ✅
+```
 
-1. Set up HTTPS server
-2. Create `/updates/` directory
-3. Upload ZIP files
-4. Host manifest.json at `/updates/manifest.json`
-5. Ensure CORS is configured if needed
+### Option 2: Manual (Not Recommended)
+```bash
+# 1. Update version
+vim app/version.py
+
+# 2. Build
+pyinstaller fonixflow_qt.spec --clean
+
+# 3. Sign
+./scripts/sign_app.sh
+
+# 4. Notarize app
+./scripts/notarize_app.sh
+
+# 5. Notarize DMG
+xcrun notarytool submit dist/FonixFlow.dmg --apple-id ... --wait
+xcrun stapler staple dist/FonixFlow.dmg
+
+# 6. Create ZIP
+cd dist && ditto -c -k --keepParent FonixFlow.app FonixFlow_1.0.2_macos-arm.zip && cd ..
+
+# 7. Calculate hash
+shasum -a 256 dist/FonixFlow_1.0.2_macos-arm.zip
+
+# 8. Upload to GCS
+gsutil cp dist/FonixFlow_1.0.2_macos-arm.zip gs://fonixflow-files/...
+gsutil cp dist/FonixFlow.dmg gs://fonixflow-files/...
+
+# 9. Update manifest
+vim dist/manifest_macos-arm.json
+gsutil cp dist/manifest_macos-arm.json gs://fonixflow-files/...
+
+# 😫 Exhausting!
+```
 
 ## Troubleshooting
 
-### Build fails
+### Code Signing Fails
 
-- Check PyInstaller logs
-- Verify all dependencies are installed
-- Ensure ffmpeg is available
+**Error:** `errSecInternalComponent`
+- **Cause:** Keychain locked or certificate not found
+- **Fix:** Open Keychain Access, unlock login keychain, verify certificate exists
 
-### Updates not detecting
+### Notarization Rejected
 
-- Check `update_manager.py` has correct server URL
-- Verify manifest.json is accessible
-- Check logs for update check errors
-- Ensure 24-hour throttle hasn't blocked check
+**Error:** `status: Invalid`
+- **Cause:** Unsigned binaries detected
+- **Fix:** Check notarization log (`xcrun notarytool log SUBMISSION_ID`), ensure all executables signed
 
-### Download fails
+### Upload Fails
 
-- Verify ZIP file is publicly accessible
-- Check download_url in manifest
-- Test URL directly in browser
+**Error:** `gsutil: command not found`
+- **Cause:** Google Cloud SDK not installed
+- **Fix:** Install with `brew install google-cloud-sdk` and run `gcloud auth login`
 
-### Installation fails
+### DMG Stapling Fails
 
-- Verify SHA256 hash matches
-- Check app has write permissions to /Applications
-- Review installation logs
+**Error:** `The staple and validate action failed! Error 65.`
+- **Cause:** This is normal in `notarize_app.sh` - DMG wasn't part of original notarization
+- **Fix:** Use `release.sh` which notarizes DMG separately, or manually notarize DMG
 
-## Support
+## Version Management
 
-For issues or questions, check the main project README or open an issue on GitHub.
+Version is stored in `app/version.py`:
+
+```python
+__version__ = "1.0.0"
+```
+
+The `release.sh` script automatically updates this file with the version you provide.
+
+## File Locations
+
+**Build artifacts:**
+- `dist/FonixFlow.app` - Signed and notarized app
+- `dist/FonixFlow.dmg` - Signed and notarized DMG
+- `dist/FonixFlow_VERSION_PLATFORM.zip` - Update package
+- `dist/manifest_PLATFORM.json` - Update manifest
+
+**Google Cloud Storage:**
+- `gs://fonixflow-files/updates/macos-arm/FonixFlow_VERSION_macos-arm.zip` - Update ZIP
+- `gs://fonixflow-files/updates/macos-arm/manifest.json` - Update manifest
+- `gs://fonixflow-files/releases/FonixFlow_VERSION_macos-arm.dmg` - DMG for download
+
+**Public URLs:**
+- `https://storage.googleapis.com/fonixflow-files/updates/macos-arm/FonixFlow_VERSION_macos-arm.zip`
+- `https://storage.googleapis.com/fonixflow-files/updates/macos-arm/manifest.json`
+- `https://storage.googleapis.com/fonixflow-files/releases/FonixFlow_VERSION_macos-arm.dmg`
+
+## Security
+
+All releases are:
+- ✅ Code signed with Developer ID certificate
+- ✅ Notarized by Apple
+- ✅ SHA256 verified
+- ✅ Timestamped
+- ✅ Hardened runtime enabled
+
+## Tips
+
+1. **Use `release.sh` for all production releases** - it's tested and complete
+2. **Test locally first** - build with PyInstaller and test before releasing
+3. **Wait for notarization** - don't interrupt the process (takes 5-15 min per submission)
+4. **Keep credentials secure** - the app-specific password in scripts is low-privilege
+5. **Version naming** - use semantic versioning (MAJOR.MINOR.PATCH)
+
+## Examples
+
+**Patch release:**
+```bash
+./scripts/release.sh 1.0.1
+```
+
+**Minor release:**
+```bash
+./scripts/release.sh 1.1.0
+```
+
+**Major release:**
+```bash
+./scripts/release.sh 2.0.0
+```
+
+---
+
+**For questions or issues, check the main project documentation or contact the development team.**

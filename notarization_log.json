@@ -1,0 +1,133 @@
+{
+  "logFormatVersion": 1,
+  "jobId": "20ce9cae-7ec9-4e95-a91a-a3a8dd9e9ac4",
+  "status": "Invalid",
+  "statusSummary": "Archive contains critical validation errors",
+  "statusCode": 4000,
+  "archiveFilename": "FonixFlow_notarization.zip",
+  "uploadDate": "2025-11-29T09:19:52.532Z",
+  "sha256": "c6f2661b3d365289283e9b041a31a2662ad3cbcf7362f9f57e3de0d68e6bad21",
+  "ticketContents": null,
+  "issues": [
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffmpeg",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffmpeg",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffmpeg",
+      "message": "The executable does not have the hardened runtime enabled.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087724",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffprobe",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffprobe",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/ffprobe",
+      "message": "The executable does not have the hardened runtime enabled.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087724",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc-3.13.0.0",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc-3.13.0.0",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc-3.13.0.0",
+      "message": "The executable does not have the hardened runtime enabled.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087724",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/torch_shm_manager",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/torch_shm_manager",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/torch_shm_manager",
+      "message": "The executable does not have the hardened runtime enabled.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087724",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FonixFlow_notarization.zip/FonixFlow.app/Contents/Frameworks/torch/bin/protoc",
+      "message": "The executable does not have the hardened runtime enabled.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087724",
+      "architecture": "arm64"
+    }
+  ]
+}

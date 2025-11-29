@@ -75,7 +75,13 @@
       "Bash(gsutil cp:*)",
       "Bash(gsutil acl ch:*)",
       "Bash(gsutil:*)",
-      "Bash(./scripts/release_to_gcs_multiplatform.sh:*)"
+      "Bash(./scripts/release_to_gcs_multiplatform.sh:*)",
+      "Bash(security find-identity:*)",
+      "Bash(xcrun notarytool log:*)",
+      "Bash(xcrun notarytool:*)",
+      "Bash(xcrun stapler:*)",
+      "Bash(spctl -a -vvv -t install:*)",
+      "Bash(shasum:*)"
     ],
     "deny": [],
     "ask": []
