@@ -6,9 +6,31 @@ set -e  # Exit on error
 APP_PATH="dist/FonixFlow.app"
 DMG_PATH="dist/FonixFlow.dmg"
 ZIP_PATH="dist/FonixFlow_notarization.zip"
-APPLE_ID="libor.cevelik@me.com"
-TEAM_ID="8BLXD56D6K"
-APP_PASSWORD="kuqy-umcx-auba-ynfz"
+
+# Get credentials from environment variables (required for notarization)
+APPLE_ID="${APPLE_ID:-libor.cevelik@me.com}"
+TEAM_ID="${TEAM_ID:-8BLXD56D6K}"
+APP_PASSWORD="${APP_PASSWORD:-}"
+
+# Check if App-Specific Password is set
+if [ -z "$APP_PASSWORD" ]; then
+    echo "❌ Error: APP_PASSWORD environment variable is not set!"
+    echo ""
+    echo "To set up notarization:"
+    echo "1. Go to https://appleid.apple.com"
+    echo "2. Sign in with your Apple ID: $APPLE_ID"
+    echo "3. Go to 'Sign-In and Security' → 'App-Specific Passwords'"
+    echo "4. Generate a new password for 'FonixFlow Notarization'"
+    echo "5. Copy the password (format: xxxx-xxxx-xxxx-xxxx)"
+    echo "6. Set it as an environment variable:"
+    echo "   export APP_PASSWORD='your-app-specific-password'"
+    echo ""
+    echo "Or add it permanently to ~/.zshrc:"
+    echo "   echo 'export APP_PASSWORD=\"your-app-specific-password\"' >> ~/.zshrc"
+    echo "   source ~/.zshrc"
+    echo ""
+    exit 1
+fi
 
 echo "==========================================="
 echo "Notarizing FonixFlow.app"

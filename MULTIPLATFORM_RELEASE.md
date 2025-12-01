@@ -1,5 +1,7 @@
 # Multi-Platform Release Guide
 
+> **📘 For complete release workflow including code signing, notarization, and DMG creation, see [doc/RELEASE_WORKFLOW.md](./doc/RELEASE_WORKFLOW.md)**
+
 ## Overview
 
 FonixFlow supports 4 platforms with separate update channels:
@@ -13,20 +15,29 @@ Each platform has its own manifest and release packages.
 ## GCS Bucket Structure
 
 ```
-gs://fonixflow-files/updates/
-├── macos-intel/
-│   ├── manifest.json
-│   └── FonixFlow_1.0.0_macos-intel.zip
-├── macos-arm/
-│   ├── manifest.json
-│   └── FonixFlow_1.0.0_macos-arm.zip
-├── windows/
-│   ├── manifest.json
-│   └── FonixFlow_1.0.0_windows.zip
-└── linux/
-    ├── manifest.json
-    └── FonixFlow_1.0.0_linux.tar.gz
+gs://fonixflow-files/
+├── releases/                          # First-time downloads (DMG files)
+│   ├── FonixFlow_1.0.0_macos-arm.dmg
+│   ├── FonixFlow_1.0.0_macos-intel.dmg
+│   └── ...
+└── updates/                           # Auto-updates (ZIP files)
+    ├── macos-intel/
+    │   ├── manifest.json
+    │   └── FonixFlow_1.0.0_macos-intel.zip
+    ├── macos-arm/
+    │   ├── manifest.json
+    │   └── FonixFlow_1.0.0_macos-arm.zip
+    ├── windows/
+    │   ├── manifest.json
+    │   └── FonixFlow_1.0.0_windows.zip
+    └── linux/
+        ├── manifest.json
+        └── FonixFlow_1.0.0_linux.tar.gz
 ```
+
+**Distribution Strategy:**
+- **DMG files** (`releases/`) → For first-time downloaders from website
+- **ZIP files** (`updates/`) → For automatic updates within the app
 
 ## Public URLs
 

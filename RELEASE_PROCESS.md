@@ -1,7 +1,16 @@
 # FonixFlow Release Process
 
+> **📘 For the complete automated release workflow (Build → Sign → Notarize → DMG → GCS), see [doc/RELEASE_WORKFLOW.md](./doc/RELEASE_WORKFLOW.md) or use `./scripts/full_release.sh 1.0.1`**
+
 ## Quick Start
 
+**Option 1: Automated (Recommended)**
+```bash
+# Complete workflow: Build → Sign → Notarize → DMG → GCS
+./scripts/full_release.sh 1.0.1
+```
+
+**Option 2: Manual Steps**
 ```bash
 # 1. Update version
 # Edit app/version.py and increment version
@@ -65,17 +74,29 @@ The automated script handles everything:
 
 ```
 gs://fonixflow-files/
-├── FonixFlow.dmg                    # Latest DMG (manual)
-├── updates/
-│   ├── manifest.json               # Version metadata
-│   ├── FonixFlow_1.0.0.zip        # Version packages
-│   ├── FonixFlow_1.0.1.zip
-│   └── FonixFlow_1.0.2.zip
+├── releases/                         # First-time downloads (DMG files)
+│   ├── FonixFlow_1.0.0_macos-arm.dmg
+│   ├── FonixFlow_1.0.1_macos-arm.dmg
+│   └── ...
+└── updates/                          # Auto-updates (ZIP files)
+    ├── macos-arm/
+    │   ├── manifest.json
+    │   ├── FonixFlow_1.0.0_macos-arm.zip
+    │   ├── FonixFlow_1.0.1_macos-arm.zip
+    │   └── FonixFlow_1.0.2_macos-arm.zip
+    └── macos-intel/
+        ├── manifest.json
+        └── ...
 ```
 
+**Distribution Strategy:**
+- **DMG files** (`releases/`) → For first-time downloaders from website
+- **ZIP files** (`updates/`) → For automatic updates within the app
+
 **Public URLs:**
-- Manifest: https://storage.googleapis.com/fonixflow-files/updates/manifest.json
-- Packages: https://storage.googleapis.com/fonixflow-files/updates/FonixFlow_X.Y.Z.zip
+- **First-time downloads (DMG):** https://storage.googleapis.com/fonixflow-files/releases/FonixFlow_X.Y.Z_platform.dmg
+- **Auto-updates (ZIP):** https://storage.googleapis.com/fonixflow-files/updates/platform/FonixFlow_X.Y.Z_platform.zip
+- **Manifest:** https://storage.googleapis.com/fonixflow-files/updates/platform/manifest.json
 
 ## Manifest Format
 

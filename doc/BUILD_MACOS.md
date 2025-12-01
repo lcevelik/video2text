@@ -60,6 +60,8 @@ Convert the PNG icon to macOS .icns format:
 ./create_icns.sh
 ```
 
+This script generates all required icon sizes (16x16 to 1024x1024) and creates `assets/fonixflow_icon.icns`.
+
 Or manually create it:
 
 ```bash
@@ -157,6 +159,8 @@ The BUNDLE section creates a proper macOS app with:
 - **High Resolution**: Retina display support
 
 ## Code Signing (Optional)
+
+> **📘 For complete release workflow including code signing, notarization, DMG creation, and GCS upload, see [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md)**
 
 For distribution outside the App Store, you need to code sign with an Apple Developer ID:
 
@@ -270,6 +274,7 @@ The script automatically:
 - **Platform detection**: The app automatically detects the platform and checks the correct update channel
 
 For complete details, see:
+- **[RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md)** - Complete release workflow (recommended)
 - [MULTIPLATFORM_RELEASE.md](../MULTIPLATFORM_RELEASE.md) - Multi-platform release workflow
 - [RELEASE_PROCESS.md](../RELEASE_PROCESS.md) - Single-platform release workflow
 
