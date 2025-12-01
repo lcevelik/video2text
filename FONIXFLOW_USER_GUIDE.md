@@ -139,7 +139,7 @@ FonixFlow is a professional audio and video transcription application that conve
 **Recording Controls:**
 - **Start Recording:** Begin capturing audio
 - **Stop Recording:** End recording and start automatic transcription
-- **Recording location:** Configurable in Settings (default: ~/Music/FonixFlow)
+- **Recording location:** Configurable in Settings (default: ~/.fonixflow/recordings/)
 
 **Best Practices:**
 - Use a good quality microphone for best results
