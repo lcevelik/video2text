@@ -316,9 +316,8 @@ Duration: 5 minutes 23 seconds
 ### Recording Directory
 
 **Default Location:**
-- macOS: `~/Music/FonixFlow`
-- Windows: `%USERPROFILE%\Music\FonixFlow`
-- Linux: `~/Music/FonixFlow`
+- macOS/Linux: `~/.fonixflow/recordings/`
+- Windows: `%USERPROFILE%\.fonixflow\recordings\`
 
 **Change Directory:**
 1. Click **Settings** tab (⚙️ icon on right side)
@@ -326,6 +325,9 @@ Duration: 5 minutes 23 seconds
 3. Select folder in dialog
 4. All future recordings saved there
 5. Previous recordings remain in old location
+
+**Migration Note:**
+If you previously used FonixFlow, your old recordings in `~/Music/FonixFlow` or `~/FonixFlow/Recordings/` will be automatically migrated to the new default location (`~/.fonixflow/recordings/`) on first launch after updating.
 
 **Open Directory:**
 1. Click **Settings** tab (⚙️ icon on right side)
@@ -888,7 +890,7 @@ These settings work well for most speech content.
 - Never deleted by app (manual deletion safe, will re-download)
 
 **Recordings:**
-- Default: `~/Music/FonixFlow/` (macOS/Linux) or `%USERPROFILE%\Music\FonixFlow\` (Windows)
+- Default: `~/.fonixflow/recordings/` (macOS/Linux) or `%USERPROFILE%\.fonixflow\recordings\` (Windows)
 - Configurable in Settings
 - Format: WAV, 16-bit, 44.1kHz, stereo
 
