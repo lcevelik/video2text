@@ -1,5 +1,7 @@
 # DMG Creation Guide for FonixFlow
 
+> **📘 For complete release workflow including DMG creation, see [doc/RELEASE_WORKFLOW.md](./doc/RELEASE_WORKFLOW.md)**
+
 This guide explains how to create a distributable DMG file for the FonixFlow macOS application.
 
 ## Prerequisites
@@ -180,18 +182,29 @@ du -sh dist/FonixFlow.app/*
 
 Coordinates are in pixels from top-left corner.
 
-## Using Custom Script
+## Available DMG Scripts
 
-The project includes a custom DMG creation script:
+The project includes multiple DMG creation scripts for different use cases:
 
+### Quick DMG (No Background)
 ```bash
-./scripts/create_custom_dmg.sh 'FonixFlow' 'dist/FonixFlow.app' 'dist/FonixFlow.dmg'
+./create_clean_dmg.sh
 ```
+Fastest option, no background image, basic layout.
 
-With custom background:
+### Production DMG (With Background) ⭐ Recommended
 ```bash
 ./scripts/create_custom_dmg.sh 'FonixFlow' 'dist/FonixFlow.app' 'dist/FonixFlow.dmg' 'assets/dmg_background.png'
 ```
+Professional appearance with custom background and layout.
+
+### Custom Layout DMG
+```bash
+./create_dmg_working.sh
+```
+Fixed window size (600x400) with precise icon positioning.
+
+> **📘 See [doc/DMG_SCRIPTS_GUIDE.md](./doc/DMG_SCRIPTS_GUIDE.md) for complete comparison of all DMG scripts**
 
 ## Full Release Build Process
 

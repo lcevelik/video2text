@@ -58,17 +58,17 @@ if not ffprobe_binary:
 binaries = []
 if ffmpeg_binary:
     binaries.append((ffmpeg_binary, '.'))
-    print(f"✓ Found ffmpeg at: {ffmpeg_binary}")
+    print(f"[OK] Found ffmpeg at: {ffmpeg_binary}")
 else:
-    print("⚠️ Warning: ffmpeg not found in PATH or standard locations")
+    print("[WARNING] ffmpeg not found in PATH or standard locations")
     print("  Download from: https://ffmpeg.org/download.html#build-windows")
     print("  Extract to C:\\ffmpeg and add C:\\ffmpeg\\bin to PATH")
 
 if ffprobe_binary:
     binaries.append((ffprobe_binary, '.'))
-    print(f"✓ Found ffprobe at: {ffprobe_binary}")
+    print(f"[OK] Found ffprobe at: {ffprobe_binary}")
 else:
-    print("⚠️ Warning: ffprobe not found in PATH or standard locations")
+    print("[WARNING] ffprobe not found in PATH or standard locations")
     print("  Download from: https://ffmpeg.org/download.html#build-windows")
 
 # Include local license file for offline validation
@@ -125,20 +125,12 @@ datas = [
     ('assets/mel_filters.npz', 'whisper/assets'),
     ('assets/gpt2.tiktoken', 'whisper/assets'),
     ('assets/multilingual.tiktoken', 'whisper/assets'),
-    # Whisper model files (all supported)
-    ('assets/models/tiny.pt', 'whisper/assets'),
-    ('assets/models/tiny.en.pt', 'whisper/assets'),
-    ('assets/models/base.pt', 'whisper/assets'),
-    ('assets/models/base.en.pt', 'whisper/assets'),
-    ('assets/models/small.pt', 'whisper/assets'),
-    ('assets/models/small.en.pt', 'whisper/assets'),
-    ('assets/models/medium.pt', 'whisper/assets'),
-    ('assets/models/medium.en.pt', 'whisper/assets'),
-    ('assets/models/large-v3.pt', 'whisper/assets'),
+    # Whisper model files are downloaded at runtime, not bundled
     # App icons and logo
     ('assets/fonixflow_icon.png', 'assets'),
     ('assets/fonixflow_logo.png', 'assets'),
     ('assets/fonixflow.png', 'assets'),
+    ('assets/logo.png', 'assets'),
     ('assets/fonixflow_icon.ico', 'assets'),
     # SVG icons for UI
     ('assets/icons/*.svg', 'assets/icons'),
@@ -166,8 +158,10 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
     name=app_name,
     debug=False,
     bootloader_ignore_signals=False,
@@ -185,12 +179,13 @@ exe = EXE(
     uac_uiaccess=False,
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,  # Disable UPX to avoid antivirus false positives
-    upx_exclude=[],
-    name=app_name,
-)
+# COLLECT commented out - we're building a single-file executable
+# coll = COLLECT(
+#     exe,
+#     a.binaries,
+#     a.datas,
+#     strip=False,
+#     upx=False,  # Disable UPX to avoid antivirus false positives
+#     upx_exclude=[],
+#     name=app_name,
+# )

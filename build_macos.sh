@@ -81,19 +81,27 @@ if [ -d "dist/FonixFlow.app" ]; then
     echo "To run directly:"
     echo "  open dist/FonixFlow.app"
     echo ""
+    echo "For complete release (sign → notarize → DMG → GCS):"
+    echo "  ./scripts/full_release.sh VERSION"
+    echo ""
     # Create custom DMG with background and icon positioning
     echo "Creating custom DMG package..."
     
     DMG_NAME="FonixFlow_macOS_Universal.dmg"
     
-    # Ensure DMG background exists
-    if [ ! -f "assets/dmg_background.png" ]; then
-        echo "Creating DMG background..."
-        ./scripts/create_dmg_background.sh assets/fonixflow_logo.png assets/dmg_background.png
+    # Try to create DMG with background if available, otherwise use clean DMG
+    if [ -f "assets/dmg_background.png" ] && [ -f "./scripts/create_custom_dmg.sh" ]; then
+        # Use custom DMG creator with background
+        ./scripts/create_custom_dmg.sh "FonixFlow" "dist/FonixFlow.app" "dist/$DMG_NAME" "assets/dmg_background.png"
+    elif [ -f "./create_clean_dmg.sh" ]; then
+        # Use clean DMG (faster, no background)
+        ./create_clean_dmg.sh
+        if [ -f "dist/FonixFlow.dmg" ]; then
+            mv "dist/FonixFlow.dmg" "dist/$DMG_NAME"
+        fi
+    else
+        echo "⚠ Warning: DMG creation scripts not found"
     fi
-    
-    # Use custom DMG creator
-    ./scripts/create_custom_dmg.sh "FonixFlow" "dist/FonixFlow.app" "dist/$DMG_NAME" "assets/dmg_background.png"
     
     # Optional: Code sign the app (requires Apple Developer ID)
     if [ ! -z "$CODESIGN_IDENTITY" ]; then
