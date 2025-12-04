@@ -19,6 +19,8 @@ class LicenseKeyDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Enter License Key"))
         self.setMinimumSize(400, 180)
+        # Ensure dialog appears on top of splash screen
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
         self.license_key = current_key
         self.valid = False
         self.current_key = current_key
@@ -710,12 +712,14 @@ class LogsDialog(QDialog):
 
 class LicenseLimitationsDialog(QDialog):
     """Dialog explaining limitations for unlicensed users."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("FonixFlow - Free Version"))
         self.setMaximumWidth(400)
         self.setMinimumSize(350, 300)
+        # Ensure dialog appears on top of splash screen
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
         self.setup_ui()
         self.center_on_screen()
     
