@@ -7,6 +7,7 @@ Also supports direct audio file formats: MP3, WAV, M4A, FLAC, OGG, etc.
 """
 
 import os
+import sys
 import subprocess
 import tempfile
 import logging
@@ -14,6 +15,8 @@ from pathlib import Path
 from tools.resource_locator import get_ffmpeg_path, get_ffprobe_path
 
 logger = logging.getLogger(__name__)
+
+_NO_WIN = {'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}
 
 
 class AudioExtractor:
@@ -132,7 +135,8 @@ class AudioExtractor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True,
-                timeout=5
+                timeout=5,
+                **_NO_WIN
             )
             logger.info(f"ffmpeg is available at: {self.ffmpeg_path}")
             logger.info(f"ffprobe is available at: {self.ffprobe_path}")
@@ -226,7 +230,8 @@ class AudioExtractor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True,
-                text=True
+                text=True,
+                **_NO_WIN
             )
             
             duration = float(result.stdout.strip())
@@ -390,7 +395,8 @@ class AudioExtractor:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                check=True
+                check=True,
+                **_NO_WIN
             )
 
             if progress_callback:

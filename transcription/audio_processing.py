@@ -8,8 +8,11 @@ in-memory processing for faster transcription.
 import logging
 import tempfile
 import os
+import sys
 import subprocess
 from typing import Dict, List, Optional, Any, Tuple
+
+_NO_WIN = {'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}
 import numpy as np
 from app.transcriber import Transcriber
 
@@ -49,7 +52,7 @@ def sample_languages(
             ffprobe_bin, '-v', 'error', '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
         ]
-        duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
+        duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT, **_NO_WIN)
         total_duration = float(duration_output.decode().strip())
     except Exception as e:
         logger.warning(f"Duration probe failed: {e}; falling back to single sample")
@@ -63,7 +66,7 @@ def sample_languages(
         temp_sample.close()
         try:
             ffmpeg_cmd = [ffmpeg_bin, '-y', '-i', audio_path, '-t', str(sample_window), '-ar', '16000', '-ac', '1', temp_sample.name]
-            subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
+            subprocess.run(ffmpeg_cmd, capture_output=True, check=True, **_NO_WIN)
             r = transcriber.transcribe(temp_sample.name, language=None, word_timestamps=False)
             return ([{'time': 0.0, 'language': r.get('language', 'unknown')}], 0.0)
         finally:
@@ -92,7 +95,7 @@ def sample_languages(
                 '-t', str(sample_window),
                 '-ar', '16000', '-ac', '1', temp_sample.name
             ]
-            subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
+            subprocess.run(ffmpeg_cmd, capture_output=True, check=True, **_NO_WIN)
             if progress_callback:
                 progress_callback(f"Language sampling {idx+1}/{len(points)} @ {start_time:.0f}s")
             r = transcriber.transcribe(temp_sample.name, language=None, word_timestamps=False)
@@ -280,7 +283,7 @@ def process_chunk_sequential(
             '-t', str(chunk_duration),
             '-ar', '16000', '-ac', '1',
             temp_path
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30, **_NO_WIN)
 
         # Transcribe this chunk
         chunk_result = transcriber.transcribe(

@@ -27,7 +27,7 @@ import threading
 # Whisper internally uses subprocess to call ffmpeg, and we need to ensure
 # it finds our bundled ffmpeg instead of looking for 'ffmpeg' in PATH
 def _patch_whisper_ffmpeg():
-    """Patch Whisper's audio loading to use bundled ffmpeg."""
+    """Patch Whisper's audio loading to use bundled ffmpeg and suppress console windows on Windows."""
     try:
         from tools.resource_locator import get_ffmpeg_path
         ffmpeg_path = get_ffmpeg_path()
@@ -38,7 +38,6 @@ def _patch_whisper_ffmpeg():
         # Also try to patch whisper.audio module if it's already loaded
         if 'whisper.audio' in sys.modules:
             import whisper.audio
-            # Whisper uses shutil.which('ffmpeg') internally, so we patch it
             original_which = shutil.which
             def patched_which(cmd, *args, **kwargs):
                 if cmd == 'ffmpeg':
@@ -46,8 +45,23 @@ def _patch_whisper_ffmpeg():
                 return original_which(cmd, *args, **kwargs)
             shutil.which = patched_which
     except Exception as e:
-        # If patching fails, log but don't crash - it will fall back to system ffmpeg
         logging.getLogger(__name__).warning(f"Could not patch Whisper ffmpeg path: {e}")
+
+    # Suppress console windows for all subprocess calls spawned by whisper on Windows
+    if sys.platform == 'win32':
+        _patch_subprocess_no_window()
+
+
+def _patch_subprocess_no_window():
+    """Monkey-patch subprocess.run/Popen to add CREATE_NO_WINDOW on Windows."""
+    _original_popen_init = subprocess.Popen.__init__
+
+    def _popen_no_window(self, *args, **kwargs):
+        kwargs.setdefault('creationflags', 0)
+        kwargs['creationflags'] |= subprocess.CREATE_NO_WINDOW
+        _original_popen_init(self, *args, **kwargs)
+
+    subprocess.Popen.__init__ = _popen_no_window
 
 # Apply the patch immediately
 _patch_whisper_ffmpeg()
