@@ -208,20 +208,22 @@ class UpdateManager:
             logger.error(f"Verification failed: {e}")
             return False
 
-    def install_update(self, zip_path: str) -> bool:
+    def install_update(self, zip_path: str):
         """
-        Install the update by replacing the .app bundle.
+        Install the update.
 
-        Args:
-            zip_path: Path to the update .zip file
+        On Windows: extracts the exe to the updates directory and opens Explorer.
+        On macOS: replaces the .app bundle in /Applications.
 
         Returns:
-            True if installation successful, False otherwise
+            A success message string if successful, False otherwise.
         """
+        import platform
+        system = platform.system().lower()
+
         try:
             logger.info(f"Installing update from {zip_path}")
 
-            # Extract to temporary location
             extract_path = self.cache_dir / "extracted"
             if extract_path.exists():
                 shutil.rmtree(extract_path)
@@ -232,32 +234,52 @@ class UpdateManager:
 
             logger.info(f"Update extracted to {extract_path}")
 
-            # Find the .app bundle in the extracted contents
-            app_bundle = None
-            for item in extract_path.rglob(f"{self.app_name}.app"):
-                app_bundle = item
-                break
+            if system == 'windows':
+                # Find the exe in extracted contents
+                exe_files = list(extract_path.rglob("*.exe"))
+                if not exe_files:
+                    logger.error("No .exe found in update zip")
+                    return False
 
-            if not app_bundle or not app_bundle.exists():
-                logger.error(f"Could not find {self.app_name}.app in extracted update")
-                return False
+                new_exe = exe_files[0]
+                dest = self.cache_dir / new_exe.name
+                shutil.move(str(new_exe), str(dest))
+                shutil.rmtree(extract_path)
+                Path(zip_path).unlink()
 
-            # Replace the old app bundle
-            apps_folder = Path("/Applications") / f"{self.app_name}.app"
+                # Open Explorer to the updates folder
+                subprocess.Popen(
+                    ['explorer', str(self.cache_dir)],
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
 
-            if apps_folder.exists():
-                logger.info(f"Removing old app: {apps_folder}")
-                shutil.rmtree(apps_folder)
+                logger.info(f"Update ready at: {dest}")
+                return (
+                    f"New version downloaded to:\n{dest}\n\n"
+                    "Close the app and run the new version to complete the update."
+                )
 
-            logger.info(f"Moving new app from {app_bundle} to {apps_folder}")
-            shutil.move(str(app_bundle), str(apps_folder))
+            else:
+                # macOS: replace .app bundle
+                app_bundle = None
+                for item in extract_path.rglob(f"{self.app_name}.app"):
+                    app_bundle = item
+                    break
 
-            # Clean up
-            shutil.rmtree(extract_path)
-            Path(zip_path).unlink()
+                if not app_bundle or not app_bundle.exists():
+                    logger.error(f"Could not find {self.app_name}.app in extracted update")
+                    return False
 
-            logger.info("Update installed successfully")
-            return True
+                apps_folder = Path("/Applications") / f"{self.app_name}.app"
+                if apps_folder.exists():
+                    shutil.rmtree(apps_folder)
+
+                shutil.move(str(app_bundle), str(apps_folder))
+                shutil.rmtree(extract_path)
+                Path(zip_path).unlink()
+
+                logger.info("Update installed successfully")
+                return "Update installed. The app will restart now."
 
         except Exception as e:
             logger.error(f"Installation failed: {e}")
