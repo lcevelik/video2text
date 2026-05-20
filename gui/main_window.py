@@ -262,9 +262,9 @@ class FonixFlowQt(QMainWindow):
         from pathlib import Path
         import base64
 
-        # Check for encoded file first (used in distributed builds)
-        license_file_encoded = Path(__file__).parent.parent / "licenses.dat"
-        license_file_plain = Path(__file__).parent.parent / "licenses.txt"
+        fonixflow_dir = Path.home() / ".fonixflow"
+        license_file_encoded = fonixflow_dir / "licenses.dat"
+        license_file_plain = fonixflow_dir / "licenses.txt"
 
         # Try encoded file first
         if license_file_encoded.exists():
