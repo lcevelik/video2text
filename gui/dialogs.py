@@ -77,9 +77,10 @@ class LicenseKeyDialog(QDialog):
             import base64
 
             valid_keys = []
+            fonixflow_dir = Path.home() / ".fonixflow"
 
-            # Check encoded file first (used in distributed builds)
-            license_file_encoded = Path(__file__).parent.parent / "licenses.dat"
+            # Check encoded file in user data directory
+            license_file_encoded = fonixflow_dir / "licenses.dat"
             if license_file_encoded.exists():
                 try:
                     with open(license_file_encoded, 'rb') as f:
@@ -91,13 +92,12 @@ class LicenseKeyDialog(QDialog):
                         content_bytes.append(byte ^ decode_key[i % len(decode_key)])
                     content = bytes(content_bytes).decode('utf-8')
                     valid_keys = [line.strip() for line in content.split('\n') if line.strip()]
-                except Exception as e:
-                    # If encoded file fails, try plaintext below
+                except Exception:
                     pass
 
-            # Fall back to plaintext file (for development)
+            # Fall back to plaintext file in user data directory
             if not valid_keys:
-                license_file_plain = Path(__file__).parent.parent / "licenses.txt"
+                license_file_plain = fonixflow_dir / "licenses.txt"
                 if license_file_plain.exists():
                     with open(license_file_plain, "r") as f:
                         valid_keys = [line.strip() for line in f if line.strip()]

@@ -15,11 +15,11 @@ import os
 import sys
 from pathlib import Path
 
+# Read version dynamically from app/version.py
+sys.path.insert(0, os.path.dirname(os.path.abspath(SPEC)))
+from app.version import __version__
 
-app_name = 'FonixFlow'
-
-# License file (local validation)
-license_file = 'licenses.txt'
+app_name = f'FonixFlow_{__version__}'
 
 # Detect ffmpeg and ffprobe locations (Windows common paths)
 ffmpeg_paths = [
@@ -70,9 +70,6 @@ if ffprobe_binary:
 else:
     print("[WARNING] ffprobe not found in PATH or standard locations")
     print("  Download from: https://ffmpeg.org/download.html#build-windows")
-
-# Include local license file for offline validation
-binaries.append((license_file, '.'))
 
 hiddenimports = [
     # Core Python modules
