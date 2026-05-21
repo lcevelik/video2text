@@ -48,18 +48,30 @@ All user data lives in `~/.fonixflow/` managed by `gui/managers/path_manager.py`
 | `~/.fonixflow/config.json` | App settings |
 | `~/.fonixflow/logs/` | Log files |
 | `~/.fonixflow/recordings/` | Default recording output |
-| `~/.fonixflow/updates/` | Update cache |
+| `~/.fonixflow/updates/` | Update cache / downloaded new exe |
 | `~/.fonixflow/licenses.dat` | License key file (encoded) |
 
 ## License Validation
 
-`gui/dialogs.py` validates license keys in this order:
-1. `~/.fonixflow/licenses.dat` (encoded, user-installed)
-2. `~/.fonixflow/licenses.txt` (plaintext fallback)
-3. Bundled file inside the exe (via `sys._MEIPASS` for frozen builds)
-4. Remote API call
+License key validation happens in **two places** — both must point to `~/.fonixflow/`:
 
-Encoding uses XOR + base64 with key `FonixFlow2024VideoTranscription`. Use `tools/license_encoder.py` to encode/decode.
+1. `gui/dialogs.py` — `validate_and_save()` — called when user enters key in dialog
+2. `gui/main_window.py` — `validate_license_key()` — called on every startup
+
+Both check in this order:
+1. `~/.fonixflow/licenses.dat` (XOR+base64 encoded)
+2. `~/.fonixflow/licenses.txt` (plaintext fallback)
+3. Remote LemonSqueezy API
+
+Encoding key: `FonixFlow2024VideoTranscription`. Use `tools/license_encoder.py` to encode/decode.
+
+Word limit (500 words) is enforced in `gui/main_window.py:2243` based on `self.license_valid`.
+
+## Windows-specific Notes
+
+- Always use `creationflags=subprocess.CREATE_NO_WINDOW` (or `_NO_WIN` dict) for all subprocess calls — ffmpeg must not spawn visible console windows.
+- `subprocess.Popen.__init__` is globally monkey-patched in `app/transcriber.py` at import time to enforce this for Whisper's internal calls.
+- Python: `py -3.11` — Python 3.11 at `C:\Users\f\AppData\Local\Programs\Python\Python311\` has all required packages: torch+CUDA 12.8, whisper, librosa, PySide6, scipy, sounddevice, etc.
 
 ## Windows Build
 
@@ -67,25 +79,47 @@ Encoding uses XOR + base64 with key `FonixFlow2024VideoTranscription`. Use `tool
 py -3.11 -m PyInstaller fonixflow_qt_windows.spec
 ```
 
-Output: `dist/FonixFlow.exe` (single-file, no console window, ffmpeg bundled)
+Output: `dist/FonixFlow_<version>.exe` (~2.9 GB with torch+CUDA+whisper)
 
-The spec (`fonixflow_qt_windows.spec`) auto-detects ffmpeg from PATH or common install locations and bundles it. It also bundles `licenses.txt` from the project root for offline key validation.
+The spec reads version dynamically from `app/version.py` and names the exe `FonixFlow_<version>.exe`.
+
+**Zipping for upload:** PowerShell `Compress-Archive` has a 2GB limit — use Python's zipfile instead:
+```python
+import zipfile
+with zipfile.ZipFile('dist/FonixFlow_1.0.x_windows.zip', 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+    zf.write('dist/FonixFlow_1.0.x.exe', 'FonixFlow_1.0.x.exe')
+```
 
 ## Release to Google Cloud Storage
 
-GCS bucket: `gs://fonixflow-files/updates`  
-Windows manifest URL: `https://storage.googleapis.com/fonixflow-files/updates/windows/manifest.json`
+GCS bucket: `gs://fonixflow-files/updates/windows/`
+Windows manifest URL (what the app fetches): `https://storage.googleapis.com/fonixflow-files/updates/windows/manifest.json`
 
-Release steps (Windows):
-1. Bump version in `app/version.py`
-2. Build exe: `py -3.11 -m PyInstaller fonixflow_qt_windows.spec`
-3. Zip: `dist/FonixFlow_<version>_windows.zip` containing `FonixFlow.exe`
-4. Upload zip + manifest to `gs://fonixflow-files/updates/windows/`
+**gsutil path:** `"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd"`  
+Auth check: `gcloud auth list` — if no credentialed accounts, run `gcloud auth login`
 
-Use `scripts/release_to_gcs_multiplatform.sh 1.0.2 windows` (requires `gsutil` from Google Cloud SDK).
+**Release steps:**
+1. Bump `__version__` and `__build__` in `app/version.py`
+2. Build: `py -3.11 -m PyInstaller fonixflow_qt_windows.spec`
+3. Zip with Python zipfile (allowZip64=True)
+4. Compute SHA256 hash with Python hashlib
+5. Upload zip to `gs://fonixflow-files/updates/windows/FonixFlow_<version>_windows.zip`
+6. Upload manifest as both `manifest.json` AND `manifest_windows.json`
 
-## Windows-specific Notes
+**Manifest format:**
+```json
+{
+  "latest_version": "1.0.x",
+  "platform": "windows",
+  "platform_name": "Windows",
+  "download_url": "https://storage.googleapis.com/fonixflow-files/updates/windows/FonixFlow_<version>_windows.zip",
+  "release_notes": "...",
+  "force_update": false,
+  "file_hash": "<SHA256 UPPERCASE>",
+  "minimum_version": "1.0.0",
+  "release_date": "YYYY-MM-DD",
+  "file_size_mb": <int>
+}
+```
 
-- Always use `creationflags=subprocess.CREATE_NO_WINDOW` (or `_NO_WIN` dict) for all subprocess calls — ffmpeg must not spawn visible console windows.
-- `subprocess.Popen.__init__` is globally monkey-patched in `app/transcriber.py` at import time to enforce this for Whisper's internal calls.
-- Python: `py -3.11` (Python 3.11 at `C:\Users\f\AppData\Local\Programs\Python\Python311\`)
+**Update check throttle:** stored in `~/.fonixflow/update_config.json`. Reset with `echo '{}' > ~/.fonixflow/update_config.json` to force an immediate check on next launch.
