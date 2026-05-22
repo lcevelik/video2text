@@ -43,6 +43,7 @@ eCommunications = 2
 # Audio client flags
 AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
 AUDCLNT_SHAREMODE_SHARED = 0
+AUDCLNT_BUFFERFLAGS_SILENT = 0x00000002  # Data pointer is invalid; treat as silence
 
 
 # ===== COM Structures =====
@@ -260,6 +261,14 @@ class WASAPILoopbackCapture:
         """Main capture loop running in separate thread."""
         logger.info("WASAPI capture loop started")
 
+        # COM must be initialized per-thread
+        try:
+            comtypes.CoInitialize()
+        except OSError as e:
+            logger.debug(f"COM initialization note in capture thread: {e}")
+        except Exception as e:
+            logger.error(f"Failed to initialize COM in capture thread: {e}")
+
         try:
             while self.is_capturing:
                 try:
@@ -273,7 +282,7 @@ class WASAPILoopbackCapture:
                         data_pointer, num_frames, flags, device_position, qpc_position = \
                             self.capture_client.GetBuffer()
 
-                        if num_frames > 0:
+                        if num_frames > 0 and not (flags & AUDCLNT_BUFFERFLAGS_SILENT):
                             # Convert pointer to numpy array based on format
                             total_samples = num_frames * self.channels
 
@@ -334,6 +343,10 @@ class WASAPILoopbackCapture:
 
         finally:
             logger.info("WASAPI capture loop ended")
+            try:
+                comtypes.CoUninitialize()
+            except Exception:
+                pass
 
     def stop(self) -> np.ndarray:
         """
@@ -376,11 +389,6 @@ class WASAPILoopbackCapture:
         self.audio_client = None
         self.device = None
         self.device_enumerator = None
-
-        try:
-            comtypes.CoUninitialize()
-        except:
-            pass
 
     def get_sample_rate(self) -> Optional[int]:
         """Get the sample rate of captured audio."""

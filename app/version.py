@@ -1,8 +1,8 @@
 """
 Version information for FonixFlow.
 """
-__version__ = "1.0.2"
-__build__ = "102"
+__version__ = "1.0.3"
+__build__ = "103"
 
 VERSION_NAME = f"{__version__}"
 VERSION_WITH_BUILD = f"{__version__} (build {__build__})"

@@ -38,6 +38,7 @@ Define success criteria before starting. Convert vague tasks into testable goals
 | Processing | `transcription/audio_processing.py` | Chunking, language sampling |
 | Enhanced | `transcription/enhanced.py` | Multi-language transcription |
 | Tools | `tools/resource_locator.py` | ffmpeg/ffprobe path resolution |
+| Recording | `gui/recording/wasapi_loopback.py` | WASAPI loopback speaker audio capture |
 
 ## User Data Directory
 
@@ -66,6 +67,14 @@ Both check in this order:
 Encoding key: `FonixFlow2024VideoTranscription`. Use `tools/license_encoder.py` to encode/decode.
 
 Word limit (500 words) is enforced in `gui/main_window.py:2243` based on `self.license_valid`.
+
+## WASAPI Loopback Capture
+
+Speaker audio capture uses Windows Audio Session API (WASAPI) loopback mode via `gui/recording/wasapi_loopback.py`. Key implementation details:
+
+- **COM threading:** `comtypes.CoInitialize()` must be called in `_capture_loop` thread itself (not in `start()`), with matching `CoUninitialize()` in the `finally` block.
+- **Silent packets:** WASAPI returns packets with `AUDCLNT_BUFFERFLAGS_SILENT = 0x00000002` set — reading `data_pointer` on these crashes. Always check `if num_frames > 0 and not (flags & AUDCLNT_BUFFERFLAGS_SILENT)` before accessing the buffer.
+- **Format:** Typically 32-bit float at system sample rate; 16-bit int also handled (converted to float32).
 
 ## Windows-specific Notes
 
