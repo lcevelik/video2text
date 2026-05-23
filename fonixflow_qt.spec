@@ -15,10 +15,11 @@ import os
 import sys
 from pathlib import Path
 
-app_name = 'FonixFlow'
+# Read version dynamically from app/version.py
+sys.path.insert(0, os.path.dirname(os.path.abspath(SPEC)))
+from app.version import __version__
 
-# License file (local validation)
-license_file = 'licenses.txt'
+app_name = 'FonixFlow'
 
 
 # Detect ffmpeg and ffprobe locations (supports both Apple Silicon and Intel Macs)
@@ -60,9 +61,6 @@ if ffprobe_binary:
 else:
     print("⚠️ Warning: ffprobe not found in standard locations")
     print("  Install with: brew install ffmpeg")
-
-# Include local license file for offline validation
-binaries.append((license_file, '.'))
 
 hiddenimports = [
     # Core Python modules
@@ -188,14 +186,14 @@ app = BUNDLE(
     name=f'{app_name}.app',
     icon=icon_file,
     bundle_identifier='com.fonixflow.qt',
-    version='1.0.0',  # Update this with your app version
+    version=__version__,
     info_plist={
         # Basic app information
         'CFBundleName': app_name,
         'CFBundleDisplayName': app_name,
         'CFBundleIdentifier': 'com.fonixflow.qt',
-        'CFBundleVersion': '1.0.0',
-        'CFBundleShortVersionString': '1.0.0',
+        'CFBundleVersion': __version__,
+        'CFBundleShortVersionString': __version__,
         'NSHumanReadableCopyright': 'Copyright © 2024 FonixFlow',
 
         # macOS integration

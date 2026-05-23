@@ -132,3 +132,43 @@ Auth check: `gcloud auth list` — if no credentialed accounts, run `gcloud auth
 ```
 
 **Update check throttle:** stored in `~/.fonixflow/update_config.json`. Reset with `echo '{}' > ~/.fonixflow/update_config.json` to force an immediate check on next launch.
+
+## macOS Build & Release
+
+**Build:**
+```bash
+./build_macos.sh
+```
+Output: `dist/FonixFlow.app` and `dist/FonixFlow_<version>_macOS.dmg`
+
+**macOS spec:** `fonixflow_qt.spec` — reads version dynamically from `app/version.py`.
+
+**GCS paths (two separate manifests — app auto-detects arch):**
+- Apple Silicon: `gs://fonixflow-files/updates/macos-arm/`
+- Intel Mac: `gs://fonixflow-files/updates/macos-intel/`
+
+**Release steps:**
+1. Bump `__version__` and `__build__` in `app/version.py`
+2. Build: `./build_macos.sh`
+3. Create zip: `zip -r dist/FonixFlow_<version>_macos.zip dist/FonixFlow.app`
+4. Compute SHA256: `shasum -a 256 dist/FonixFlow_<version>_macos.zip`
+5. Upload zip to both `gs://fonixflow-files/updates/macos-arm/` and `gs://fonixflow-files/updates/macos-intel/`
+6. Upload manifest to both paths as `manifest.json`
+
+**Manifest format (same as Windows, change `platform` field):**
+```json
+{
+  "latest_version": "1.0.x",
+  "platform": "macos-arm",
+  "platform_name": "macOS (Apple Silicon)",
+  "download_url": "https://storage.googleapis.com/fonixflow-files/updates/macos-arm/FonixFlow_<version>_macos.zip",
+  "release_notes": "...",
+  "force_update": false,
+  "file_hash": "<SHA256 lowercase>",
+  "minimum_version": "1.0.0",
+  "release_date": "YYYY-MM-DD",
+  "file_size_mb": <int>
+}
+```
+
+**Mac update install:** replaces `/Applications/FonixFlow.app` in-place. User must quit and reopen manually after update.

@@ -87,7 +87,8 @@ if [ -d "dist/FonixFlow.app" ]; then
     # Create custom DMG with background and icon positioning
     echo "Creating custom DMG package..."
     
-    DMG_NAME="FonixFlow_macOS_Universal.dmg"
+    APP_VERSION=$(python3 -c "from app.version import __version__; print(__version__)")
+    DMG_NAME="FonixFlow_${APP_VERSION}_macOS.dmg"
     
     # Try to create DMG with background if available, otherwise use clean DMG
     if [ -f "assets/dmg_background.png" ] && [ -f "./scripts/create_custom_dmg.sh" ]; then
@@ -99,6 +100,7 @@ if [ -d "dist/FonixFlow.app" ]; then
         if [ -f "dist/FonixFlow.dmg" ]; then
             mv "dist/FonixFlow.dmg" "dist/$DMG_NAME"
         fi
+
     else
         echo "⚠ Warning: DMG creation scripts not found"
     fi

@@ -279,7 +279,7 @@ class UpdateManager:
                 Path(zip_path).unlink()
 
                 logger.info("Update installed successfully")
-                return "Update installed. The app will restart now."
+                return "Update installed. Please quit and reopen FonixFlow from /Applications."
 
         except Exception as e:
             logger.error(f"Installation failed: {e}")
