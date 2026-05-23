@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull *)",
+      "Bash(security find-identity *)",
+      "Bash(gcloud auth *)",
+      "Bash(security find-generic-password *)",
+      "Bash(security find-internet-password *)",
+      "Bash(APP_PASSWORD='iptl-pzpm-nfmq-vhbr' ./scripts/full_release.sh 1.0.3)",
+      "Bash(codesign --verify --deep --strict /Volumes/HomeDisk/Codebase/video2text/dist/FonixFlow.app)",
+      "Bash(spctl -a -vvv -t install /Volumes/HomeDisk/Codebase/video2text/dist/FonixFlow.app)",
+      "Bash(gsutil ls *)",
+      "Bash(xcrun stapler *)",
+      "Bash(xcrun notarytool *)",
+      "Bash(gsutil cp *)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(./scripts/release_to_gcs_multiplatform.sh 1.0.3 macos-arm)",
+      "Bash(git -C /Volumes/HomeDisk/Codebase/video2text diff --name-only HEAD)",
+      "Bash(git -C /Volumes/HomeDisk/Codebase/video2text status --short)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

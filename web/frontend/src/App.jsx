@@ -1,73 +1,76 @@
 import React, { useState } from 'react';
-import { Mic, Settings } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import UploadArea from './components/UploadArea';
 import TranscriptView from './components/TranscriptView';
+import RecordView from './components/RecordView';
+import SettingsView from './components/SettingsView';
+import logo from './assets/logo.png';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('record');
   const [transcript, setTranscript] = useState(null);
 
   return (
-    <div className="flex flex-col h-screen bg-background text-text-primary overflow-hidden relative">
-      {/* Animated Background Blobs */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-blob mix-blend-screen"></div>
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-success/10 rounded-full blur-3xl animate-blob animation-delay-2000 mix-blend-screen"></div>
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-info/10 rounded-full blur-3xl animate-blob animation-delay-4000 mix-blend-screen"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1a1a] to-[#2d2d30] flex items-center justify-center p-8">
 
-      {/* Top Bar */}
-      <div className="h-16 bg-sidebar/80 backdrop-blur-md border-b border-border flex items-center justify-center shrink-0 relative z-10">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold bg-gradient-to-r from-accent to-success bg-clip-text text-transparent tracking-wide">
-            FonixFlow
-          </span>
-        </div>
-      </div>
+      {/* 800x600 Frame with 15px internal padding */}
+      <div className="w-[900px] h-[700px] bg-[#2d2d30] text-white font-sans flex flex-col shadow-2xl overflow-hidden rounded-2xl border-2 border-[#555] p-[15px]">
 
-      {/* Main Layout: Content Left, Sidebar Right */}
-      <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* Content Area */}
-        <div className="flex-1 p-6 overflow-auto bg-transparent">
-          {activeTab === 'upload' && (
-            <UploadArea
-              onTranscriptionComplete={(data) => {
-                setTranscript(data);
-                setActiveTab('transcript');
-              }}
-            />
-          )}
+        {/* Inner container */}
+        <div className="flex flex-col h-full bg-[#2d2d30] rounded-xl overflow-hidden relative">
 
-          {activeTab === 'transcript' && (
-            <TranscriptView
-              data={transcript}
-              onBack={() => setActiveTab('upload')}
-            />
-          )}
+          {/* Top Header Bar with Logo */}
+          <div className="bg-[#3c3c3c] border-b border-[#1e1e1e] py-2 flex justify-center shrink-0">
+            <img src={logo} alt="FonixFlow" className="h-4 object-contain" />
+          </div>
 
-          {activeTab === 'record' && (
-            <div className="flex flex-col items-center justify-center h-full text-text-secondary p-4 text-center">
-              <Mic className="w-16 h-16 mb-4 opacity-50" />
-              <h2 className="text-xl font-semibold">Recording Coming Soon</h2>
-              <p className="mt-2">Browser-based recording is under development.</p>
+          {/* Main Content Area */}
+          <div className="flex-1 flex overflow-hidden min-h-0">
+
+            {/* Left Content Panel */}
+            <div className="flex-1 p-[10px] flex flex-col min-h-0">
+              {activeTab === 'record' && (
+                <RecordView onTranscriptionComplete={(data) => {
+                  setTranscript(data);
+                  setActiveTab('transcript');
+                }} />
+              )}
+
+              {activeTab === 'upload' && (
+                <UploadArea
+                  onTranscriptionComplete={(data) => {
+                    setTranscript(data);
+                    setActiveTab('transcript');
+                  }}
+                />
+              )}
+
+              {activeTab === 'transcript' && (
+                <TranscriptView
+                  data={transcript}
+                  onBack={() => setActiveTab('upload')}
+                />
+              )}
+
+              {activeTab === 'settings' && (
+                <SettingsView />
+              )}
             </div>
-          )}
 
-          {activeTab === 'settings' && (
-            <div className="flex flex-col items-center justify-center h-full text-text-secondary p-4 text-center">
-              <Settings className="w-16 h-16 mb-4 opacity-50" />
-              <h2 className="text-xl font-semibold">Settings</h2>
-              <p className="mt-2">Web settings are not yet implemented.</p>
+            {/* Right Sidebar Panel */}
+            <div className="w-[200px] bg-[#252526] border-l border-[#1e1e1e] p-[10px] flex flex-col gap-3 shrink-0">
+              <Sidebar
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Right Sidebar (Vertical Tab Bar) */}
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
+          {/* Status Bar */}
+          <div className="h-5 bg-[#007acc] text-white text-[10px] flex items-center px-3 shrink-0">
+            Ready
+          </div>
+        </div>
       </div>
     </div>
   );

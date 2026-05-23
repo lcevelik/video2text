@@ -1,23 +1,29 @@
-
-import React, { useState } from 'react';
-import { AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, Upload } from 'lucide-react';
 import axios from 'axios';
 import DropZone from './ui/DropZone';
-import ModernButton from './ui/ModernButton';
+import MultiLanguageDialog from './MultiLanguageDialog';
 
 const UploadArea = ({ onTranscriptionComplete }) => {
   const [file, setFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
-  const [modelSize, setModelSize] = useState('base');
+  const [showDialog, setShowDialog] = useState(false);
 
   const handleFileDropped = (droppedFile) => {
     setFile(droppedFile);
     setError(null);
+    // Auto-show dialog when file is dropped (matches desktop behavior)
+    setShowDialog(true);
   };
 
-  const handleTranscribe = async () => {
+  const handleDialogConfirm = async (options) => {
+    setShowDialog(false);
+    await handleTranscribe(options);
+  };
+
+  const handleTranscribe = async (options) => {
     if (!file) return;
 
     setIsProcessing(true);
@@ -26,7 +32,15 @@ const UploadArea = ({ onTranscriptionComplete }) => {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('model_size', modelSize);
+
+    // Add language options to formData
+    if (options.isMulti) {
+      formData.append('language_mode', 'multi');
+      formData.append('languages', JSON.stringify(options.languages));
+    } else {
+      formData.append('language_mode', 'single');
+      formData.append('language', options.language);
+    }
 
     try {
       const progressInterval = setInterval(() => {
@@ -54,86 +68,57 @@ const UploadArea = ({ onTranscriptionComplete }) => {
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl mx-auto mt-12 animate-fade-in">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-          Upload <span className="bg-gradient-to-r from-accent to-success bg-clip-text text-transparent">Media</span>
-        </h1>
-        <p className="text-text-secondary text-lg">
-          Drag and drop video or audio files to start transcription
+    <div className="flex flex-col h-full">
+      <div className="mb-6">
+        <p className="text-gray-400 text-sm">
+          Drag and drop video/audio file
         </p>
       </div>
 
-      {/* Drop Zone Card */}
-      <div className="bg-sidebar/50 backdrop-blur-md border border-border rounded-2xl p-8 shadow-2xl">
-        <DropZone
-          onFileDropped={handleFileDropped}
-          onClick={() => { }}
-        />
+      <div className="flex-1 flex flex-col gap-6">
+        {/* Drop Zone */}
+        <div className="flex-1 min-h-[200px]">
+          <DropZone
+            onFileDropped={handleFileDropped}
+            onClick={() => { }}
+          />
+        </div>
+
+        {/* Progress */}
+        {file && (
+          <div className="text-sm text-gray-400">
+            {isProcessing ? 'Transcribing...' : 'Ready to transcribe'}
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="h-6 bg-[#333] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#00dcd0] transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+
+        {/* Info tip */}
+        <p className="text-xs text-[#00dcd0]">
+          ℹ️ Files automatically transcribe when dropped or selected
+        </p>
+
+        {/* Error */}
+        {error && (
+          <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
       </div>
 
-      {/* Progress Section */}
-      {(file || isProcessing) && (
-        <div className="bg-sidebar/50 backdrop-blur-md border border-border rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-text-secondary text-sm font-medium">
-              {isProcessing ? `Processing... ${progress}% ` : "Ready to transcribe"}
-            </span>
-            {isProcessing && (
-              <Sparkles className="w-5 h-5 text-accent animate-pulse" />
-            )}
-          </div>
-
-          {isProcessing && (
-            <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-accent to-success transition-all duration-300 ease-out"
-                style={{ width: `${progress}% ` }}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-error/10 border border-error/50 rounded-xl flex items-center gap-3 text-error backdrop-blur-md">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
-
-      {/* Controls */}
-      {file && !isProcessing && (
-        <div className="bg-sidebar/50 backdrop-blur-md border border-border rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <label className="text-text-secondary text-sm font-medium">Model:</label>
-            <select
-              value={modelSize}
-              onChange={(e) => setModelSize(e.target.value)}
-              className="flex-1 bg-bg-tertiary border border-border text-text-primary rounded-lg px-4 py-2.5 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-            >
-              <option value="tiny">Tiny (Fastest)</option>
-              <option value="base">Base (Balanced)</option>
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large (Most Accurate)</option>
-            </select>
-          </div>
-
-          <ModernButton
-            primary
-            onClick={handleTranscribe}
-            className="w-full py-3.5 text-base shadow-lg shadow-accent/20 hover:shadow-accent/30"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Start Transcription
-            </div>
-          </ModernButton>
-        </div>
-      )}
+      <MultiLanguageDialog
+        isOpen={showDialog}
+        onClose={() => setShowDialog(false)}
+        onConfirm={handleDialogConfirm}
+      />
     </div>
   );
 };

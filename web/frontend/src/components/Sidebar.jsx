@@ -1,16 +1,16 @@
 import React from 'react';
-import { Upload, Mic, FileText, Settings } from 'lucide-react';
+import { Mic, Folder, FileText, Settings } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: 'record', label: 'Record', icon: Mic },
-    { id: 'upload', label: 'Upload', icon: Upload },
-    { id: 'transcript', label: 'Transcript', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'record', icon: Mic, label: 'Record' },
+    { id: 'upload', icon: Folder, label: 'Upload' },
+    { id: 'transcript', icon: FileText, label: 'Transcript' },
+    { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
-    <div className="w-[260px] bg-sidebar/80 backdrop-blur-md flex flex-col gap-4 py-8 px-4 shrink-0 border-l border-border">
+    <div className="flex flex-col gap-[20px] w-full">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -20,15 +20,15 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`
-              w-full flex flex-col items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 border-2 group
+              flex items-center gap-[15px] px-[15px] py-[15px] rounded-full font-bold text-sm transition-all duration-200 w-full
               ${isActive
-                ? 'bg-gradient-to-r from-accent to-success text-white border-transparent shadow-lg shadow-accent/20'
-                : 'bg-transparent text-text-primary border-border hover:bg-bg-tertiary hover:border-accent/50 hover:text-white'
+                ? 'bg-[#00dcd0] text-white shadow-lg scale-105 border-0'
+                : 'bg-transparent text-gray-300 border-[3px] border-[#444] hover:bg-[#2a2a2a] hover:border-[#00dcd0] hover:text-white'
               }
             `}
           >
-            <Icon className={`w-8 h-8 transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`} />
-            <span className="font-bold text-lg">{tab.label}</span>
+            <Icon size={22} strokeWidth={2.5} />
+            <span className="text-2xl font-bold">{tab.label}</span>
           </button>
         );
       })}
