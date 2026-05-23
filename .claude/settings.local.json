@@ -16,9 +16,39 @@
       "Bash(powershell -Command \"(Get-Item dist\\FonixFlow.exe).Length / 1GB; Write-Host ''GB''\")",
       "Bash(bash:*)",
       "Bash(powershell -Command:*)",
-      "Bash(\"/c/Users/libor/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" -o \"GSUtil:parallel_composite_upload_threshold=150M\" cp dist/FonixFlow_1.0.1_windows.zip gs://fonixflow-files/updates/windows/FonixFlow_1.0.1_windows.zip)"
+      "Bash(\"/c/Users/libor/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" -o \"GSUtil:parallel_composite_upload_threshold=150M\" cp dist/FonixFlow_1.0.1_windows.zip gs://fonixflow-files/updates/windows/FonixFlow_1.0.1_windows.zip)",
+      "Bash(py -3.11 -c ' *)",
+      "Bash(py -3.11 -m PyInstaller --version)",
+      "Bash(gsutil version *)",
+      "Bash(py -3.11 -m PyInstaller fonixflow_qt_windows.spec)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" config dump)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" ls gs://fonixflow-files/updates/)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" ls gs://fonixflow-files/updates/windows/)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" cat gs://fonixflow-files/updates/windows/manifest_windows.json)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" cp \"f:/Codebase/video2text/dist/FonixFlow_1.0.2_windows.zip\" \"gs://fonixflow-files/updates/windows/FonixFlow_1.0.2_windows.zip\")",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd\" auth list)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" cp \"f:/Codebase/video2text/dist/manifest_windows.json\" \"gs://fonixflow-files/updates/windows/manifest.json\")",
+      "Bash(\"/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd\" cat gs://fonixflow-files/updates/windows/manifest.json)",
+      "Bash(cat \"C:/Users/f/.fonixflow/update_config.json\" 2>&1)",
+      "Read(//c/Users/f/.fonixflow/**)",
+      "Bash(echo '{}' > \"C:/Users/f/.fonixflow/update_config.json\")",
+      "Bash(grep -E \"\\(completed successfully|ERROR.*not found$|OK\\\\]|Building EXE\\)\")",
+      "Bash('/c/Users/f/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gsutil.cmd' cp f:/Codebase/video2text/dist/FonixFlow_1.0.2_windows.zip gs://fonixflow-files/updates/windows/FonixFlow_1.0.2_windows.zip)",
+      "Bash(nvidia-smi --query-gpu=name --format=csv,noheader)",
+      "Bash(nvidia-smi)",
+      "Bash(py -3.11 -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128)",
+      "Bash(py -3.14 -c \"import torch; print\\('3.14 torch:', torch.__version__\\)\")",
+      "Bash(py -3.14t -c \"import torch; print\\('3.14t torch:', torch.__version__\\)\")",
+      "Bash(py -3.11 -c \"import torch; print\\('3.11 torch:', torch.__version__\\)\")",
+      "Bash(py -3.14 -c \"import whisper; import librosa; import PySide6; print\\('all ok'\\)\")"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\f\\.fonixflow"
+    ]
   }
 }
