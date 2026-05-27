@@ -327,7 +327,79 @@ class Transcriber:
 
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
+            # SSL errors mean the user is behind a corporate proxy with SSL inspection.
+            # Whisper verifies SHA256 on load, so downloading without cert verification
+            # is safe — integrity is guaranteed by the hash in the URL.
+            if 'CERTIFICATE_VERIFY_FAILED' in str(e) or 'SSL' in str(e) or 'certificate' in str(e).lower():
+                logger.warning("SSL error detected — trying fallback download (corporate proxy?)")
+                try:
+                    self._download_model_ssl_fallback(progress_callback)
+                    model = whisper.load_model(
+                        self.model_size,
+                        device=self.device,
+                        download_root=os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+                    )
+                    with _GLOBAL_CACHE_LOCK:
+                        _GLOBAL_MODEL_CACHE[self.model_size] = model
+                        self.model = model
+                    logger.info(f"Model '{self.model_size}' loaded via SSL fallback")
+                    if progress_callback:
+                        progress_callback("Model loaded successfully")
+                    return self.model
+                except Exception as fallback_e:
+                    logger.error(f"SSL fallback download failed: {fallback_e}")
+                    cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+                    raise RuntimeError(
+                        f"Cannot download Whisper model — SSL certificate error.\n\n"
+                        f"Your network blocks the download (corporate proxy).\n\n"
+                        f"Manual fix:\n"
+                        f"1. On a different network, download:\n"
+                        f"   {whisper._MODELS.get(self.model_size, 'model URL not found')}\n"
+                        f"2. Place the .pt file in: {cache_dir}\n"
+                        f"3. Restart FonixFlow"
+                    )
             raise RuntimeError(f"Failed to load Whisper model: {e}")
+
+    def _download_model_ssl_fallback(self, progress_callback=None):
+        """Download whisper model bypassing SSL verification for corporate proxy environments."""
+        import ssl
+        import urllib.request
+
+        if self.model_size not in whisper._MODELS:
+            raise RuntimeError(f"Unknown model size: {self.model_size}")
+
+        url = whisper._MODELS[self.model_size]
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+        os.makedirs(cache_dir, exist_ok=True)
+        dest = os.path.join(cache_dir, os.path.basename(url))
+
+        if os.path.exists(dest):
+            logger.info(f"Model already cached at {dest}")
+            return
+
+        logger.info(f"Downloading {self.model_size} from {url} (SSL verification disabled)")
+        if progress_callback:
+            progress_callback(f"Downloading model {self.model_size} (corporate network mode)...")
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        with urllib.request.urlopen(url, context=ctx) as response:
+            total = int(response.headers.get('Content-Length', 0))
+            downloaded = 0
+            with open(dest, 'wb') as f:
+                while True:
+                    chunk = response.read(65536)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0 and progress_callback:
+                        pct = downloaded * 100 // total
+                        progress_callback(f"Downloading model {self.model_size}... {pct}%")
+
+        logger.info(f"Model downloaded to {dest}")
     
     def transcribe(self, audio_path, language=None, initial_prompt=None, progress_callback=None, word_timestamps=False):
         """
