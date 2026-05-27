@@ -17,7 +17,19 @@
       "Bash(./scripts/release_to_gcs_multiplatform.sh 1.0.3 macos-arm)",
       "Bash(git -C /Volumes/HomeDisk/Codebase/video2text diff --name-only HEAD)",
       "Bash(git -C /Volumes/HomeDisk/Codebase/video2text status --short)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(python3 -c \"import whisper; print\\(list\\(whisper._MODELS.keys\\(\\)\\)[:6]\\); print\\(list\\(whisper._MODELS.values\\(\\)\\)[:2]\\)\")",
+      "Bash(git stash *)",
+      "Bash(ls -lh ~/.cache/whisper/ 2>/dev/null || echo \"no cache\")",
+      "Read(//Users/liborcevelik/.cache/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -sI \"https://storage.googleapis.com/fonixflow-files/models/ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e/base.pt\")",
+      "Bash(curl -sI \"https://storage.googleapis.com/fonixflow-files/models/f953ad0fd29cacd07d5a9eda5624af0f6bcf2258be67c92b79389873d91e0872/small.en.pt\")",
+      "Bash(curl -sI \"https://storage.googleapis.com/fonixflow-files/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt\")",
+      "Bash(curl -sI \"https://storage.googleapis.com/fonixflow-files/models/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt\")",
+      "Bash(spctl -a -vvv -t install dist/FonixFlow.app)",
+      "Bash(/opt/homebrew/bin/gsutil cp *)",
+      "Bash(/opt/homebrew/bin/gsutil cat *)"
     ]
   }
 }
