@@ -66,6 +66,18 @@ def _patch_subprocess_no_window():
 # Apply the patch immediately
 _patch_whisper_ffmpeg()
 
+# Redirect Whisper model downloads to our GCS bucket.
+# Mirrors OpenAI's URL structure (hash in path) so whisper's SHA256 check still passes.
+# Avoids openaipublic.azureedge.net which is blocked by many corporate proxies.
+_GCS_MODEL_BASE = "https://storage.googleapis.com/fonixflow-files/models"
+_GCS_MODELS = {
+    "small.en":  f"{_GCS_MODEL_BASE}/f953ad0fd29cacd07d5a9eda5624af0f6bcf2258be67c92b79389873d91e0872/small.en.pt",
+    "medium":    f"{_GCS_MODEL_BASE}/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt",
+    "large-v3":  f"{_GCS_MODEL_BASE}/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt",
+    "base":      f"{_GCS_MODEL_BASE}/ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e/base.pt",
+}
+whisper._MODELS.update(_GCS_MODELS)
+
 
 # Note: Logging is now handled by LogManager in gui.managers.log_manager
 # This module just uses the logger - no need to configure here
