@@ -8,6 +8,7 @@ without requiring Stereo Mix or virtual audio cables.
 This is the same approach used by OBS, Discord, and other professional applications.
 """
 
+import os
 import logging
 import threading
 import time
@@ -156,6 +157,12 @@ class WASAPILoopbackCapture:
         self.audio_chunks = []
         self.sample_rate = None
         self.channels = None
+
+        # Disk-flush support: periodically write chunks to temp file
+        self._flush_threshold = 1000  # Flush every N chunks
+        self._temp_file = None
+        self._temp_path = None
+        self._flushed_count = 0
 
         # COM interfaces (will be initialized in start())
         self.device_enumerator = None
@@ -315,14 +322,9 @@ class WASAPILoopbackCapture:
                             # Store chunk
                             self.audio_chunks.append(audio_data.copy())
 
-                            # Warn if memory usage is getting high (>500MB estimated)
-                            if len(self.audio_chunks) % 1000 == 0:
-                                import sys as _sys
-                                chunk_bytes = sum(c.nbytes for c in self.audio_chunks[-1000:])
-                                est_total_mb = (chunk_bytes * len(self.audio_chunks) / 1000) / (1024 * 1024)
-                                if est_total_mb > 500:
-                                    logger.warning(f"WASAPI audio buffer is large: ~{est_total_mb:.0f} MB ({len(self.audio_chunks)} chunks). "
-                                                  f"Consider stopping long recordings to free memory.")
+                            # Flush to disk if threshold reached
+                            if len(self.audio_chunks) >= self._flush_threshold:
+                                self._flush_chunks_to_disk()
 
                             # Call callback if provided
                             if self.callback:
@@ -376,21 +378,45 @@ class WASAPILoopbackCapture:
         if self.audio_client:
             try:
                 self.audio_client.Stop()
-            except:
+            except Exception:
                 pass
 
         # Cleanup COM interfaces
         self.cleanup()
 
-        # Concatenate all chunks
-        if self.audio_chunks:
+        # Concatenate all chunks (from memory + disk)
+        if self._temp_path and os.path.exists(self._temp_path):
+            # Flush remaining in-memory chunks to disk first
+            self._flush_chunks_to_disk()
+            # Read all data from disk
+            try:
+                raw_data = np.fromfile(self._temp_path, dtype=np.float32)
+                if self.channels and self.channels > 1:
+                    audio_data = raw_data.reshape(-1, self.channels)
+                else:
+                    audio_data = raw_data
+                logger.info(f"WASAPI capture stopped. Loaded {self._flushed_count} flushed chunks from disk, "
+                           f"total shape: {audio_data.shape}")
+            except Exception as e:
+                logger.error(f"WASAPI: Failed to read from temp file: {e}")
+                audio_data = np.array([])
+        elif self.audio_chunks:
             audio_data = np.concatenate(self.audio_chunks, axis=0)
             logger.info(f"WASAPI capture stopped. Captured {len(self.audio_chunks)} chunks, "
                        f"total shape: {audio_data.shape}")
-            return audio_data
         else:
             logger.warning("No audio chunks captured")
-            return np.array([])
+            audio_data = np.array([])
+
+        # Clean up temp file
+        if self._temp_path and os.path.exists(self._temp_path):
+            try:
+                os.unlink(self._temp_path)
+            except Exception:
+                pass
+            self._temp_path = None
+
+        return audio_data
 
     def cleanup(self) -> None:
         """Release COM resources."""
@@ -398,6 +424,37 @@ class WASAPILoopbackCapture:
         self.audio_client = None
         self.device = None
         self.device_enumerator = None
+        # Clean up temp file
+        if self._temp_path and os.path.exists(self._temp_path):
+            try:
+                os.unlink(self._temp_path)
+            except Exception:
+                pass
+            self._temp_path = None
+
+    def _flush_chunks_to_disk(self):
+        """Write accumulated chunks to temp file and clear memory buffer."""
+        import tempfile
+        import numpy as np
+
+        if not self.audio_chunks:
+            return
+
+        if self._temp_path is None:
+            # Create temp file for this recording session
+            fd, self._temp_path = tempfile.mkstemp(suffix='.raw')
+            os.close(fd)
+            logger.info(f"WASAPI: Created temp file for disk flush: {self._temp_path}")
+
+        try:
+            data = np.concatenate(self.audio_chunks, axis=0)
+            with open(self._temp_path, 'ab') as f:
+                f.write(data.tobytes())
+            self._flushed_count += len(self.audio_chunks)
+            self.audio_chunks.clear()
+            logger.debug(f"WASAPI: Flushed {self._flushed_count} total chunks to disk")
+        except Exception as e:
+            logger.error(f"WASAPI: Failed to flush chunks to disk: {e}")
 
     def get_sample_rate(self) -> Optional[int]:
         """Get the sample rate of captured audio."""
