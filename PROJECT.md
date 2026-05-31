@@ -22,14 +22,14 @@ Edit the tasks below. Use - [ ] for open, - [x] for done.
 ## In Progress
 
 - [ ] Linux build parity testing and distribution
-- [ ] Performance optimization for long audio files (>1hr)
+- [ ] Enhanced.py split (2143 lines, complex interdependencies) — needs dedicated PR
+- [ ] Network blocking in dialogs.py (validate_and_save still sync) — needs async refactor
 
 ## To Do
 
 - [ ] Add Whisper large-v3 and distilled models (distil-large-v3, distil-medium.en)
 - [ ] Implement faster-whisper (CTranslate2) backend as alternative to openai-whisper (5-10x faster)
 - [ ] Add WhisperX integration for word-level alignment and speaker diarization
-- [ ] Write unit tests for core transcription pipeline (transcriber, audio_extractor, formatters)
 - [ ] Write integration tests for multi-language detection paths
 - [ ] Add CI/CD pipeline (GitHub Actions) for automated testing and releases
 - [ ] Add batch transcription mode (process multiple files)
@@ -78,6 +78,13 @@ Edit the tasks below. Use - [ ] for open, - [x] for done.
 - [x] Web API (FastAPI) with file upload transcription endpoint
 - [x] React frontend with recording, settings, and transcript views
 - [x] License encoder/decoder tool for build-time obfuscation
+- [x] v1.1.0 deep audit: 38 issues fixed, main_window.py split (-34%), async network calls, WASAPI disk-flush
+- [x] Unit test framework (pytest) with 40 tests for transcriber, version, formatters, language_detection
+- [x] pyproject.toml for pip-installability
+- [x] Thread safety: shared bools → threading.Event, LRU model cache eviction
+- [x] Code consolidation: LANGUAGE_NAMES (3→1), set_icon (2→1), LICENSE_XOR_KEY (4→1)
+- [x] Controller pattern: main_window.py split into LicenseController, RecordingController, TranscriptionController
+- [x] Async license validation and update checks (no more UI freeze on startup)
 
 ## Blocked
 
@@ -86,6 +93,7 @@ Edit the tasks below. Use - [ ] for open, - [x] for done.
 
 ## Releases
 
+- v1.1.0 — 2026-05 — Deep audit fixes (38 issues), main_window.py split, async network, WASAPI disk-flush, 40 tests
 - v1.0.3 — 2025-11 — Mac build parity, no-console-window fixes, theme-aware update dialog
 - v1.0.0 — 2025-10 — Initial public release with multi-language support
 
@@ -101,7 +109,7 @@ Edit the tasks below. Use - [ ] for open, - [x] for done.
 
 ---
 
-## Deep Code Analysis (2026-05-26)
+## Deep Code Analysis (2026-05-26, updated 2026-05-31 for v1.1.0)
 
 ### Architecture Overview
 
@@ -114,68 +122,51 @@ FonixFlow is a well-structured cross-platform video/audio transcription app buil
 - Cross-platform recording with proper backend abstraction (ScreenCaptureKit/WASAPI/SoundDevice)
 - Professional release infrastructure (signing, notarization, DMG creation, GCS auto-update)
 
-### Security Concerns
+### v1.1.0 Fixes Applied (2026-05-31)
 
-1. **CRITICAL: XOR-based license obfuscation is trivially reversible** (`main_window.py:224`, `dialogs.py:89`). The key `FonixFlow2024VideoTranscription` is hardcoded in source. Anyone with basic Python knowledge can decode licenses.dat. Consider asymmetric signing (RSA/Ed25519) or hardware-bound keys.
+**Critical bugs fixed:**
+- stderr FD leak in transcriber.py (devnull handle now properly closed)
+- QThread.terminate() → cancel()+wait() for transcription worker
+- Debug file write removed from dialogs.py
+- Wrong widget update (record_progress_label → upload_progress_label)
+- Theme mode setting respected (was hardcoded to dark)
 
-2. **Web API CORS allows all origins** (`web/backend/main.py:29`): `allow_origins=["*"]` — should be restricted in production.
+**Thread safety:**
+- Shared bools (is_running, is_recording, cancel_requested) → threading.Event
+- LRU model cache eviction (max 2 models, prevents 9GB+ memory)
+- try/except for IndexError on chunk access (race condition)
 
-3. **No file upload size limits** on the web API (`web/backend/main.py:62`). An attacker could upload massive files to exhaust disk/memory. Add `max_upload_size` middleware.
+**Resource leaks:**
+- 3x sf.read() → sf.info() (no more loading entire files into memory)
+- WASAPI disk-flush (flushes chunks to temp file every 1000, prevents unbounded memory)
 
-4. **Temp file cleanup race condition** — multiple temp files are created with `delete=False` and cleaned up manually. In error paths, some temp files may leak. Use `tempfile.TemporaryDirectory()` context managers.
+**Error handling:**
+- 6 bare except: → except Exception:
+- All subprocess.run in enhanced.py wrapped with CREATE_NO_WINDOW + 120s timeout
+- License key logging masked (first 8 chars only)
 
-5. **Debug file left in code** (`dialogs.py:267`): `with open("debug_dialog_button_click.txt", "a")` — writes debug info to current directory. Remove for production.
+**Code health:**
+- LANGUAGE_NAMES consolidated (3→1), set_icon (2→1), LICENSE_XOR_KEY (4→1)
+- Unused imports removed from dialogs.py
+- pyproject.toml added for pip-installability
 
-6. **License key logged in plaintext** (`main_window.py:101,237,336`): License keys appear in log files. Mask/redact them.
+**Architecture:**
+- main_window.py split into 3 controller mixins (-34%, 2558→1689 lines)
+- License API validation → async QThread (no UI freeze on startup)
+- Update check → async QThread (no UI freeze)
 
-### Performance Optimizations
+**Tests:**
+- pytest framework with 40 unit tests (all passing)
+- Tests for transcriber, version, formatters, language_detection, theme_manager
 
-1. **Replace openai-whisper with faster-whisper (CTranslate2)**: The single biggest performance win. faster-whisper is 4-8x faster with same accuracy, uses less memory. Could be offered as a backend option alongside the existing one.
+### Remaining Issues (deferred to v1.2.0)
 
-2. **Whisper.cpp via pywhispercpp**: For CPU-only users, whisper.cpp is significantly faster than PyTorch whisper on CPU. Good for the "free version" which may not have GPU.
-
-3. **Audio extraction could use ffmpeg streaming** instead of writing entire file to disk first. For large files, pipe directly to Whisper.
-
-4. **ThreadPoolExecutor in enhanced.py** uses default 4 workers. On high-core-count machines, this could be configurable and auto-scaled based on CPU count.
-
-5. **Global model cache has no eviction** (`transcriber.py:76`): Models stay in memory forever. Add LRU eviction or explicit unload when switching models.
-
-6. **Redundant "Transcription completed successfully" log** appears twice (`transcriber.py:529,540`).
-
-### Missing Tests
-
-- No unit tests for the core transcription pipeline (Transcriber, AudioExtractor)
-- No unit tests for language detection heuristics
-- No unit tests for SRT/VTT formatters
-- No unit tests for settings manager serialization
-- No unit tests for update manager (manifest parsing, version comparison)
-- Existing tests in test/ are integration/manual tests (test_devices.py, test_recording_complete.py, test_languages.py, test_wasapi_standalone.py) — not automated
-- No pytest configuration or test runner setup
-- No mocking of Whisper/audio dependencies for fast test execution
-
-### Missing Documentation
-
-- No API documentation for the web backend (FastAPI auto-docs exist at /docs but no custom docs)
-- No developer setup guide (virtual environment, ffmpeg installation, whisper model download)
-- No architecture diagram
-- No contribution guidelines (CONTRIBUTING.md)
-- No CHANGELOG maintenance (existing changelogs are manually created, not automated)
-
-### Code Quality Issues
-
-1. **Duplicate code**: `STOPWORDS` and `DIACRITICS` dicts are defined in both `enhanced.py:_get_language_heuristics()` and `language_detection.py`. Single source of truth needed.
-
-2. **Duplicate code**: `LANGUAGE_NAMES` dict defined in both `enhanced.py` and `language_detection.py`. Should be imported from one location.
-
-3. **sys.stderr monkey-patching** (`transcriber.py:57-64`): Patching subprocess.Popen globally is fragile. Consider using Whisper's Python API directly or a proper progress callback.
-
-4. **Import inside functions**: Many heavy imports happen inside methods (torch, librosa, soundfile). While this speeds up startup, it makes dependencies harder to track and can cause confusing errors.
-
-5. **dialogs.py has two separate class definitions merged** — LicenseKeyDialog and the main dialogs module are in the same file without clear separation. Split into separate files.
-
-6. **workers.py contains two separate worker classes plus a duplicate class definition** at the top that seems to be an old version left in.
-
-7. **No type hints** in many public methods (main_window.py is 2550 lines with minimal type annotations).
+1. **XOR-based license obfuscation is trivially reversible** — consider asymmetric signing
+2. **Web API CORS allows all origins** — restrict in production
+3. **enhanced.py is 2143 lines** — needs split (complex interdependencies)
+4. **dialogs.py validate_and_save still sync** — needs async refactor
+5. **No CI/CD pipeline** — add GitHub Actions for automated testing
+6. **Duplicate code** — STOPWORDS/DIACRITICS dicts in enhanced.py and language_detection.py
 
 ### Recommended New Features
 

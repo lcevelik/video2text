@@ -30,15 +30,17 @@ Define success criteria before starting. Convert vague tasks into testable goals
 
 | Layer | Path | Purpose |
 |---|---|---|
-| GUI | `gui/main_window.py` | Main Qt window |
+| GUI | `gui/main_window.py` | Main Qt window (1689 lines) |
+| Controllers | `gui/controllers/` | LicenseController, RecordingController, TranscriptionController (mixins) |
 | Managers | `gui/managers/` | log, path, settings, file, theme |
 | Workers | `gui/workers.py` | Background transcription threads |
 | Audio | `app/audio_extractor.py` | ffmpeg audio extraction/conversion |
-| Transcription | `app/transcriber.py` | Whisper model wrapper |
+| Transcription | `app/transcriber.py` | Whisper model wrapper (LICENSE_XOR_KEY defined here) |
 | Processing | `transcription/audio_processing.py` | Chunking, language sampling |
-| Enhanced | `transcription/enhanced.py` | Multi-language transcription |
+| Enhanced | `transcription/enhanced.py` | Multi-language transcription (2143 lines) |
 | Tools | `tools/resource_locator.py` | ffmpeg/ffprobe path resolution |
 | Recording | `gui/recording/wasapi_loopback.py` | WASAPI loopback speaker audio capture |
+| Tests | `tests/` | pytest unit tests (40 tests, run with `pytest tests/`) |
 
 ## User Data Directory
 
@@ -57,16 +59,16 @@ All user data lives in `~/.fonixflow/` managed by `gui/managers/path_manager.py`
 License key validation happens in **two places** — both must point to `~/.fonixflow/`:
 
 1. `gui/dialogs.py` — `validate_and_save()` — called when user enters key in dialog
-2. `gui/main_window.py` — `validate_license_key()` — called on every startup
+2. `gui/controllers/license_controller.py` — `validate_license_key()` — called on every startup
 
 Both check in this order:
 1. `~/.fonixflow/licenses.dat` (XOR+base64 encoded)
 2. `~/.fonixflow/licenses.txt` (plaintext fallback)
-3. Remote LemonSqueezy API
+3. Remote LemonSqueezy API (async via QThread — no UI freeze)
 
-Encoding key: `FonixFlow2024VideoTranscription`. Use `tools/license_encoder.py` to encode/decode.
+Encoding key: defined as `LICENSE_XOR_KEY` in `app/transcriber.py`. Use `tools/license_encoder.py` to encode/decode.
 
-Word limit (500 words) is enforced in `gui/main_window.py:2243` based on `self.license_valid`.
+Word limit (500 words) is enforced in `gui/controllers/transcription_controller.py:on_transcription_complete()` based on `self.license_valid`.
 
 ## WASAPI Loopback Capture
 
@@ -75,6 +77,7 @@ Speaker audio capture uses Windows Audio Session API (WASAPI) loopback mode via 
 - **COM threading:** `comtypes.CoInitialize()` must be called in `_capture_loop` thread itself (not in `start()`), with matching `CoUninitialize()` in the `finally` block.
 - **Silent packets:** WASAPI returns packets with `AUDCLNT_BUFFERFLAGS_SILENT = 0x00000002` set — reading `data_pointer` on these crashes. Always check `if num_frames > 0 and not (flags & AUDCLNT_BUFFERFLAGS_SILENT)` before accessing the buffer.
 - **Format:** Typically 32-bit float at system sample rate; 16-bit int also handled (converted to float32).
+- **Disk-flush:** Audio chunks are flushed to a temp file every 1000 chunks to prevent unbounded memory growth for long recordings. On stop, data is read from disk + remaining in-memory chunks.
 
 ## Windows-specific Notes
 
