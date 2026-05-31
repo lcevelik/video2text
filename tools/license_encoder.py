@@ -28,7 +28,8 @@ def encode_license_file(input_path: Path, output_path: Path):
     content_bytes = content.encode('utf-8')
 
     # Simple XOR with key (not cryptographically secure, just obfuscation)
-    key = b'FonixFlow2024VideoTranscription'
+    from app.transcriber import LICENSE_XOR_KEY
+    key = LICENSE_XOR_KEY
     xor_bytes = bytearray()
     for i, byte in enumerate(content_bytes):
         xor_bytes.append(byte ^ key[i % len(key)])
@@ -63,7 +64,8 @@ def decode_license_file(input_path: Path) -> str:
     xor_bytes = base64.b64decode(encoded)
 
     # XOR with same key to decode
-    key = b'FonixFlow2024VideoTranscription'
+    from app.transcriber import LICENSE_XOR_KEY
+    key = LICENSE_XOR_KEY
     content_bytes = bytearray()
     for i, byte in enumerate(xor_bytes):
         content_bytes.append(byte ^ key[i % len(key)])

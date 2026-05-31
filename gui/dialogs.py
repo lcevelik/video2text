@@ -1,10 +1,6 @@
 import webbrowser
-import requests
-import platform
 import os
 import logging
-from datetime import datetime
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 from PySide6.QtWidgets import (
@@ -86,7 +82,8 @@ class LicenseKeyDialog(QDialog):
                     with open(license_file_encoded, 'rb') as f:
                         encoded = f.read()
                     xor_bytes = base64.b64decode(encoded)
-                    decode_key = b'FonixFlow2024VideoTranscription'
+                    from app.transcriber import LICENSE_XOR_KEY
+                    decode_key = LICENSE_XOR_KEY
                     content_bytes = bytearray()
                     for i, byte in enumerate(xor_bytes):
                         content_bytes.append(byte ^ decode_key[i % len(decode_key)])
@@ -124,6 +121,7 @@ class LicenseKeyDialog(QDialog):
                 "Content-Type": "application/x-www-form-urlencoded"
             }
             data = {"license_key": key}
+            import requests
             resp = requests.post(url, headers=headers, data=data, timeout=10)
             result = resp.json()
             if result.get("status") == "active":
@@ -165,11 +163,7 @@ from gui.icons import get_icon
 logger = logging.getLogger(__name__)
 
 # Helper function to set icon with proper sizing
-def set_icon(widget, icon_name, size=29):
-    """Set icon on a widget with proper size."""
-    from PySide6.QtCore import QSize
-    widget.setIcon(get_icon(icon_name))
-    widget.setIconSize(QSize(size, size))
+from gui.utils import set_icon
 
 
 class RecordingDialog(QDialog):
@@ -264,9 +258,6 @@ class RecordingDialog(QDialog):
         self.timer.timeout.connect(self.update_duration)
 
     def start_recording(self):
-        with open("debug_dialog_button_click.txt", "a") as f:
-            import datetime
-            f.write(f"{datetime.datetime.now()}: DIALOG BUTTON CLICKED!\n")
         # Check device availability first
         if not self.check_audio_devices():
             # Show helpful message with retry option
@@ -630,6 +621,7 @@ class LogsDialog(QDialog):
         log_dir = log_file.parent
         
         try:
+            import platform
             if platform.system() == 'Darwin':  # macOS
                 subprocess.run(['open', str(log_dir)])
             elif platform.system() == 'Windows':
@@ -659,10 +651,11 @@ class LogsDialog(QDialog):
     def save_logs(self):
         """Save logs to a file."""
         logs = self.log_text.toPlainText()
+        from datetime import datetime as _dt
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             self.tr("Save Logs"),
-            f"fonixflow_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            f"fonixflow_logs_{_dt.now().strftime('%Y%m%d_%H%M%S')}.txt",
             self.tr("Text Files (*.txt);;All Files (*)")
         )
         if file_path:

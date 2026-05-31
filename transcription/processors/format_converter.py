@@ -9,37 +9,9 @@ from typing import Dict, List, Any
 class FormatConverter:
     """Converts transcription results to various output formats."""
 
-    # Common language code to name mapping
-    LANGUAGE_NAMES = {
-        'en': 'English',
-        'es': 'Spanish',
-        'fr': 'French',
-        'de': 'German',
-        'it': 'Italian',
-        'pt': 'Portuguese',
-        'pl': 'Polish',
-        'nl': 'Dutch',
-        'ru': 'Russian',
-        'zh': 'Chinese',
-        'ja': 'Japanese',
-        'ko': 'Korean',
-        'ar': 'Arabic',
-        'he': 'Hebrew',
-        'th': 'Thai',
-        'vi': 'Vietnamese',
-        'tr': 'Turkish',
-        'cs': 'Czech',
-        'ro': 'Romanian',
-        'sv': 'Swedish',
-        'da': 'Danish',
-        'no': 'Norwegian',
-        'fi': 'Finnish',
-        'el': 'Greek',
-        'hi': 'Hindi',
-        'id': 'Indonesian',
-        'uk': 'Ukrainian',
-        'unknown': 'Unknown'
-    }
+    # Common language code to name mapping — imported from language_detection (single source of truth)
+    from transcription.language_detection import LANGUAGE_NAMES as _LANGUAGE_NAMES
+    LANGUAGE_NAMES = _LANGUAGE_NAMES
 
     @staticmethod
     def format_as_vtt(transcription_result: Dict[str, Any]) -> str:

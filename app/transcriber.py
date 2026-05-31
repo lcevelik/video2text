@@ -14,11 +14,12 @@ import torch
 import shutil
 import subprocess
 import platform
-from io import StringIO
-
 # Ensure sys.stderr is always a valid stream (prevents NoneType errors in frozen apps)
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
+
+# License encoding key — single source of truth (used by transcriber, dialogs, main_window)
+LICENSE_XOR_KEY = b'FonixFlow2024VideoTranscription'
 
 import whisper
 import threading
@@ -73,7 +74,10 @@ logger = logging.getLogger(__name__)
 
 # Global cache for loaded Whisper models to prevent reloading
 # Key: model_size (str), Value: whisper.model object
-_GLOBAL_MODEL_CACHE = {}
+# Evicts oldest model when MAX_CACHED_MODELS is reached to prevent memory exhaustion
+_MAX_CACHED_MODELS = 2  # Keep at most 2 models in memory (large=3GB, so 2 is ~6GB max)
+_GLOBAL_MODEL_CACHE = {}  # {model_size: model_object}
+_GLOBAL_CACHE_ACCESS_ORDER = []  # LRU tracking: most recent at end
 _GLOBAL_CACHE_LOCK = threading.Lock()
 
 
@@ -118,7 +122,7 @@ class ProgressInterceptor:
                     # Callback only accepts message
                     try:
                         self.progress_callback(f"Transcribing: {whisper_percent}%")
-                    except:
+                    except Exception:
                         pass
 
     def flush(self):
@@ -278,6 +282,10 @@ class Transcriber:
                 if self.model_size in _GLOBAL_MODEL_CACHE:
                     logger.info(f"Reusing cached Whisper model: {self.model_size}")
                     self.model = _GLOBAL_MODEL_CACHE[self.model_size]
+                    # Update LRU order
+                    if self.model_size in _GLOBAL_CACHE_ACCESS_ORDER:
+                        _GLOBAL_CACHE_ACCESS_ORDER.remove(self.model_size)
+                    _GLOBAL_CACHE_ACCESS_ORDER.append(self.model_size)
                     logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully (from cache)")
                     if progress_callback:
                         progress_callback("Model loaded successfully")
@@ -313,9 +321,19 @@ class Transcriber:
                 else:
                     raise
             
-            # Store in cache
+            # Store in cache with LRU eviction
             with _GLOBAL_CACHE_LOCK:
+                # Evict oldest model if cache is full
+                while len(_GLOBAL_MODEL_CACHE) >= _MAX_CACHED_MODELS and self.model_size not in _GLOBAL_MODEL_CACHE:
+                    evict_key = _GLOBAL_CACHE_ACCESS_ORDER.pop(0)
+                    evicted = _GLOBAL_MODEL_CACHE.pop(evict_key, None)
+                    if evicted is not None:
+                        del evicted
+                        logger.info(f"Evicted cached model '{evict_key}' to free memory")
                 _GLOBAL_MODEL_CACHE[self.model_size] = model
+                if self.model_size in _GLOBAL_CACHE_ACCESS_ORDER:
+                    _GLOBAL_CACHE_ACCESS_ORDER.remove(self.model_size)
+                _GLOBAL_CACHE_ACCESS_ORDER.append(self.model_size)
                 self.model = model
                 
             logger.info(f"OpenAI Whisper model '{self.model_size}' loaded successfully on {self.device}")
@@ -363,7 +381,11 @@ class Transcriber:
             logger.info(f"Using initial prompt: {initial_prompt[:100]}...")
 
         # Set up progress interception if callback provided
-        original_stderr = sys.stderr or open(os.devnull, "w")
+        original_stderr = sys.stderr
+        devnull_handle = None
+        if original_stderr is None:
+            devnull_handle = open(os.devnull, "w")
+            original_stderr = devnull_handle
         try:
             # Use standard OpenAI Whisper
             transcribe_kwargs = {
@@ -534,10 +556,9 @@ class Transcriber:
                 except TypeError:
                     try:
                         progress_callback("Transcription completed")
-                    except:
+                    except Exception:
                         pass
 
-            logger.info("Transcription completed successfully")
             return result
 
         except Exception as e:
@@ -545,6 +566,12 @@ class Transcriber:
             if sys.stderr != original_stderr:
                 sys.stderr = original_stderr
             raise RuntimeError(f"Transcription failed: {e}")
+        finally:
+            if devnull_handle is not None:
+                try:
+                    devnull_handle.close()
+                except Exception:
+                    pass
     
     def format_as_srt(self, transcription_result):
         """

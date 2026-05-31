@@ -315,6 +315,15 @@ class WASAPILoopbackCapture:
                             # Store chunk
                             self.audio_chunks.append(audio_data.copy())
 
+                            # Warn if memory usage is getting high (>500MB estimated)
+                            if len(self.audio_chunks) % 1000 == 0:
+                                import sys as _sys
+                                chunk_bytes = sum(c.nbytes for c in self.audio_chunks[-1000:])
+                                est_total_mb = (chunk_bytes * len(self.audio_chunks) / 1000) / (1024 * 1024)
+                                if est_total_mb > 500:
+                                    logger.warning(f"WASAPI audio buffer is large: ~{est_total_mb:.0f} MB ({len(self.audio_chunks)} chunks). "
+                                                  f"Consider stopping long recordings to free memory.")
+
                             # Call callback if provided
                             if self.callback:
                                 self.callback(audio_data, num_frames, None, None)

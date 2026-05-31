@@ -35,12 +35,8 @@ from app.version import __version__
 
 logger = logging.getLogger(__name__)
 
-# Helper function to set icon with proper sizing
-def set_icon(widget, icon_name, size=29):
-    """Set icon on a widget with proper size."""
-    from PySide6.QtCore import QSize
-    widget.setIcon(get_icon(icon_name))
-    widget.setIconSize(QSize(size, size))
+# Helper function to set icon with proper sizing — imported from gui.utils (single source of truth)
+from gui.utils import set_icon
 
 
 class DependencyLoaderThread(QThread):
@@ -98,7 +94,8 @@ class FonixFlowQt(QMainWindow):
         self.file_manager = FileManager(self)
 
         # License key state
-        logger.info(f"License: loading key from settings: {self.settings_manager.get('license_key', None)}")
+        _lk = self.settings_manager.get('license_key', None)
+        logger.info(f"License: loading key from settings: {_lk[:8]}..." if _lk else "License: no key in settings")
         self.license_key = self.settings_manager.get("license_key", None)
         self.license_valid = False
         self.check_license_key_on_startup()
@@ -221,7 +218,8 @@ class FonixFlowQt(QMainWindow):
         xor_bytes = base64.b64decode(encoded)
 
         # XOR with key to decode
-        key = b'FonixFlow2024VideoTranscription'
+        from app.transcriber import LICENSE_XOR_KEY
+        key = LICENSE_XOR_KEY
         content_bytes = bytearray()
         for i, byte in enumerate(xor_bytes):
             content_bytes.append(byte ^ key[i % len(key)])
@@ -268,7 +266,7 @@ class FonixFlowQt(QMainWindow):
 
         # Try encoded file first
         if license_file_encoded.exists():
-            logger.info(f"validate_license_key: checking key={key} in {license_file_encoded} (encoded)")
+            logger.info(f"validate_license_key: checking key={key[:8]}... in {license_file_encoded} (encoded)")
             try:
                 valid_keys = self._load_encoded_licenses(license_file_encoded)
                 if key.strip() in valid_keys:
@@ -279,7 +277,7 @@ class FonixFlowQt(QMainWindow):
 
         # Fall back to plaintext file (for development)
         if license_file_plain.exists():
-            logger.info(f"validate_license_key: checking key={key} in {license_file_plain}")
+            logger.info(f"validate_license_key: checking key={key[:8]}... in {license_file_plain}")
             try:
                 with open(license_file_plain, "r") as f:
                     valid_keys = [line.strip() for line in f if line.strip()]
@@ -563,7 +561,7 @@ class FonixFlowQt(QMainWindow):
                 finally:
                     try:
                         self.audio_preview_worker.deleteLater()
-                    except:
+                    except Exception:
                         pass
                     self.audio_preview_worker = None
 
@@ -582,7 +580,7 @@ class FonixFlowQt(QMainWindow):
                 finally:
                     try:
                         self.recording_worker.deleteLater()
-                    except:
+                    except Exception:
                         pass
                     self.recording_worker = None
 
@@ -591,14 +589,17 @@ class FonixFlowQt(QMainWindow):
                 try:
                     if self.transcription_worker.isRunning():
                         logger.info("Stopping transcription worker...")
-                        self.transcription_worker.terminate()
-                        self.transcription_worker.wait(3000)
+                        self.transcription_worker.cancel()
+                        if not self.transcription_worker.wait(5000):
+                            logger.warning("Transcription worker did not stop gracefully, terminating...")
+                            self.transcription_worker.terminate()
+                            self.transcription_worker.wait(1000)
                 except Exception as e:
                     logger.warning(f"Error stopping transcription worker: {e}")
                 finally:
                     try:
                         self.transcription_worker.deleteLater()
-                    except:
+                    except Exception:
                         pass
                     self.transcription_worker = None
         except Exception as e:
@@ -1737,7 +1738,7 @@ class FonixFlowQt(QMainWindow):
             self.basic_record_progress_label.setText(self.tr("Ready to record"))
         # Update info label in record tab (after stopping)
         if hasattr(self, 'basic_upload_progress_label'):
-            self.basic_record_progress_label.setText(self.tr("Ready to transcribe"))
+            self.basic_upload_progress_label.setText(self.tr("Ready to transcribe"))
         # Update after stopping info
         if hasattr(self, 'drop_zone') and hasattr(self.drop_zone, 'text_label'):
             self.drop_zone.text_label.setText(self.tr("Drag and drop video/audio file"))
@@ -1816,6 +1817,12 @@ class FonixFlowQt(QMainWindow):
     def start_audio_preview(self):
         """Start the audio preview worker for continuous VU meter updates."""
         if self.audio_preview_worker is None or not self.audio_preview_worker.isRunning():
+            # Disconnect old worker's signal if it exists
+            if self.audio_preview_worker is not None:
+                try:
+                    self.audio_preview_worker.audio_levels_update.disconnect(self.update_audio_levels)
+                except Exception:
+                    pass
             self.audio_preview_worker = AudioPreviewWorker(parent=self)
             self.audio_preview_worker.audio_levels_update.connect(self.update_audio_levels)
             self.audio_preview_worker.start()

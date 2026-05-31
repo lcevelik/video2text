@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fonixflow"
+version = "1.1.0"
+description = "Desktop transcription app using OpenAI Whisper"
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.10"
+authors = [
+    {name = "FonixFlow Team"},
+]
+keywords = ["transcription", "whisper", "audio", "video", "subtitles"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
+dependencies = [
+    "openai-whisper>=20231117",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "ffmpeg-python>=0.2.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0",
+    "sounddevice>=0.4.6",
+    "scipy>=1.10.0",
+    "pydub>=0.25.1",
+    "Pillow>=10.0.0",
+    "PySide6>=6.6.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.0",
+    "packaging>=21.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+macos = [
+    "pyobjc-framework-ScreenCaptureKit>=9.0",
+    "pyobjc-framework-AVFoundation>=9.0",
+    "pyobjc-framework-Cocoa>=9.0",
+]
+windows = [
+    "comtypes>=1.4.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+fonixflow = "app.fonixflow_qt:main"
+
+[project.urls]
+Homepage = "https://fonixflow.com"
+Documentation = "https://fonixflow.com/docs"
+Repository = "https://github.com/fonixflow/fonixflow"
+
+[tool.setuptools.packages.find]
+include = ["app*", "gui*", "transcription*", "tools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # Line length handled by formatter

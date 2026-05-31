@@ -55,8 +55,12 @@ class ThemeManager:
         Returns:
             True if dark mode should be used, False otherwise
         """
-        # Always return dark mode (as per original logic)
-        return True
+        if self.theme_mode == "dark":
+            return True
+        elif self.theme_mode == "light":
+            return False
+        else:  # "auto"
+            return self.detect_system_theme()
 
     def set_theme_mode(self, mode: str) -> None:
         """

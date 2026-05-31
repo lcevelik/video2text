@@ -58,11 +58,13 @@ This module has been optimized for performance and code quality:
 """
 
 import os
+import sys
 import logging
 import tempfile
 import time
 import threading
 import queue
+import subprocess
 from typing import Dict, List, Optional, Any, Tuple
 from app.transcriber import Transcriber
 from transcription.processors import FormatConverter, DiagnosticsLogger, AudioProcessor
@@ -71,40 +73,20 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+def _subprocess_run(cmd, **kwargs):
+    """Wrapper for subprocess.run with CREATE_NO_WINDOW on Windows and default timeout."""
+    if sys.platform == 'win32':
+        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
+    kwargs.setdefault('timeout', 120)  # 2 minute default timeout
+    return subprocess.run(cmd, **kwargs)
+
+
 class EnhancedTranscriber(Transcriber):
     """Enhanced transcriber with multi-language support."""
 
-    # Common language code to name mapping
-    LANGUAGE_NAMES = {
-        'en': 'English',
-        'es': 'Spanish',
-        'fr': 'French',
-        'de': 'German',
-        'it': 'Italian',
-        'pt': 'Portuguese',
-        'pl': 'Polish',
-        'nl': 'Dutch',
-        'ru': 'Russian',
-        'zh': 'Chinese',
-        'ja': 'Japanese',
-        'ko': 'Korean',
-        'ar': 'Arabic',
-        'he': 'Hebrew',
-        'th': 'Thai',
-        'vi': 'Vietnamese',
-        'tr': 'Turkish',
-        'cs': 'Czech',
-        'ro': 'Romanian',
-        'sv': 'Swedish',
-        'da': 'Danish',
-        'no': 'Norwegian',
-        'fi': 'Finnish',
-        'el': 'Greek',
-        'hi': 'Hindi',
-        'id': 'Indonesian',
-        'uk': 'Ukrainian',
-        'unknown': 'Unknown'
-    }
+    # Common language code to name mapping — imported from language_detection (single source of truth)
+    from transcription.language_detection import LANGUAGE_NAMES as _LANGUAGE_NAMES
+    LANGUAGE_NAMES = _LANGUAGE_NAMES
 
     # CLASS-LEVEL model cache is now handled in the base Transcriber class
     # This ensures ALL instances share the same loaded models automatically
@@ -124,6 +106,7 @@ class EnhancedTranscriber(Transcriber):
 
         # Get ffmpeg path from environment (set by AudioExtractor)
         self.ffmpeg_bin = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+        self.ffprobe_bin = os.environ.get('FFPROBE_BINARY', 'ffprobe')
 
         # Initialize processors
         self.diagnostics_logger = DiagnosticsLogger(enable_diagnostics)
@@ -193,7 +176,7 @@ class EnhancedTranscriber(Transcriber):
                     import subprocess
                     try:
                         ffprobe_cmd = [
-                            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                            self.ffprobe_bin, '-v', 'error', '-show_entries', 'format=duration',
                             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
                         ]
                         duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
@@ -328,7 +311,7 @@ class EnhancedTranscriber(Transcriber):
                     import subprocess
                     try:
                         ffprobe_cmd = [
-                            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                            self.ffprobe_bin, '-v', 'error', '-show_entries', 'format=duration',
                             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
                         ]
                         duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
@@ -709,7 +692,7 @@ class EnhancedTranscriber(Transcriber):
                 '-t',str(duration),
                 '-ar','16000','-ac','1', temp_path
             ]
-            subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            _subprocess_run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
             # OPTIMIZATION: Reuse cached model instance
             if self._audio_fallback_model is None:
@@ -779,7 +762,7 @@ class EnhancedTranscriber(Transcriber):
 
             try:
                 # Use ffmpeg to extract the specific time range
-                subprocess.run([
+                _subprocess_run([
                     self.ffmpeg_bin, '-i', audio_path,
                     '-ss', str(start_time),
                     '-t', str(duration),
@@ -957,7 +940,7 @@ class EnhancedTranscriber(Transcriber):
 
             try:
                 # Use ffmpeg to extract the specific time range
-                subprocess.run([
+                _subprocess_run([
                     self.ffmpeg_bin, '-i', audio_path,
                     '-ss', str(start_time),
                     '-t', str(duration),
@@ -1150,7 +1133,7 @@ class EnhancedTranscriber(Transcriber):
         # Get total duration
         try:
             ffprobe_cmd = [
-                'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                self.ffprobe_bin, '-v', 'error', '-show_entries', 'format=duration',
                 '-of', 'default=noprint_wrappers=1:nokey=1', audio_path
             ]
             duration_output = subprocess.check_output(ffprobe_cmd, stderr=subprocess.STDOUT)
@@ -1163,7 +1146,7 @@ class EnhancedTranscriber(Transcriber):
             temp_sample = tempfile.NamedTemporaryFile(delete=False, suffix='.wav'); temp_sample.close()
             try:
                 ffmpeg_cmd = [self.ffmpeg_bin,'-y','-i',audio_path,'-t',str(sample_window),'-ar','16000','-ac','1',temp_sample.name]
-                subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
+                _subprocess_run(ffmpeg_cmd, capture_output=True, check=True)
                 r = self.transcribe(temp_sample.name, language=None, word_timestamps=False)
                 return ([{'time':0.0,'language':r.get('language','unknown')}], 0.0)
             finally:
@@ -1192,7 +1175,7 @@ class EnhancedTranscriber(Transcriber):
                     '-t',str(sample_window),
                     '-ar','16000','-ac','1',temp_sample.name
                 ]
-                subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
+                _subprocess_run(ffmpeg_cmd, capture_output=True, check=True)
                 if progress_callback:
                     progress_callback(f"Language sampling {idx+1}/{len(points)} @ {start_time:.0f}s")
                 r = self.transcribe(temp_sample.name, language=None, word_timestamps=False)
@@ -1613,7 +1596,7 @@ class EnhancedTranscriber(Transcriber):
 
         try:
             # Extract chunk using ffmpeg with timeout
-            subprocess.run([
+            _subprocess_run([
                 self.ffmpeg_bin, '-y', '-i', audio_path,
                 '-ss', str(chunk_start),
                 '-t', str(chunk_duration),
@@ -1763,7 +1746,7 @@ class EnhancedTranscriber(Transcriber):
 
                         try:
                             # Extract with ffmpeg
-                            subprocess.run([
+                            _subprocess_run([
                                 self.ffmpeg_bin, '-y', '-i', audio_path,
                                 '-ss', str(start_time),
                                 '-t', str(duration),
@@ -2094,7 +2077,7 @@ class EnhancedTranscriber(Transcriber):
 
         try:
             # Extract chunk using ffmpeg with timeout
-            subprocess.run([
+            _subprocess_run([
                 self.ffmpeg_bin, '-y', '-i', audio_path,
                 '-ss', str(chunk_start),
                 '-t', str(chunk_duration),

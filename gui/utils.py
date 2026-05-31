@@ -56,6 +56,20 @@ def has_gpu_available() -> bool:
         return False
 
 
+def set_icon(widget, icon_name: str, size: int = 29):
+    """Set icon on a widget with proper size.
+
+    Args:
+        widget: QPushButton or similar widget
+        icon_name: Icon name (without extension)
+        size: Icon size in pixels (default 29)
+    """
+    from PySide6.QtCore import QSize
+    from gui.icons import get_icon
+    widget.setIcon(get_icon(icon_name))
+    widget.setIconSize(QSize(size, size))
+
+
 def get_platform():
     """Get the current operating system platform."""
     system = platform.system()

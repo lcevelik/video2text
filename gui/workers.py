@@ -1,5 +1,6 @@
 from PySide6.QtCore import QThread, Signal
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -11,14 +12,14 @@ class AudioPreviewWorker(QThread):
         super().__init__(parent)
         self.mic_device = mic_device
         self.speaker_device = speaker_device
-        self.is_running = True
+        self._stop_event = threading.Event()
         self.backend = None
         self._cleaned_up = False
 
     def stop(self):
         """Stop the worker thread gracefully."""
         logger.info("AudioPreviewWorker.stop() called")
-        self.is_running = False
+        self._stop_event.set()
         if self.backend:
             self.backend.is_recording = False
             # Don't cleanup here - let the finally block in run() handle it
@@ -50,15 +51,21 @@ class AudioPreviewWorker(QThread):
             self.backend.start_recording()
             last_mic_level = 0.0
             last_speaker_level = 0.0
-            while self.is_running:
+            while not self._stop_event.is_set():
                 mic_level = 0.0
-                if self.backend.mic_chunks:
-                    mic_chunk = self.backend.mic_chunks[-1]
-                    mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                try:
+                    if self.backend.mic_chunks:
+                        mic_chunk = self.backend.mic_chunks[-1]
+                        mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                except (IndexError, ValueError):
+                    pass
                 speaker_level = 0.0
-                if self.backend.speaker_chunks:
-                    speaker_chunk = self.backend.speaker_chunks[-1]
-                    speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                try:
+                    if self.backend.speaker_chunks:
+                        speaker_chunk = self.backend.speaker_chunks[-1]
+                        speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                except (IndexError, ValueError):
+                    pass
                 if abs(mic_level - last_mic_level) > 0.01 or abs(speaker_level - last_speaker_level) > 0.01:
                     self.audio_levels_update.emit(mic_level, speaker_level)
                     last_mic_level = mic_level
@@ -143,11 +150,11 @@ class RecordingWorker(QThread):
         self.enable_filters = enable_filters
         self.time_limit = time_limit
         self.backend = None
-        self.is_recording = True
+        self._stop_event = threading.Event()
 
     def stop(self):
         """Stop the recording."""
-        self.is_recording = False
+        self._stop_event.set()
         if self.backend:
             self.backend.is_recording = False
 
@@ -219,17 +226,23 @@ class RecordingWorker(QThread):
             import sounddevice as sd
             last_mic_level = 0.0
             last_speaker_level = 0.0
-            while self.is_recording:
+            while not self._stop_event.is_set():
                 # Calculate mic level
                 mic_level = 0.0
-                if self.backend.mic_chunks:
-                    mic_chunk = self.backend.mic_chunks[-1]
-                    mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                try:
+                    if self.backend.mic_chunks:
+                        mic_chunk = self.backend.mic_chunks[-1]
+                        mic_level = float(np.clip(np.abs(mic_chunk).max(), 0.0, 1.0))
+                except (IndexError, ValueError):
+                    pass
                 # Calculate speaker level
                 speaker_level = 0.0
-                if self.backend.speaker_chunks:
-                    speaker_chunk = self.backend.speaker_chunks[-1]
-                    speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                try:
+                    if self.backend.speaker_chunks:
+                        speaker_chunk = self.backend.speaker_chunks[-1]
+                        speaker_level = float(np.clip(np.abs(speaker_chunk).max(), 0.0, 1.0))
+                except (IndexError, ValueError):
+                    pass
                 # Debug logging for chunk sizes and levels
                 logger.debug(f"VU DEBUG: mic_chunks={len(self.backend.mic_chunks)}, speaker_chunks={len(self.backend.speaker_chunks)}, mic_level={mic_level:.3f}, speaker_level={speaker_level:.3f}")
                 # Only emit if changed
@@ -249,7 +262,7 @@ class RecordingWorker(QThread):
                     if elapsed >= self.time_limit:
                         logger.info(f"Recording time limit reached ({self.time_limit}s)")
                         self.status_update.emit("Time limit reached")
-                        self.is_recording = False
+                        self._stop_event.set()
                         break
 
                 sd.sleep(50)
@@ -449,7 +462,7 @@ class TranscriptionWorker(QThread):
         self.use_deep_scan = use_deep_scan
         self.enable_filters = enable_filters
         self._transcriber = None
-        self.cancel_requested = False
+        self._cancel_event = threading.Event()
         self.allowed_languages: List[str] = []
 
     def run(self):
@@ -461,7 +474,7 @@ class TranscriptionWorker(QThread):
 
             # Stage 1: Audio extraction (1-2%)
             self.progress_update.emit(self.tr("Extracting audio..."), 1)
-            if self.cancel_requested:
+            if self._cancel_event.is_set():
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
@@ -471,12 +484,12 @@ class TranscriptionWorker(QThread):
             def audio_progress_callback(message, percentage):
                 overall_pct = 1 + int((percentage / 100.0) * 1)
                 self.progress_update.emit(message, overall_pct)
-                if self.cancel_requested:
+                if self._cancel_event.is_set():
                     raise Exception("Transcription cancelled.")
 
             audio_path = extractor.extract_audio(self.video_path,
                                                 progress_callback=audio_progress_callback)
-            if self.cancel_requested:
+            if self._cancel_event.is_set():
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
@@ -497,7 +510,7 @@ class TranscriptionWorker(QThread):
                 logger.warning(f"Could not validate audio file size: {e}")
 
             self.progress_update.emit(f"Audio extracted successfully", 2)
-            if self.cancel_requested:
+            if self._cancel_event.is_set():
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
@@ -519,7 +532,7 @@ class TranscriptionWorker(QThread):
             elif is_recorded_file:
                 logger.info("Skipping audio filters - file is a recorded file (filters already applied)")
 
-            if self.cancel_requested:
+            if self._cancel_event.is_set():
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
@@ -539,7 +552,7 @@ class TranscriptionWorker(QThread):
                 transcriber.allowed_languages = self.allowed_languages
 
             self.progress_update.emit(f"Model loaded successfully", 5)
-            if self.cancel_requested:
+            if self._cancel_event.is_set():
                 self.transcription_error.emit("Transcription cancelled.")
                 return
 
@@ -554,7 +567,7 @@ class TranscriptionWorker(QThread):
             # Smooth auto-incrementing progress updater (runs in background)
             def auto_progress_updater():
                 nonlocal last_progress_pct
-                while auto_progress_active and not self.cancel_requested:
+                while auto_progress_active and not self._cancel_event.is_set():
                     time.sleep(0.5)
                     with progress_lock:
                         if last_progress_pct < 98:  # Don't go past 98% automatically
@@ -844,13 +857,13 @@ class TranscriptionWorker(QThread):
             # Clean up temp file on error
             try:
                 os.unlink(temp_path)
-            except:
+            except Exception:
                 pass
             raise e
 
     def cancel(self):
         """Request cancellation of current transcription (chunk-level for multi-language)."""
-        self.cancel_requested = True
+        self._cancel_event.set()
         if self._transcriber and hasattr(self._transcriber, 'request_cancel'):
             self._transcriber.request_cancel()
         self.progress_update.emit("Cancellation requested...", 95)

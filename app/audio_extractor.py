@@ -294,9 +294,9 @@ class AudioExtractor:
         if media_path.suffix.lower() == '.ogg':
             try:
                 import soundfile as sf
-                test_data, test_sr = sf.read(str(media_path))
+                info = sf.info(str(media_path))
                 # Check if it's already 16kHz mono
-                if test_sr == 16000 and (len(test_data.shape) == 1 or test_data.shape[1] == 1):
+                if info.samplerate == 16000 and info.channels == 1:
                     logger.info(f"Source OGG is already optimal format (16kHz mono), using directly")
                     return str(media_path)
             except Exception as e:
@@ -306,9 +306,9 @@ class AudioExtractor:
         if media_path.suffix.lower() == '.wav':
             try:
                 import soundfile as sf
-                test_data, test_sr = sf.read(str(media_path))
+                info = sf.info(str(media_path))
                 # Check if it's already 16kHz mono
-                if test_sr == 16000 and (len(test_data.shape) == 1 or test_data.shape[1] == 1):
+                if info.samplerate == 16000 and info.channels == 1:
                     logger.info(f"Source WAV is already optimal format (16kHz mono), using directly")
                     return str(media_path)
             except Exception as e:
@@ -417,10 +417,10 @@ class AudioExtractor:
             # Try to validate audio file can be read
             try:
                 import soundfile as sf
-                test_data, test_sr = sf.read(output_path)
-                if len(test_data) == 0:
+                info = sf.info(output_path)
+                if info.frames == 0:
                     raise RuntimeError("Extracted audio file contains no audio samples")
-                logger.info(f"Audio validation: {len(test_data)} samples at {test_sr}Hz")
+                logger.info(f"Audio validation: {info.frames} samples at {info.samplerate}Hz")
             except ImportError:
                 logger.debug("soundfile not available, skipping audio validation")
             except Exception as e:
